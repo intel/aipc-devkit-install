@@ -10,7 +10,7 @@ AI PC Dev Kit Installation Scripts
 2. Open an administrative PowerShell
 3. Enable PowerShell scripts execution, either in dev Settings or by running the command:  
    ```Set-ExecutionPolicy -ExecutionPolicy bypass -Force```
-4. Download and rename the file IntelOpenVinoSetupV2.txt to IntelOpenVinoSetupV2.ps1. Run the script ```./IntelOpenVinoSetupV2.ps1```
+4. Download and rename the file IntelOpenVinoSetupV5.txt to IntelOpenVinoSetupV5.ps1. Run the script ```./IntelOpenVinoSetupV5.ps1```
    (Note that there may be some installation errors due to connection issue when running the installation script. Please run multiple times of this installation script if you get errors when running the following command.)
 5. The script downloads and runs through installation of various AI software. Please accept licenses accordingly.  
 6. Run the command ```benchmark_app -h```.  The last line of output should look something like this:
