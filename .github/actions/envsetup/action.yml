@@ -9,16 +9,28 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download and Install Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Move Python to C:\Python310
       run: |
-        Invoke-WebRequest -Uri "https://www.python.org/ftp/python/${{ inputs.python-version }}/python-${{ inputs.python-version }}-amd64.exe" -OutFile "python-installer.exe"
-        Start-Process -FilePath "python-installer.exe" -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 TargetDir=C:\Python310" -Wait
+        $pythonPath = (Get-Command python).Path
+        $pythonDir = Split-Path -Parent $pythonPath
+        Move-Item -Path $pythonDir\* -Destination C:\Python310 -Force
+        Remove-Item -Path $pythonDir -Recurse -Force
       shell: pwsh
 
     - name: Verify Python Installation
       run: |
-        dir C:\Python310
-        C:\Python310\python.exe --version
+        if (Test-Path -Path "C:\Python310\python.exe") {
+          Write-Host "Python installed successfully."
+          C:\Python310\python.exe --version
+        } else {
+          Write-Error "Python installation failed."
+          exit 1
+        }
       shell: pwsh
 
     - name: Install dependencies
