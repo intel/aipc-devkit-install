@@ -17,6 +17,7 @@ runs:
 
     - name: Verify Python Installation
       run: |
+        dir C:\Python310
         C:\Python310\python.exe --version
       shell: pwsh
 
@@ -25,4 +26,12 @@ runs:
         C:\Python310\python.exe -m pip install --upgrade pip
         C:\Python310\python.exe -m pip install pyinstaller
         C:\Python310\python.exe -m pip install pyinstaller-versionfile
+      shell: pwsh
+
+    - name: Set up environment variables for PyInstaller
+      run: |
+        $env:PYTHONPATH = "C:\Python310"
+        $env:PATH += ";C:\Python310;C:\Python310\Scripts"
+        [Environment]::SetEnvironmentVariable("PYTHONPATH", $env:PYTHONPATH, [EnvironmentVariableTarget]::Process)
+        [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::Process)
       shell: pwsh
