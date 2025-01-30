@@ -50,7 +50,10 @@ runs:
 
     - name: Install dependencies
       run: |
+        python --version
         python -m pip install --upgrade pip
+        python --version
         python -m pip install pyinstaller
+        python --version
         python -m pip install pyinstaller-versionfile
       shell: pwsh
