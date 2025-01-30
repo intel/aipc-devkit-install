@@ -2,7 +2,7 @@
 
 ### License
 
-AIPC-DEVKIT-INSTALL is licensed under the terms in [LICENSE](LICENSE). By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
+AIPC-DEVKIT-INSTALL is licensed under the terms in [LICENSE](License.txt). By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ### Sign your work
 
@@ -55,3 +55,43 @@ Use your real name (sorry, no pseudonyms or anonymous contributions.)
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
+
+## Forms of contribution
+
+### Provide Feedback
+
+* **Report bugs / issues**
+    If you experience faulty behavior in OpenVINO or its components, you can [create a new issue](https://github.com/intel/aipc-devkit-install/issues) in the GitHub issue tracker.
+* **Propose new features / improvements**
+    If you have a suggestion for improvement or idea is already well defined, you can also create a
+    [Feature Request Issue](https://github.com/intel/aipc-devkit-install/issues)
+
+In both cases, provide a detailed description, including use cases, benefits, and potential challenges. If your points are especially well aligned with the product vision, they will be included in the development roadmap.
+
+### Contribute Code Changes
+
+If you want to help improving choose one of the issues reported in [GitHub Issue Tracker](https://github.com/intel/aipc-devkit-install/issues) and create a Pull Request addressing it. Before creating a new PR, check if nobody is already working on it. In such a case, you may still help, having aligned with the other developer.
+
+### Submit a PR with your changes
+
+Follow our [Good Pull Request guidelines](#general-rules-of-a-good-pull-request). Please remember about linking your Pull Request to the issue it addresses. 
+
+### Wait for a review
+
+We'll make sure to review your Pull Request as soon as possible and provide you with our feedback. 
+
+## General Rules of a Good Pull Request
+
+* Create your own fork of the repository and use it to create PRs. Avoid creating change branches in the main repository.
+* Choose a proper branch for your work and create your own branch based on it.
+* Give your branches, commits, and Pull Requests meaningful names and descriptions. It helps to track changes later.
+* Make your PRs small - each PR should address one issue. Remove all changes unrelated to the PR.
+* For Work In Progress, use a Draft PR.
+
+## Need Additional Help? Check these Articles
+
+* [How to create a fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) 
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the terms stated in the [LICENSE](License.txt) file.

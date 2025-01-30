@@ -1,0 +1,10 @@
+Version: 1.0.0.dev0
+CompanyName: Intel® Corporation
+FileDescription: Intel® AI PC Development Kit
+InternalName: Intel® AI PC Development Kit
+LegalCopyright: Copyright © Intel Corporation. All rights reserved
+OriginalFilename: installer.exe
+ProductName: Intel® AI PC Development Kit
+Translation:
+  - langID: 0x0409
+    charsetID: 1200
