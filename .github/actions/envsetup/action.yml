@@ -1,5 +1,5 @@
 name: Setup Python and Package
-description: This action sets up Python and Package installation.
+description: This action sets up Python and installs necessary packages.
 runs:
   using: "composite"
   steps:
@@ -13,4 +13,4 @@ runs:
         python -m pip install --upgrade pip
         pip install pyinstaller
         pip install pyinstaller-versionfile
-
+      shell: pwsh
