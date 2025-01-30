@@ -14,3 +14,11 @@ runs:
         pip install pyinstaller
         pip install pyinstaller-versionfile
       shell: pwsh
+    
+    - name: Set up environment variables for PyInstaller
+      run: |
+        $env:PYTHONPATH = "${{ runner.tool_cache }}\Python\${{ inputs.python-version }}\x64"
+        $env:PATH += ";${{ runner.tool_cache }}\Python\${{ inputs.python-version }}\x64\Scripts"
+        [Environment]::SetEnvironmentVariable("PYTHONPATH", $env:PYTHONPATH, [EnvironmentVariableTarget]::Process)
+        [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::Process)
+      shell: pwsh

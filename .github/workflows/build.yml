@@ -36,6 +36,7 @@ jobs:
   BanditScan:
     name: BanditScan
     runs-on: windows-latest
+    needs: [BuildStage]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -50,6 +51,7 @@ jobs:
   ClamAVScan:
     name: ClamAVScan
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -64,6 +66,7 @@ jobs:
   SemgrepScan:
     name: SemgrepScan
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -77,6 +80,7 @@ jobs:
   TrivyScan:
     name: TrivyScan
     runs-on: windows-latest
+    needs: [BuildStage]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
