@@ -22,6 +22,7 @@ jobs:
 
     - name: Set up Python and Package
       uses: ./.github/actions/envsetup
+      shell: pwsh
 
     - name: Run Build
       run: .\build\Build.bat
