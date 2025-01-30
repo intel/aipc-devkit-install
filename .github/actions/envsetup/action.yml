@@ -14,12 +14,14 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Move Python to C:\Python310
+    - name: Copy Python to C:\Python310
       run: |
         $pythonPath = (Get-Command python).Path
         $pythonDir = Split-Path -Parent $pythonPath
-        Move-Item -Path $pythonDir\* -Destination C:\Python310 -Force
-        Remove-Item -Path $pythonDir -Recurse -Force
+        if (-Not (Test-Path -Path "C:\Python310")) {
+          New-Item -ItemType Directory -Path "C:\Python310"
+        }
+        Copy-Item -Path "$pythonDir\*" -Destination "C:\Python310" -Recurse -Force
       shell: pwsh
 
     - name: Verify Python Installation
@@ -33,17 +35,22 @@ runs:
         }
       shell: pwsh
 
-    - name: Install dependencies
-      run: |
-        C:\Python310\python.exe -m pip install --upgrade pip
-        C:\Python310\python.exe -m pip install pyinstaller
-        C:\Python310\python.exe -m pip install pyinstaller-versionfile
-      shell: pwsh
-
-    - name: Set up environment variables for PyInstaller
+    - name: Set up environment variables for Python
       run: |
         $env:PYTHONPATH = "C:\Python310"
-        $env:PATH += ";C:\Python310;C:\Python310\Scripts"
+        $env:PATH = "C:\Python310;C:\Python310\Scripts;" + $env:PATH
         [Environment]::SetEnvironmentVariable("PYTHONPATH", $env:PYTHONPATH, [EnvironmentVariableTarget]::Process)
         [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::Process)
+      shell: pwsh
+
+    - name: Verify Python in PATH
+      run: |
+        python --version
+      shell: pwsh
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pyinstaller
+        python -m pip install pyinstaller-versionfile
       shell: pwsh
