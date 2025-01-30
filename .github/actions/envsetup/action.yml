@@ -1,24 +1,28 @@
 name: Setup Python and Package
 description: This action sets up Python and installs necessary packages.
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.10.11'
+
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10.11'
+    - name: Download and Install Python
+      run: |
+        Invoke-WebRequest -Uri "https://www.python.org/ftp/python/${{ inputs.python-version }}/python-${{ inputs.python-version }}-amd64.exe" -OutFile "python-installer.exe"
+        Start-Process -FilePath "python-installer.exe" -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 TargetDir=C:\Python310" -Wait
+      shell: pwsh
+
+    - name: Verify Python Installation
+      run: |
+        C:\Python310\python.exe --version
+      shell: pwsh
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        pip install pyinstaller-versionfile
-      shell: pwsh
-    
-    - name: Set up environment variables for PyInstaller
-      run: |
-        $env:PYTHONPATH = "${{ runner.tool_cache }}\Python\${{ inputs.python-version }}\x64"
-        $env:PATH += ";${{ runner.tool_cache }}\Python\${{ inputs.python-version }}\x64\Scripts"
-        [Environment]::SetEnvironmentVariable("PYTHONPATH", $env:PYTHONPATH, [EnvironmentVariableTarget]::Process)
-        [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::Process)
+        C:\Python310\python.exe -m pip install --upgrade pip
+        C:\Python310\python.exe -m pip install pyinstaller
+        C:\Python310\python.exe -m pip install pyinstaller-versionfile
       shell: pwsh
