@@ -1,0 +1,130 @@
+name: CI for aipc-devkit
+
+on:
+  push:
+    branches:
+      - ci_aipc_devkit
+
+env:
+    PythonVersion: "3.10.11"
+    BanditVersion: "1.8.0"
+    SemgrepVersion: "1.100.0"
+    TrivyVersion: "0.58.0"
+    CoverityProject: "Python-Test-Project"
+    CodeCoverageThreshold: '50'
+
+jobs:
+  BuildStage:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python and Package
+      uses: ./.github/actions/envsetup
+
+    - name: Run Build
+      run: .\build\Build.bat
+      shell: pwsh
+    
+    - name: Upload binary as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ArtifactAIPC
+        path: dist/
+  
+  BanditScan:
+    name: BanditScan
+    runs-on: windows-latest
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunBanditScan
+        id: BanditScan
+        uses: ./.github/actions/scans/bandit
+        with:
+          python_version: ${{ env.PythonVersion }}
+          bandit_version: ${{ env.BanditVersion }}
+          report_name: "bandit-results"
+
+  ClamAVScan:
+    name: ClamAVScan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunClamAVScan
+        id: ClamAVScan
+        uses: ./.github/actions/scans/clamav
+        with:
+          report_name: "clamav-results"
+          exclude_paths: "node_modules,.git,__pycache__"
+
+  # on Linux Environment
+  SemgrepScan:
+    name: SemgrepScan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunSemgrepScan
+        id: SemgrepScan
+        uses: ./.github/actions/scans/semgrep
+        with:
+          semgrep_version: ${{ env.SemgrepVersion }}
+          report_name: "semgrep-results"
+
+  TrivyScan:
+    name: TrivyScan
+    runs-on: windows-latest
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunTrivyScan
+        id: TrivyScan
+        uses: ./.github/actions/scans/trivy
+        with:
+          trivy_version: ${{ env.TrivyVersion }}
+          scan-type: 'fs'
+          scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          scanners: 'vuln,secret,misconfig,license'
+          report_name: "trivy-results"
+
+  # CoverityScan:
+  #   name: CoverityScan
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: CheckoutCode
+  #       uses: actions/checkout@v4
+  #     - name: RunCoverityScan
+  #       id: RunCoverityScan
+  #       uses: ./.github/actions/scans/coverity
+  #       with:
+  #         project: ${{ env.CoverityProject }}
+  #         build_language: 'other' # PHP/Python/Ruby
+  #         command: '--no-command --fs-capture-search ${{ github.workspace }}'
+  #         email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+  #         token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+  #         report_name: "coverity-results"
+
+    # - name: Install dependencies
+    #   run: |
+    #     python -m pip install --upgrade pip
+    #     pip install -r requirements.txt
+  
+
+  Linting:
+    name: Linting
+    runs-on: windows-latest
+    needs: [BanditScan, ClamAVScan, SemgrepScan, TrivyScan]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+
+      - name: RunLinting
+        id: Linting
+        uses: ./.github/actions/linting
+        with:
+          python-version: ${{ env.PythonVersion }}
+

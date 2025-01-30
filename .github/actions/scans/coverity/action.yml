@@ -1,0 +1,118 @@
+name: 'Coverity Scan with Community Credentials'
+description: "This action installs a specific version of Coverity."
+
+inputs:
+  checkout_directory:
+    description: "checkout directory to where ingredient repo content is to be copied."
+    default: "src"
+  ref:
+    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
+    required: false
+  # Coverity Parameters
+  project:
+    description: Project name in Coverity Scan.
+    default: ${{ github.repository }}
+    required: false
+  token:
+    description: Secret project token for accessing Coverity Scan.
+    required: true
+  email:
+    description: Where Coverity Scan should send notifications.
+    required: true
+  build_language:
+    description: Which Coverity Scan language pack to download.
+    default: cxx
+    required: false
+  build_platform:
+    description: Which Coverity Scan platform pack to download.
+    default: windows64
+    required: false
+  command:
+    description: Command to pass to cov-build.
+    default: make
+    required: false
+  working_directory:
+    description: Working directory to set for all steps.
+    default: ${{ github.workspace }}
+    required: false
+  version:
+    description: (Informational) The source version being built.
+    default: ${{ github.sha }}
+    required: false
+  description:
+    description: (Informational) A description for this particular build.
+    default: coverity-scan-action ${{ github.repository }} / ${{ github.ref }}
+    required: false
+  report_name:
+    description: 'Name of the report file'
+    required: false
+    default: 'coverity-results'
+
+runs: 
+  using: "composite"
+  steps:
+    # Need to encode the project name when using in URLs and HTTP forms.  Valid
+    # GitHub project names only have / that need encoding and
+    # Coverity projects with spaces in their names need encoding so do
+    # an ad-hoc conversion here.  Wait to see if anyone needs something else.
+    - name: URL encode project name
+      id: project
+      run: echo "project=${{ inputs.project }}" | ForEach-Object { $_ -replace '/', '%2F' -replace ' ', '%20' } | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      shell: pwsh
+
+    # The Coverity site says the tool is usually updated twice yearly, so the
+    # md5 of download can be used to determine whether there's been an update.
+    - name: Lookup Coverity Build Tool hash
+      id: coverity-cache-lookup
+      run: |
+        $hash = Invoke-RestMethod -Uri "https://scan.coverity.com/download/${{ inputs.build_language }}/${{ inputs.build_platform }}" -Method Post -Body @{ token = "${{ inputs.token }}"; project = "${{ steps.project.outputs.project }}"; md5 = "1" }
+        echo "hash=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      shell: pwsh
+
+    # Try to cache the tool to avoid downloading 1GB+ archive on every run.
+    # Cache miss will add ~30s to create, but cache hit will save minutes.
+    - name: Cache Coverity Build Tool
+      id: cov-build-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.working_directory }}\cov-analysis
+        key: cov-build-${{ inputs.build_language }}-${{ inputs.build_platform }}-${{ steps.coverity-cache-lookup.outputs.hash }}
+
+    - name: Download Coverity Build Tool (${{ inputs.build_language }} / ${{ inputs.build_platform }})
+      if: steps.cov-build-cache.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri "https://scan.coverity.com/download/${{ inputs.build_language }}/${{ inputs.build_platform }}" -OutFile "cov-analysis.zip" -Method Post -Body @{ token = "${{ inputs.token }}"; project = "${{ steps.project.outputs.project }}" }
+      shell: pwsh
+      working-directory: ${{ inputs.working_directory }}
+
+    - if: steps.cov-build-cache.outputs.cache-hit != 'true'
+      run: New-Item -ItemType Directory -Path cov-analysis
+      shell: pwsh
+      working-directory: ${{ inputs.working_directory }}
+  
+    - if: steps.cov-build-cache.outputs.cache-hit != 'true'
+      run: Expand-Archive -Path cov-analysis.zip -DestinationPath cov-analysis
+      shell: pwsh
+      working-directory: ${{ inputs.working_directory }}
+
+    - name: Build with cov-build
+      run: |
+        $env:PATH = "${PWD}\cov-analysis\bin;$env:PATH"
+        cov-build --dir cov-int ${{ inputs.command }}
+      shell: pwsh
+      working-directory: ${{ inputs.working_directory }}
+    
+    - name: Archive results
+      run: Compress-Archive -Path cov-int -DestinationPath ${{ inputs.report_name }}.zip
+      shell: pwsh
+      working-directory: ${{ inputs.working_directory }}
+    
+    - name: Upload Coverity Scan Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report_name }}
+        path: ${{ inputs.report_name }}.zip
+    
+    # - name: Submit results to Coverity Scan
+    #   run: |
+    #     Invoke-RestMethod -Uri "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}" -Method Post -Form @{ token = "${{ inputs.token }}"; email = "${{ inputs.email }}"; file = Get-Item -Path ${{ inputs.report_name }}.zip; version =

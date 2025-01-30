@@ -1,0 +1,73 @@
+name: 'Trivy Vulnerability Scan'
+description: 'Perform vulnerability scanning using Trivy'
+inputs:
+  checkout_directory:
+    description: "checkout directory to where ingredient repo content is to be copied."
+    default: "src"
+  ref:
+    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
+    required: false
+  token:
+    description: "Github token to fetch source"
+    required: false
+  # Trivy Parameters
+  trivy_version:
+    description: 'Trivy version to use'
+    required: false
+    default: '0.58.0'
+  scan-ref:
+    description: 'Scan reference'
+    required: false
+    default: 'requirements.txt'
+  scan-type:
+    description: 'Scan type to use for scanning vulnerability'
+    required: false
+    default: 'fs'
+  scanners:
+    description: 'comma-separated list of what security issues to detect'
+    required: false
+    default: 'vuln,secret,misconfig,license'
+  severity:
+    description: 'severities of vulnerabilities to be displayed'
+    required: false
+    default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+  timeout:
+    description: 'timeout (default 5m0s)'
+    required: false
+    default: ''
+  report_name:
+    description: 'Name of the report file'
+    required: false
+    default: 'trivy-results'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10.11'
+
+    - name: Install Trivy
+      run: |
+        echo "Installing Trivy version: ${{ inputs.trivy_version }}"
+        Invoke-WebRequest -Uri "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy_version }}/trivy_${{ inputs.trivy_version }}_Windows-64bit.zip" -OutFile "trivy.zip"
+        Expand-Archive -Path "trivy.zip" -DestinationPath "C:\trivy"
+        $env:Path += ";C:\trivy"
+        [Environment]::SetEnvironmentVariable("Path", $env:Path, [EnvironmentVariableTarget]::Process)
+      shell: pwsh
+
+    - name: Verify installation
+      run: |
+        C:\trivy\trivy.exe --version
+      shell: pwsh
+
+    - name: Scan requirements.txt
+      run: C:\trivy\trivy.exe ${{ inputs.scan-type }} ${{ inputs.scan-ref }} --format json --output ${{ inputs.report_name }}.json --severity ${{ inputs.severity }} --scanners ${{ inputs.scanners }}
+      shell: pwsh                                           
+
+    - name: Upload Vulnerability Scan Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report_name }}
+        path: ${{ inputs.report_name }}.json
