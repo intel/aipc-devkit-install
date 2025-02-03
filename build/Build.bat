@@ -14,7 +14,7 @@ echo " Start Building Intel AI PC Development Kit"
 set arg1=%BuildVersion%
 IF "%arg1%"=="" set arg1=1.0.0.dev0
 
-pyinstaller-versionfile create-version-file installer_metadata.yml --outfile file_version_info.txt --version %arg1%
+create-version-file installer_metadata.yml --outfile file_version_info.txt --version %arg1%
 
 REM Verify the version file creation
 if not exist file_version_info.txt (
@@ -24,5 +24,5 @@ if not exist file_version_info.txt (
 
 pyinstaller --clean --onefile Script/ui_installer.py --add-data Configuration/installation_config.json:. --add-data License.txt:. --add-data Prerequisites/PythonModules/requirements.txt:Prerequisites/PythonModules/requirements.txt --paths Script --paths hooks\rthooks --version-file=file_version_info.txt --name installer.exe --runtime-hook hooks\rthooks\pyi_rth_installer.py --add-binary C:/Python310/python3.dll:.
 
-pyinstaller-versionfile create-version-file uninstaller_metadata.yml --outfile file_version_info.txt --version %arg1%
+create-version-file uninstaller_metadata.yml --outfile file_version_info.txt --version %arg1%
 pyinstaller --clean --onefile Script/uninstall.py --add-data Configuration/installation_config.json:. --add-data Prerequisites/PythonModules/requirements.txt:Prerequisites/PythonModules/requirements.txt --paths Script --paths hooks\rthooks --version-file=file_version_info.txt --runtime-hook hooks\rthooks\pyi_rth_installer.py --add-binary C:/Python310/python3.dll:.
