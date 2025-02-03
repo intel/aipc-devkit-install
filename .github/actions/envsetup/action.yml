@@ -14,6 +14,21 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Verify Python in PATH
+      run: |
+        python --version
+      shell: pwsh
+
+    - name: Install dependencies
+      run: |
+        python --version
+        python -m pip install --upgrade pip
+        python --version
+        python -m pip install pyinstaller
+        python --version
+        python -m pip install pyinstaller-versionfile
+      shell: pwsh
+
     - name: Copy Python to C:\Python310
       run: |
         $pythonPath = (Get-Command python).Path
@@ -37,23 +52,17 @@ runs:
 
     - name: Set up environment variables for Python
       run: |
+        $newPath = "C:\Python310\Scripts;$env:PATH"
+        $env:PATHS = "C:\Python310;C:\Python310\Scripts;" + $env:PATH
+        [System.Environment]::SetEnvironmentVariable("PATH", $newPath, [System.EnvironmentVariableTarget]::Process)
+        [System.Environment]::SetEnvironmentVariable("PATH", $PATHS, [System.EnvironmentVariableTarget]::Process)
+        Write-Output "Updated PATH: $newPath"
+        Write-Output "Updated PATHS: $PATHS"
         $env:PYTHONPATH = "C:\Python310"
-        $env:PATH = "C:\Python310;C:\Python310\Scripts;" + $env:PATH
-        [Environment]::SetEnvironmentVariable("PYTHONPATH", $env:PYTHONPATH, [EnvironmentVariableTarget]::Process)
-        [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::Process)
       shell: pwsh
 
-    - name: Verify Python in PATH
+    - name: Verify PyInstaller Installation
       run: |
         python --version
-      shell: pwsh
-
-    - name: Install dependencies
-      run: |
-        python --version
-        python -m pip install --upgrade pip
-        python --version
-        python -m pip install pyinstaller
-        python --version
-        python -m pip install pyinstaller-versionfile
+        pyinstaller --version
       shell: pwsh

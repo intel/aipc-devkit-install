@@ -131,4 +131,3 @@ jobs:
         uses: ./.github/actions/linting
         with:
           python-version: ${{ env.PythonVersion }}
-
