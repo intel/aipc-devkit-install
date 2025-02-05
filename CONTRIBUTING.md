@@ -90,9 +90,8 @@ We'll make sure to review your Pull Request as soon as possible and provide you 
 
 ### Integration process
 
-* Once the Pull Request is approved, it will be accepted in our internal repo for validation
-* After validation, it will be merged internal repo.
-* All the changes will be available in the main branch during the release.
+* Once the Pull Request is approved, validation process will be initiated.
+* After validation, the changes will be available in the main branch during the release.
 
 ## Need Additional Help? Check these Articles
 
