@@ -10,7 +10,7 @@ inputs:
   token:
     description: "Github token to fetch source"
     required: false
-  # CalmAV Parameters
+  # ClamAV Parameters
   clamav_version:
     description: 'ClamAV version to use'
     required: false
@@ -27,57 +27,94 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    
-    - name: Install ClamAV
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clamav clamav-daemon
-        sudo systemctl stop clamav-freshclam
-      shell: bash
+    # - name: Checkout code
+    #   uses: actions/checkout@v4
+    #   with:
+    #     path: ${{ inputs.checkout_directory }}
+    #     ref: ${{ inputs.ref || github.ref }}
+    #     token: ${{ inputs.token || github.token }}
 
-     # Step 3: Update virus database
-    - name: Update Virus Database
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ArtifactAIPC
+        path: ./ArtifactAIPC
+
+    - name: Show downloaded artifact content
       run: |
-        sudo freshclam
-        sudo systemctl start clamav-freshclam
-      shell: bash
-    
+        echo "Listing contents of the downloaded artifact:"
+        dir ./ArtifactAIPC
+      shell: pwsh
+
+    - name: Install ClamAV
+      run: choco install clamav -y
+      shell: pwsh
+
+    - name: Configure freshclam.conf
+      run: |
+        $freshclamConfPath = "C:\ProgramData\Chocolatey\lib\clamav\tools\clamav-1.4.2.win.x64\freshclam.conf"
+        $freshclamConfContent = @"
+        DatabaseMirror database.clamav.net
+        DatabaseDirectory C:\ProgramData\.clamav
+        "@
+        Set-Content -Path $freshclamConfPath -Value $freshclamConfContent
+      shell: pwsh
+
+    - name: Update ClamAV database
+      run: freshclam --config-file="C:\ProgramData\Chocolatey\lib\clamav\tools\clamav-1.4.2.win.x64\freshclam.conf"
+      shell: pwsh
+
     - name: Verify installation
+      run: clamscan --version
+      shell: pwsh
+
+    - name: Check if ArtifactAIPC directory exists
       run: |
-        clamscan --version
-      shell: bash
+        if (Test-Path -Path "./ArtifactAIPC") {
+          Write-Host "ArtifactAIPC directory exists."
+        } else {
+          Write-Host "ArtifactAIPC directory does not exist."
+          exit 1
+        }
+      shell: pwsh
+
+    - name: List contents of ArtifactAIPC directory
+      run: |
+        Write-Host "Listing contents of the ArtifactAIPC directory:"
+        Get-ChildItem -Path "./ArtifactAIPC" -Recurse
+      shell: pwsh
 
     - name: Run ClamAV Virus Scan
-      shell: bash
+      shell: pwsh
       continue-on-error: true
       run: |
         # Define directories to exclude
-        EXCLUDE_DIRS="${{ inputs.exclude_paths }}"
+        $excludeDirs = "${{ inputs.exclude_paths }}"
 
         # Build the --exclude-dir flags
-        EXCLUDE_FLAGS=""
-        IFS=',' read -ra DIRS <<< "$EXCLUDE_DIRS"
-        for DIR in "${DIRS[@]}"; do
-          EXCLUDE_FLAGS+="--exclude-dir=$DIR "
-        done
+        $excludeFlags = ""
+        $dirs = $excludeDirs -split ","
+        foreach ($dir in $dirs) {
+          $excludeFlags += "--exclude-dir=$dir "
+        }
 
         # Adjust scan command based on OS
-        clamscan -r . $EXCLUDE_FLAGS --verbose --detect-pua --alert-broken --log=${{ inputs.report_name }}.log
+        clamscan -r ArtifactAIPC $excludeFlags --verbose --detect-pua --alert-broken --log=${{ inputs.report_name }}.log
 
         # Check scan results
-        SCAN_RESULT=$?
+        $scanResult = $LASTEXITCODE
 
-        cat ${{ inputs.report_name }}.log
+        Get-Content ${{ inputs.report_name }}.log
 
         # Fail the workflow if viruses are found
         # Exit codes: 0 = No viruses, 1 = Viruses found, 2 = Error
-        if [ $SCAN_RESULT -eq 1 ]; then
-          echo "**ClamAV**: ⚠️ Virus detected! Please review the ClamAV scan reports."
+        if ($scanResult -eq 1) {
+          Write-Host "**ClamAV**: ⚠️ Virus detected! Please review the ClamAV scan reports."
           exit 1
-        elif [ $SCAN_RESULT -eq 2 ]; then
-          echo "ClamAV scan encountered an error!"
-        fi
-        
+        } elseif ($scanResult -eq 2) {
+          Write-Host "ClamAV scan encountered an error!"
+        }
+
     - name: Upload ClamAV Scan Results
       uses: actions/upload-artifact@v4
       with:

@@ -1,5 +1,5 @@
-name: 'Lint Action'
-description: 'Perform linting for project'
+name: 'black formatting Action'
+description: 'Perform linting for Python project'
 inputs:
   checkout_directory:
     description: "checkout directory to where ingredient repo content is to be copied."
@@ -33,33 +33,20 @@ runs:
     - name: Install linting tools
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pylint black isort
-        pip install flake8-html pylint-report
+        pip install black
       shell: pwsh
 
-    - name: Run Flake8 Linting
-      continue-on-error: true
+    - name: Run Black and capture output
       run: |
-        mkdir -p reports/flake8
-        flake8 --format=html --htmldir=reports/flake8 .
+        black --check --diff --quiet . > black_output.txt || true
       shell: pwsh
 
-    - name: Run Pylint
-      continue-on-error: true
-      run: |
-        mkdir -p reports/pylint
-        pylint **/*.py > reports/pylint/pylint-report.txt
+    - name: Show Black output
+      run: cat black_output.txt
       shell: pwsh
 
-    - name: Run Isort Import Sorting Check
-      continue-on-error: true
-      run: |
-        mkdir -p reports/isort
-        isort --check-only . > reports/isort/import-check.txt
-      shell: pwsh
-
-    - name: Upload Linting Reports
+    - name: Upload Black output as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linting-reports
-        path: reports/
+        name: black-output
+        path: black_output.txt
