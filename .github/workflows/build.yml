@@ -122,7 +122,7 @@ jobs:
   Linting:
     name: Linting
     runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, SemgrepScan, TrivyScan]
+    needs: [BanditScan, ClamAVScan, TrivyScan]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -136,7 +136,7 @@ jobs:
   blackformatting:
     name: blackformatting
     runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, SemgrepScan, TrivyScan]
+    needs: [BanditScan, ClamAVScan, TrivyScan]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
