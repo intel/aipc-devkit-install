@@ -26,17 +26,21 @@ jobs:
     - name: Run Build
       run: .\build\Build.bat
       shell: pwsh
+
+    - name: Prepare files for upload
+      run: |
+        mkdir -p upload
+        cp dist/* upload/
+        cp -r AIDevKit upload/
+        cp CHANGELOG.md upload/
+        cp License.txt upload/
+        cp README.md upload/
     
     - name: Upload binary as artifact
       uses: actions/upload-artifact@v4
       with:
         name: ArtifactAIPC
-        path: |
-          dist/*
-          AIDevKit
-          CHANGELOG.md
-          License.txt
-          README.md
+        path: upload/
 
   
   BanditScan:
