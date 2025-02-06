@@ -44,13 +44,13 @@ jobs:
       - name: CheckoutCode
         uses: actions/checkout@v4
       - name: RunSourceClamAVScan
-        id: ClamAVScan
+        id: ClamAVScanSource
         uses: ./.github/actions/scans/clamav
         with:
           report_name: "clamavsource-results"
           exclude_paths: ".git"
       - name: RunBinaryClamAVScan
-        id: ClamAVScan
+        id: ClamAVScanBinary
         uses: ./.github/actions/scans/clamav
         with:
           report_name: "clamavbinary-results"
