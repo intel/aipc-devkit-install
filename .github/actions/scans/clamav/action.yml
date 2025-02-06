@@ -36,65 +36,66 @@ runs:
       if: ${{ inputs.artifact_name != '' }}
       run: |
         echo "Listing contents of the downloaded artifact:"
-        dir ${{ inputs.artifact_path }}
-      shell: pwsh
-
+        ls -R ${{ inputs.artifact_path }}
+      shell: bash
+      
     - name: Install ClamAV
-      run: choco install clamav -y
-      shell: pwsh
-
-    - name: Configure freshclam.conf
       run: |
-        $freshclamConfPath = "C:\ProgramData\Chocolatey\lib\clamav\tools\clamav-1.4.2.win.x64\freshclam.conf"
-        $freshclamConfContent = @"
-        DatabaseMirror database.clamav.net
-        DatabaseDirectory C:\ProgramData\.clamav
-        "@
-        Set-Content -Path $freshclamConfPath -Value $freshclamConfContent
-      shell: pwsh
+        sudo apt-get update
+        sudo apt-get install -y clamav clamav-daemon
+        sudo systemctl stop clamav-freshclam
+      shell: bash
 
-    - name: Update ClamAV database
-      run: freshclam --config-file="C:\ProgramData\Chocolatey\lib\clamav\tools\clamav-1.4.2.win.x64\freshclam.conf"
-      shell: pwsh
+     # Step 3: Update virus database
+    - name: Update Virus Database
+      run: |
+        sudo freshclam
+        sudo systemctl start clamav-freshclam
+      shell: bash
 
     - name: Verify installation
-      run: clamscan --version
-      shell: pwsh
+      run: |
+        clamscan --version
+      shell: bash
 
     - name: Run ClamAV Virus Scan
-      shell: pwsh
+      shell: bash
       continue-on-error: true
       run: |
         # Define directories to exclude
-        $excludeDirs = "${{ inputs.exclude_paths }}"
+        EXCLUDE_DIRS="${{ inputs.exclude_paths }}"
 
         # Build the --exclude-dir flags
-        $excludeFlags = ""
-        $dirs = $excludeDirs -split ","
-        foreach ($dir in $dirs) {
-          $excludeFlags += "--exclude-dir=$dir "
-        }
+        EXCLUDE_FLAGS=""
+        IFS=',' read -ra DIRS <<< "$EXCLUDE_DIRS"
+        for DIR in "${DIRS[@]}"; do
+          EXCLUDE_FLAGS+="--exclude-dir=$DIR "
+        done
 
         # Determine the directory to scan
-        $scanDir = if (Test-Path -Path "${{ inputs.artifact_name }}") { "${{ inputs.artifact_name }}" } else { "." }
+        if [ -n "${{ inputs.artifact_name }}" ]; then
+          SCAN_DIR="${{ inputs.artifact_name }}"
+        else
+          SCAN_DIR="."
+        fi
 
-        # Adjust scan command based on OS
-        clamscan -r $scanDir $excludeFlags --verbose --detect-pua --alert-broken --log=${{ inputs.report_name }}.log
+        # Run ClamAV scan
+        clamscan -r $SCAN_DIR $EXCLUDE_FLAGS --verbose --detect-pua --alert-broken --log=${{ inputs.report_name }}.log
 
         # Check scan results
-        $scanResult = $LASTEXITCODE
+        SCAN_RESULT=$?
 
-        Get-Content ${{ inputs.report_name }}.log
+        cat ${{ inputs.report_name }}.log
 
-        # Fail the workflow if viruses are found
+         # Fail the workflow if viruses are found
         # Exit codes: 0 = No viruses, 1 = Viruses found, 2 = Error
-        if ($scanResult -eq 1) {
-          Write-Host "**ClamAV**: ⚠️ Virus detected! Please review the ClamAV scan reports."
+        if [ $SCAN_RESULT -eq 1 ]; then
+          echo "**ClamAV**: ⚠️ Virus detected! Please review the ClamAV scan reports."
           exit 1
-        } elseif ($scanResult -eq 2) {
-          Write-Host "ClamAV scan encountered an error!"
-        }
-
+        elif [ $SCAN_RESULT -eq 2 ]; then
+          echo "ClamAV scan encountered an error!"
+        fi
+        
     - name: Upload ClamAV Scan Results
       uses: actions/upload-artifact@v4
       with:
