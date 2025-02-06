@@ -16,6 +16,7 @@ runs:
         cp CHANGELOG.md upload/
         cp License.txt upload/
         cp README.md upload/
+      shell: pwsh
     
     - name: Upload binary as artifact
       uses: actions/upload-artifact@v4
