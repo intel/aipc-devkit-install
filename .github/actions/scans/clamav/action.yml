@@ -17,7 +17,6 @@ inputs:
   artifact_name:
     description: 'Provide the Artifact Name to download'
     required: false
-    default: 'ArtifactAIPC'
   artifact_path:
     description: 'Provide the Artifact Download Location'
     required: false
