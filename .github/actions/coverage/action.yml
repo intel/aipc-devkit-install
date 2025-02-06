@@ -1,0 +1,61 @@
+name: Python Coverage Action
+description: 'Perform code coverage for Python project'
+inputs:
+  checkout_directory:
+    description: "checkout directory to where ingredient repo content is to be copied."
+    default: "src"
+  ref:
+    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
+    required: false
+  token:
+    description: "Github token to fetch source"
+    required: false
+  project_directory:
+    description: 'Path to Project Directory i.e C:\Users\user\Documents\project or \home\jenkins\project'
+    required: false
+    default: '.'
+  threshold:
+    description: 'Coverage threshold'
+    required: false
+    default: '80'
+
+runs:
+  using: 'composite'
+  steps:
+
+    # - name: Checkout code
+    #   uses: actions/checkout@v4
+    #   with:
+    #     path: ${{ inputs.checkout_directory }}
+    #     ref: ${{ inputs.ref || github.ref }}
+    #     token: ${{ inputs.token || github.token }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+    
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-html coverage
+      shell: bash
+
+    - name: Run Tests and Generate Coverage Report
+      run: |
+        coverage --version
+        coverage run -m pytest ${{ inputs.project_directory }}
+        coverage html -d coverage_html
+      shell: bash
+    
+    # Step 5: Check coverage against threshold
+    - name: Enforce coverage threshold
+      run: |
+        coverage report --fail-under=${{ inputs.threshold }}
+      # Set your desired coverage threshold percentage (e.g., 80%)
+      shell: bash
+    
+    - name: Upload Coverage Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage_html/
+    

@@ -7,11 +7,7 @@ on:
 
 env:
     PythonVersion: "3.10.11"
-    BanditVersion: "1.8.0"
-    SemgrepVersion: "1.100.0"
     TrivyVersion: "0.58.0"
-    CoverityProject: "Python-Test-Project"
-    CodeCoverageThreshold: '50'
 
 jobs:
   BuildStage:
@@ -23,24 +19,8 @@ jobs:
     - name: Set up Python and Package
       uses: ./.github/actions/envsetup
 
-    - name: Run Build
-      run: .\build\Build.bat
-      shell: pwsh
-
-    - name: Prepare files for upload
-      run: |
-        mkdir -p upload
-        cp dist/* upload/
-        cp -r AIDevKit upload/
-        cp CHANGELOG.md upload/
-        cp License.txt upload/
-        cp README.md upload/
-    
-    - name: Upload binary as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ArtifactAIPC
-        path: upload/
+    - name: Build aipc-devkit and upload to Artifactory
+      uses: ./.github/actions/buildartifact
 
   
   BanditScan:
@@ -54,8 +34,6 @@ jobs:
         id: BanditScan
         uses: ./.github/actions/scans/bandit
         with:
-          python_version: ${{ env.PythonVersion }}
-          bandit_version: ${{ env.BanditVersion }}
           report_name: "bandit-results"
 
   ClamAVScan:
@@ -65,27 +43,20 @@ jobs:
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
-      - name: RunClamAVScan
+      - name: RunSourceClamAVScan
         id: ClamAVScan
         uses: ./.github/actions/scans/clamav
         with:
-          report_name: "clamav-results"
-          exclude_paths: "node_modules,.git,__pycache__"
-
-  # on Linux Environment
-  # SemgrepScan:
-  #   name: SemgrepScan
-  #   runs-on: ubuntu-24.04
-  #   needs: [BuildStage]
-  #   steps:
-  #     - name: CheckoutCode
-  #       uses: actions/checkout@v4
-  #     - name: RunSemgrepScan
-  #       id: SemgrepScan
-  #       uses: ./.github/actions/scans/semgrep
-  #       with:
-  #         semgrep_version: ${{ env.SemgrepVersion }}
-  #         report_name: "semgrep-results"
+          report_name: "clamavsource-results"
+          exclude_paths: ".git"
+      - name: RunBinaryClamAVScan
+        id: ClamAVScan
+        uses: ./.github/actions/scans/clamav
+        with:
+          report_name: "clamavbinary-results"
+          exclude_paths: ".git"
+          artifact_name: "ArtifactAIPC"
+          artifact_path: "./ArtifactAIPC"
 
   TrivyScan:
     name: TrivyScan
@@ -122,6 +93,18 @@ jobs:
   #         token: ${{ secrets.COVERITY_SCAN_TOKEN }}
   #         report_name: "coverity-results"
   
+  CodeCoverage:
+    name: CodeCoverage
+    runs-on: ubuntu-24.04
+    needs: [BanditScan, ClamAVScan, TrivyScan]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunCodeCoverage
+        id: CodeCoverage
+        uses: ./.github/actions/coverage
+        with:
+          project_directory: "."
 
   Linting:
     name: Linting
@@ -130,7 +113,6 @@ jobs:
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
-
       - name: RunLinting
         id: Linting
         uses: ./.github/actions/linting
@@ -144,7 +126,6 @@ jobs:
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
-
       - name: Runblackformatting
         id: blackformatting
         uses: ./.github/actions/blackformatting

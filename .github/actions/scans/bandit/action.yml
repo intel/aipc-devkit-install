@@ -8,26 +8,14 @@ inputs:
   ref:
     description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
     required: false
-  python_version:
-    description: 'Python version to use'
-    required: false
-    default: '3.10.11'
   token:
     description: "Github token to fetch source"
     required: false
   # Bandit specific inputs
-  bandit_version:
-    description: 'Bandit version to use'
-    required: false
-    default: '1.8.0'
   report_name:
     description: 'Name of the report file'
     required: false
     default: 'bandit-results'
-  exclude_paths:
-    description: 'Paths to exclude from scanning i.e ./tests,./venv,./docs default: ./tests'
-    required: false
-    default: './tests'
 
 runs:
   using: 'composite'
@@ -35,20 +23,18 @@ runs:
     
     - name: Set up Python
       uses: actions/setup-python@v4
-      with:
-        python-version: ${{ inputs.python_version }}
     
     - name: Install Bandit
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install bandit==${{ inputs.bandit_version }}
+        pip install bandit
     
     - name: Run Bandit Scan
       shell: bash
       continue-on-error: true
       run: |
-        bandit -r . -x ${{ inputs.exclude_paths }} -f json -o ${{ inputs.report_name }}.json
+        bandit -r . -f json -o ${{ inputs.report_name }}.json
     
     - name: Upload Bandit Scan Results
       uses: actions/upload-artifact@v4

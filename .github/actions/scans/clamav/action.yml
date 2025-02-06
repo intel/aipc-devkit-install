@@ -1,15 +1,6 @@
 name: 'ClamAV Security Scan'
 description: 'Perform virus scanning using ClamAV'
 inputs:
-  checkout_directory:
-    description: "checkout directory to where ingredient repo content is to be copied."
-    default: "src"
-  ref:
-    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
-    required: false
-  token:
-    description: "Github token to fetch source"
-    required: false
   # ClamAV Parameters
   clamav_version:
     description: 'ClamAV version to use'
@@ -23,27 +14,30 @@ inputs:
     description: 'Directories to exclude from scan, provide with a comma separated string. i.e. node_modules,.git,__pycache__'
     required: false
     default: '.git'
+  artifact_name:
+    description: 'Provide the Artifact Name to download'
+    required: false
+    default: 'ArtifactAIPC'
+  artifact_path:
+    description: 'Provide the Artifact Download Location'
+    required: false
+    default: './ArtifactAIPC'
 
 runs:
   using: 'composite'
-  steps:
-    # - name: Checkout code
-    #   uses: actions/checkout@v4
-    #   with:
-    #     path: ${{ inputs.checkout_directory }}
-    #     ref: ${{ inputs.ref || github.ref }}
-    #     token: ${{ inputs.token || github.token }}
-
+  steps:   
     - name: Download artifact
+      if: ${{ inputs.artifact_name != '' }}
       uses: actions/download-artifact@v4
       with:
-        name: ArtifactAIPC
-        path: ./ArtifactAIPC
+        name: ${{ inputs.artifact_name }}
+        path: ${{ inputs.artifact_path }}
 
     - name: Show downloaded artifact content
+      if: ${{ inputs.artifact_name != '' }}
       run: |
         echo "Listing contents of the downloaded artifact:"
-        dir ./ArtifactAIPC
+        dir ${{ inputs.artifact_path }}
       shell: pwsh
 
     - name: Install ClamAV
@@ -68,22 +62,6 @@ runs:
       run: clamscan --version
       shell: pwsh
 
-    - name: Check if ArtifactAIPC directory exists
-      run: |
-        if (Test-Path -Path "./ArtifactAIPC") {
-          Write-Host "ArtifactAIPC directory exists."
-        } else {
-          Write-Host "ArtifactAIPC directory does not exist."
-          exit 1
-        }
-      shell: pwsh
-
-    - name: List contents of ArtifactAIPC directory
-      run: |
-        Write-Host "Listing contents of the ArtifactAIPC directory:"
-        Get-ChildItem -Path "./ArtifactAIPC" -Recurse
-      shell: pwsh
-
     - name: Run ClamAV Virus Scan
       shell: pwsh
       continue-on-error: true
@@ -98,8 +76,11 @@ runs:
           $excludeFlags += "--exclude-dir=$dir "
         }
 
+        # Determine the directory to scan
+        $scanDir = if (Test-Path -Path "${{ inputs.artifact_name }}") { "${{ inputs.artifact_name }}" } else { "." }
+
         # Adjust scan command based on OS
-        clamscan -r ArtifactAIPC $excludeFlags --verbose --detect-pua --alert-broken --log=${{ inputs.report_name }}.log
+        clamscan -r $scanDir $excludeFlags --verbose --detect-pua --alert-broken --log=${{ inputs.report_name }}.log
 
         # Check scan results
         $scanResult = $LASTEXITCODE

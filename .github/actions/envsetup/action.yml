@@ -14,18 +14,11 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Verify Python in PATH
-      run: |
-        python --version
-      shell: pwsh
-
-    - name: Install dependencies
+    - name: Verify Python in PATH and Install dependencies
       run: |
         python --version
         python -m pip install --upgrade pip
-        python --version
         python -m pip install pyinstaller
-        python --version
         python -m pip install pyinstaller-versionfile
       shell: pwsh
 
@@ -50,7 +43,7 @@ runs:
         }
       shell: pwsh
 
-    - name: Set up environment variables for Python
+    - name: Set up environment variables for Python and check pyinstaller Version
       run: |
         $newPath = "C:\Python310\Scripts;$env:PATH"
         $env:PATHS = "C:\Python310;C:\Python310\Scripts;" + $env:PATH
@@ -59,10 +52,5 @@ runs:
         Write-Output "Updated PATH: $newPath"
         Write-Output "Updated PATHS: $PATHS"
         $env:PYTHONPATH = "C:\Python310"
-      shell: pwsh
-
-    - name: Verify PyInstaller Installation
-      run: |
-        python --version
         pyinstaller --version
       shell: pwsh

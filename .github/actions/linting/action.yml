@@ -10,10 +10,6 @@ inputs:
   token:
     description: "Github token to fetch source"
     required: false
-  python-version:
-    description: 'Python version to use'
-    required: false
-    default: '3.10.11'
 
 runs:
   using: 'composite'
@@ -27,8 +23,6 @@ runs:
 
     - name: Set up Python
       uses: actions/setup-python@v4
-      with:
-        python-version: ${{ inputs.python-version }}
 
     - name: Install linting tools
       run: |
