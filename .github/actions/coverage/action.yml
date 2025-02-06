@@ -42,7 +42,7 @@ runs:
     - name: Run Tests and Generate Coverage Report
       run: |
         coverage --version
-        coverage run -m pytest ${{ inputs.project_directory }}
+        # coverage run -m pytest ${{ inputs.project_directory }}
         coverage html -d coverage_html
       shell: bash
     

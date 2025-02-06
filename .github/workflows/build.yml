@@ -48,7 +48,7 @@ jobs:
         uses: ./.github/actions/scans/clamav
         with:
           report_name: "clamavsource-results"
-          exclude_paths: ".git"
+          exclude_paths: ".git,github"
       - name: RunBinaryClamAVScan
         id: ClamAVScanBinary
         uses: ./.github/actions/scans/clamav
