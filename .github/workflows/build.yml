@@ -119,8 +119,8 @@ jobs:
         with:
           python-version: ${{ env.PythonVersion }}
 
-  blackformatting:
-    name: blackformatting
+  BlackFormatting:
+    name: BlackFormatting
     runs-on: windows-latest
     needs: [BanditScan, ClamAVScan, TrivyScan]
     steps:
