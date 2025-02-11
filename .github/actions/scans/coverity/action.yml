@@ -93,15 +93,15 @@ runs:
       env:
         TOKEN: ${{ inputs.token }}
 
-    - if: steps.cov-build-cache.outputs.cache-hit != 'true'
-      run: mkdir cov-analysis
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
+    # - if: steps.cov-build-cache.outputs.cache-hit != 'true'
+    #   run: mkdir cov-analysis
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
   
-    - if: steps.cov-build-cache.outputs.cache-hit != 'true'
-      run: tar -xzf cov-analysis.tar.gz --strip 1 -C cov-analysis
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
+    # - if: steps.cov-build-cache.outputs.cache-hit != 'true'
+    #   run: tar -xzf cov-analysis.tar.gz --strip 1 -C cov-analysis
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
 
     - name: Build with cov-build
       run: |
