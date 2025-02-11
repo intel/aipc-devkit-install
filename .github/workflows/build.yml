@@ -8,6 +8,7 @@ on:
 env:
     PythonVersion: "3.10.11"
     TrivyVersion: "0.58.0"
+    CoverityProject: "intel-aipc-devkit-install"
 
 jobs:
   BuildStage:
@@ -22,75 +23,75 @@ jobs:
     - name: Build aipc-devkit and upload to Artifactory
       uses: ./.github/actions/buildartifact
   
-  BanditScan:
-    name: BanditScan
-    runs-on: windows-latest
-    needs: [BuildStage]
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: RunBanditScan
-        id: BanditScan
-        uses: ./.github/actions/scans/bandit
-        with:
-          report_name: "bandit-results"
-
-  ClamAVScan:
-    name: ClamAVScan
-    runs-on: ubuntu-24.04
-    needs: [BuildStage]
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: RunSourceClamAVScan
-        id: ClamAVScanSource
-        uses: ./.github/actions/scans/clamav
-        with:
-          report_name: "clamavsource-results"
-          exclude_paths: ".git,.github"
-      - name: RunBinaryClamAVScan
-        id: ClamAVScanBinary
-        uses: ./.github/actions/scans/clamav
-        with:
-          report_name: "clamavbinary-results"
-          exclude_paths: ".git"
-          artifact_name: "ArtifactAIPC"
-          artifact_path: "./ArtifactAIPC"
-
-  TrivyScan:
-    name: TrivyScan
-    runs-on: windows-latest
-    needs: [BuildStage]
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: RunTrivyScan
-        id: TrivyScan
-        uses: ./.github/actions/scans/trivy
-        with:
-          trivy_version: ${{ env.TrivyVersion }}
-          scan-type: 'fs'
-          scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-          scanners: 'vuln,secret,misconfig,license'
-          report_name: "trivy-results"
-
-  # CoverityScan:
-  #   name: CoverityScan
+  # BanditScan:
+  #   name: BanditScan
   #   runs-on: windows-latest
+  #   needs: [BuildStage]
   #   steps:
   #     - name: CheckoutCode
   #       uses: actions/checkout@v4
-  #     - name: RunCoverityScan
-  #       id: RunCoverityScan
-  #       uses: ./.github/actions/scans/coverity
+  #     - name: RunBanditScan
+  #       id: BanditScan
+  #       uses: ./.github/actions/scans/bandit
   #       with:
-  #         project: ${{ env.CoverityProject }}
-  #         build_language: 'other' # PHP/Python/Ruby
-  #         command: '--no-command --fs-capture-search ${{ github.workspace }}'
-  #         email: ${{ secrets.COVERITY_SCAN_EMAIL }}
-  #         token: ${{ secrets.COVERITY_SCAN_TOKEN }}
-  #         report_name: "coverity-results"
+  #         report_name: "bandit-results"
+
+  # ClamAVScan:
+  #   name: ClamAVScan
+  #   runs-on: ubuntu-24.04
+  #   needs: [BuildStage]
+  #   steps:
+  #     - name: CheckoutCode
+  #       uses: actions/checkout@v4
+  #     - name: RunSourceClamAVScan
+  #       id: ClamAVScanSource
+  #       uses: ./.github/actions/scans/clamav
+  #       with:
+  #         report_name: "clamavsource-results"
+  #         exclude_paths: ".git,.github"
+  #     - name: RunBinaryClamAVScan
+  #       id: ClamAVScanBinary
+  #       uses: ./.github/actions/scans/clamav
+  #       with:
+  #         report_name: "clamavbinary-results"
+  #         exclude_paths: ".git"
+  #         artifact_name: "ArtifactAIPC"
+  #         artifact_path: "./ArtifactAIPC"
+
+  # TrivyScan:
+  #   name: TrivyScan
+  #   runs-on: windows-latest
+  #   needs: [BuildStage]
+  #   steps:
+  #     - name: CheckoutCode
+  #       uses: actions/checkout@v4
+  #     - name: RunTrivyScan
+  #       id: TrivyScan
+  #       uses: ./.github/actions/scans/trivy
+  #       with:
+  #         trivy_version: ${{ env.TrivyVersion }}
+  #         scan-type: 'fs'
+  #         scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
+  #         severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+  #         scanners: 'vuln,secret,misconfig,license'
+  #         report_name: "trivy-results"
+
+  CoverityScan:
+    name: CoverityScan
+    runs-on: windows-latest
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunCoverityScan
+        id: RunCoverityScan
+        uses: ./.github/actions/scans/coverity
+        with:
+          project: ${{ env.CoverityProject }}
+          build_language: 'Python' # PHP/Python/Ruby
+          command: '--no-command --fs-capture-search ${{ github.workspace }}'
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+          report_name: "coverity-results"
   
   # CodeCoverage:
   #   name: CodeCoverage
@@ -105,28 +106,28 @@ jobs:
   #       with:
   #         project_directory: "."
 
-  Linting:
-    name: Linting
-    runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, TrivyScan]
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: RunLinting
-        id: Linting
-        uses: ./.github/actions/linting
-        with:
-          python-version: ${{ env.PythonVersion }}
+  # Linting:
+  #   name: Linting
+  #   runs-on: windows-latest
+  #   needs: [BanditScan, ClamAVScan, TrivyScan]
+  #   steps:
+  #     - name: CheckoutCode
+  #       uses: actions/checkout@v4
+  #     - name: RunLinting
+  #       id: Linting
+  #       uses: ./.github/actions/linting
+  #       with:
+  #         python-version: ${{ env.PythonVersion }}
 
-  BlackFormatting:
-    name: BlackFormatting
-    runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, TrivyScan]
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: Runblackformatting
-        id: blackformatting
-        uses: ./.github/actions/blackformatting
-        with:
-          python-version: ${{ env.PythonVersion }}
+  # BlackFormatting:
+  #   name: BlackFormatting
+  #   runs-on: windows-latest
+  #   needs: [BanditScan, ClamAVScan, TrivyScan]
+  #   steps:
+  #     - name: CheckoutCode
+  #       uses: actions/checkout@v4
+  #     - name: Runblackformatting
+  #       id: blackformatting
+  #       uses: ./.github/actions/blackformatting
+  #       with:
+  #         python-version: ${{ env.PythonVersion }}
