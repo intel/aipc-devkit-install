@@ -107,7 +107,7 @@ runs:
     - name: Build with cov-build
       run: |
         export PATH="${PWD}/cov-analysis/bin:${PATH}"
-        cov-build --dir cov-int ${{ inputs.command }}
+        cov-build --dir cov-int --exclude cov-analysis ${{ inputs.command }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
