@@ -1,3 +1,4 @@
+
 name: Coverity Scan with Community Credentials
 description: "This action installs a specific version of Coverity."
 
@@ -74,12 +75,12 @@ runs:
 
     # Try to cache the tool to avoid downloading 1GB+ archive on every run.
     # Cache miss will add ~30s to create, but cache hit will save minutes.
-    # - name: Cache Coverity Build Tool
-    #   id: cov-build-cache
-    #   uses: actions/cache@v4
-    #   with:
-    #     path: ${{ inputs.working-directory }}/cov-analysis
-    #     key: cov-build-${{ inputs.build_language }}-${{ inputs.build_platform }}-${{ steps.coverity-cache-lookup.outputs.hash }}
+    - name: Cache Coverity Build Tool
+      id: cov-build-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.working-directory }}/cov-analysis
+        key: cov-build-${{ inputs.build_language }}-${{ inputs.build_platform }}-${{ steps.coverity-cache-lookup.outputs.hash }}
 
     - name: Download Coverity Build Tool (${{ inputs.build_language }} / ${{ inputs.build_platform }})
       if: steps.cov-build-cache.outputs.cache-hit != 'true'
@@ -93,15 +94,15 @@ runs:
       env:
         TOKEN: ${{ inputs.token }}
 
-    # - if: steps.cov-build-cache.outputs.cache-hit != 'true'
-    #   run: mkdir cov-analysis
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
+    - if: steps.cov-build-cache.outputs.cache-hit != 'true'
+      run: mkdir cov-analysis
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
   
-    # - if: steps.cov-build-cache.outputs.cache-hit != 'true'
-    #   run: tar -xzf cov-analysis.tar.gz --strip 1 -C cov-analysis
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
+    - if: steps.cov-build-cache.outputs.cache-hit != 'true'
+      run: tar -xzf cov-analysis.tar.gz --strip 1 -C cov-analysis
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
 
     - name: Build with cov-build
       run: |
