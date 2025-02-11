@@ -122,34 +122,35 @@ runs:
         name: ${{ inputs.report_name }}
         path: ${{ inputs.report_name }}.tgz
     
-    # - name: Submit results to Coverity Scan
-    #   run: |
-    #     curl \
-    #       --form token="${TOKEN}" \
-    #       --form email="${{ inputs.email }}" \
-    #       --form file=@${{ inputs.report_name }}.tgz \
-    #       --form version="${{ inputs.version }}" \
-    #       --form description="${{ inputs.description }}" \
-    #       "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
-    #   env:
-    #     TOKEN: ${{ inputs.token }}
+    - name: Submit results to Coverity Scan
+      run: |
+        curl \
+          --form token="${TOKEN}" \
+          --form email="${{ inputs.email }}" \
+          --form file=@${{ inputs.report_name }}.tgz \
+          --form version="${{ inputs.version }}" \
+          --form description="${{ inputs.description }}" \
+          "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TOKEN: ${{ inputs.token }}
 
-    # - name: Analysis with cov-analyze
-    #   run: |
-    #     cov-analyze --dir cov-int --all
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
+    - name: Analysis with cov-analyze
+      run: |
+        cov-analyze --dir cov-int --enable-default --security --webapp-security --enable-audit-checkers --enable-audit-mode --checker-option DOM_XSS:distrust_all:true --strip-path ./ --aggressiveness-level low --all --export-summaries true
+        # cov-analyze --dir cov-int --enable-default --security --webapp-security --enable-audit-checkers --enable-audit-mode --checker-option DOM_XSS:distrust_all:true --strip-path --aggressiveness-level low --config C:\home\jenkins\agent\workspace\IntelSAMClientWS\IntelSAMClient\OWRBuild\coverity-config\coverity_config.xml --export-summaries true
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
     
-    # - name: Generate report with cov-format-errors
-    #   run: |
-    #     cov-format-errors --dir cov-int --json-output-v2 ${{ inputs.report_name }}.json
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
+    - name: Generate report with cov-format-errors
+      run: |
+        cov-format-errors --dir cov-int --json-output-v2 ${{ inputs.report_name }}.json
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
     
-    # - name: Upload Coverity Scan Results
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: ${{ inputs.report_name }}
-    #     path: ${{ inputs.report_name }}.json
+    - name: Upload Coverity Scan Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report_name }}
+        path: ${{ inputs.report_name }}.json
