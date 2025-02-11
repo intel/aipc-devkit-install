@@ -116,30 +116,36 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
-    - name: Upload Coverity Scan Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.report_name }}
-        path: ${{ inputs.report_name }}.tgz
+    # - name: Upload Coverity Scan Results
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ${{ inputs.report_name }}
+    #     path: ${{ inputs.report_name }}.tgz
     
-    - name: Submit results to Coverity Scan
+    # - name: Submit results to Coverity Scan
+    #   run: |
+    #     curl \
+    #       --form token="${TOKEN}" \
+    #       --form email="${{ inputs.email }}" \
+    #       --form file=@${{ inputs.report_name }}.tgz \
+    #       --form version="${{ inputs.version }}" \
+    #       --form description="${{ inputs.description }}" \
+    #       "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
+    #   env:
+    #     TOKEN: ${{ inputs.token }}
+
+    - name: Build with cov-manage-emit
       run: |
-        curl \
-          --form token="${TOKEN}" \
-          --form email="${{ inputs.email }}" \
-          --form file=@${{ inputs.report_name }}.tgz \
-          --form version="${{ inputs.version }}" \
-          --form description="${{ inputs.description }}" \
-          "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
+        cov-manage-emit --dir cov-int list-capture-invocations
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      env:
-        TOKEN: ${{ inputs.token }}
 
     - name: Analysis with cov-analyze
       run: |
         export PATH="${PWD}/cov-analysis/bin:${PATH}"
-        cov-analyze --dir cov-int --all
+        cov-analyze.exe --dir cov-int --all
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
