@@ -111,16 +111,46 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
-    # - name: Archive results
-    #   run: tar -czvf ${{ inputs.report_name }}.tgz cov-int
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
+    - name: Archive results
+      run: tar -czvf ${{ inputs.report_name }}.tgz cov-int
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
     
     # - name: Upload Coverity Scan Results
     #   uses: actions/upload-artifact@v4
     #   with:
     #     name: ${{ inputs.report_name }}
     #     path: ${{ inputs.report_name }}.tgz
+
+    - name: Submit results to Coverity Scan
+      run: |
+        curl \
+          --form token="${TOKEN}" \
+          --form email="${{ inputs.email }}" \
+          --form file=@${{ inputs.report_name }}.tgz \
+          --form version="${{ inputs.version }}" \
+          --form description="${{ inputs.description }}" \
+          "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TOKEN: ${{ inputs.token }}
+
+    - name: Download Coverity Report
+      run: |
+          curl -o coverity_report.csv \
+            -H "Authorization: Bearer ${{TOKEN}}" \
+            "https://scan.coverity.com/projects/${{ steps.project.outputs.project }}/reports/latest.csv"
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TOKEN: ${{ inputs.token }}
+
+    - name: Upload Coverity Report as Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverity-report
+        path: coverity_report.csv
     
     # - name: Submit results to Coverity Scan
     #   run: |
@@ -136,27 +166,27 @@ runs:
     #   env:
     #     TOKEN: ${{ inputs.token }}
 
-    - name: Build with cov-manage-emit
-      run: |
-        cov-manage-emit --dir cov-int list-capture-invocations
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
+    # - name: Build with cov-manage-emit
+    #   run: |
+    #     cov-manage-emit --dir cov-int list-capture-invocations
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
 
-    - name: Analysis with cov-analyze
-      run: |
-        export PATH="${PWD}/cov-analysis/bin:${PATH}"
-        cov-analyze.exe --dir cov-int --all
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
+    # - name: Analysis with cov-analyze
+    #   run: |
+    #     export PATH="${PWD}/cov-analysis/bin:${PATH}"
+    #     cov-analyze.exe --dir cov-int --all
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
     
-    - name: Generate report with cov-format-errors
-      run: |
-        cov-format-errors --dir cov-int --json-output-v2 ${{ inputs.report_name }}.json
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
+    # - name: Generate report with cov-format-errors
+    #   run: |
+    #     cov-format-errors --dir cov-int --json-output-v2 ${{ inputs.report_name }}.json
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
     
-    - name: Upload Coverity Scan Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.report_name }}
-        path: ${{ inputs.report_name }}.json
+    # - name: Upload Coverity Scan Results
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ${{ inputs.report_name }}
+    #     path: ${{ inputs.report_name }}.json
