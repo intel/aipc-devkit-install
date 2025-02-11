@@ -11,7 +11,7 @@ inputs:
   # Coverity Parameters )
   project:
     description: Project name in Coverity Scan.
-    default: intel-aipc-devkit-install
+    default: ${{ github.repository }}
     required: false
   token:
     description: Secret project token for accessing Coverity Scan.
