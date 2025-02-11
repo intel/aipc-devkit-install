@@ -138,8 +138,7 @@ runs:
 
     - name: Analysis with cov-analyze
       run: |
-        cov-analyze --dir cov-int --enable-default --security --webapp-security --enable-audit-checkers --enable-audit-mode --checker-option DOM_XSS:distrust_all:true --strip-path ./ --aggressiveness-level low --all --export-summaries true
-        # cov-analyze --dir cov-int --enable-default --security --webapp-security --enable-audit-checkers --enable-audit-mode --checker-option DOM_XSS:distrust_all:true --strip-path --aggressiveness-level low --config C:\home\jenkins\agent\workspace\IntelSAMClientWS\IntelSAMClient\OWRBuild\coverity-config\coverity_config.xml --export-summaries true
+        cov-analyze --dir cov-int --all
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
