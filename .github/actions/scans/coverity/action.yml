@@ -138,6 +138,7 @@ runs:
 
     - name: Analysis with cov-analyze
       run: |
+        export PATH="${PWD}/cov-analysis/bin:${PATH}"
         cov-analyze --dir cov-int --all
       shell: bash
       working-directory: ${{ inputs.working-directory }}
