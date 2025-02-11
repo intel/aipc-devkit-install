@@ -147,7 +147,7 @@ runs:
         TOKEN: ${{ inputs.token }}
 
     - name: Upload Coverity Report as Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverity-report
         path: coverity_report.csv
