@@ -11,17 +11,17 @@ env:
     CoverityProject: "intel-aipc-devkit-install"
 
 jobs:
-  BuildStage:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  # BuildStage:
+  #   runs-on: windows-latest
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Set up Python and Package
-      uses: ./.github/actions/envsetup
+  #   - name: Set up Python and Package
+  #     uses: ./.github/actions/envsetup
 
-    - name: Build aipc-devkit and upload to Artifactory
-      uses: ./.github/actions/buildartifact
+  #   - name: Build aipc-devkit and upload to Artifactory
+  #     uses: ./.github/actions/buildartifact
   
   # BanditScan:
   #   name: BanditScan
@@ -76,22 +76,22 @@ jobs:
   #         scanners: 'vuln,secret,misconfig,license'
   #         report_name: "trivy-results"
 
-  CoverityScan:
-    name: CoverityScan
-    runs-on: windows-latest
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: RunCoverityScan
-        id: RunCoverityScan
-        uses: ./.github/actions/scans/coverity
-        with:
-          project: ${{ env.CoverityProject }}
-          build_language: 'Python' # PHP/Python/Ruby
-          command: '--no-command --fs-capture-search ${{ github.workspace }}'
-          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
-          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
-          report_name: "coverity-results"
+    CoverityScan:
+        name: CoverityScan
+        runs-on: ubuntu-24.04
+        steps:
+          - name: CheckoutCode
+            uses: actions/checkout@v4
+          - name: RunCoverityScan
+            id: RunCoverityScan
+            uses: ./.github/actions/scans/coverity
+            with:
+              project: ${{ env.CoverityProject }}
+              build_language: 'Python' # PHP/Python/Ruby
+              command: '--no-command --fs-capture-search ${{ github.workspace }}'
+              email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+              token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+              report_name: "coverity-results"
   
   # CodeCoverage:
   #   name: CodeCoverage
