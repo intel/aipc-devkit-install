@@ -111,10 +111,10 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
-    - name: Archive results
-      run: tar -czvf ${{ inputs.report_name }}.tgz cov-int
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
+    # - name: Archive results
+    #   run: tar -czvf ${{ inputs.report_name }}.tgz cov-int
+    #   shell: bash
+    #   working-directory: ${{ inputs.working-directory }}
     
     # - name: Upload Coverity Scan Results
     #   uses: actions/upload-artifact@v4
