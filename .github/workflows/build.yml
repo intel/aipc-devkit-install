@@ -87,7 +87,7 @@ jobs:
             uses: ./.github/actions/scans/coverity
             with:
               project: ${{ env.CoverityProject }}
-              build_language: 'Python' # PHP/Python/Ruby
+              build_language: 'other' # PHP/Python/Ruby
               command: '--no-command --fs-capture-search ${{ github.workspace }}'
               email: ${{ secrets.COVERITY_SCAN_EMAIL }}
               token: ${{ secrets.COVERITY_SCAN_TOKEN }}
