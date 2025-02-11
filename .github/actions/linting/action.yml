@@ -10,6 +10,10 @@ inputs:
   token:
     description: "Github token to fetch source"
     required: false
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload to Artifactory'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -53,6 +57,7 @@ runs:
       shell: pwsh
 
     - name: Upload Linting Reports
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: linting-reports

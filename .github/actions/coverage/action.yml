@@ -18,6 +18,10 @@ inputs:
     description: 'Coverage threshold'
     required: false
     default: '80'
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload to Artifactory'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -54,6 +58,7 @@ runs:
       shell: bash
     
     - name: Upload Coverage Report
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report

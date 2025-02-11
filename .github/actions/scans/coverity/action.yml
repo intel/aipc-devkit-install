@@ -48,6 +48,10 @@ inputs:
     description: 'Name of the report file'
     required: false
     default: 'coverity-results'
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload to Artifactory'
+    required: false
+    default: 'false'
 
 runs: 
   using: "composite"
@@ -116,11 +120,12 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
-    # - name: Upload Coverity Scan Results
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: ${{ inputs.report_name }}
-    #     path: ${{ inputs.report_name }}.tgz
+    - name: Upload Coverity Scan Results
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report_name }}
+        path: ${{ inputs.report_name }}.tgz
 
     - name: Submit results to Coverity Scan
       run: |
@@ -135,36 +140,20 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         TOKEN: ${{ inputs.token }}
-
-    - name: Download Coverity Report
+    
+    - name: Submit results to Coverity Scan
       run: |
-          curl -o coverity_report.csv \
-            -H "Authorization: Bearer ${TOKEN}" \
-            "https://scan8.scan.coverity.com/api/view/v1/projects/61270/streams/15601/issues?format=csv"
+        curl \
+          --form token="${TOKEN}" \
+          --form email="${{ inputs.email }}" \
+          --form file=@${{ inputs.report_name }}.tgz \
+          --form version="${{ inputs.version }}" \
+          --form description="${{ inputs.description }}" \
+          "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         TOKEN: ${{ inputs.token }}
-
-    - name: Upload Coverity Report as Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverity-report
-        path: coverity_report.csv
-    
-    # - name: Submit results to Coverity Scan
-    #   run: |
-    #     curl \
-    #       --form token="${TOKEN}" \
-    #       --form email="${{ inputs.email }}" \
-    #       --form file=@${{ inputs.report_name }}.tgz \
-    #       --form version="${{ inputs.version }}" \
-    #       --form description="${{ inputs.description }}" \
-    #       "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
-    #   shell: bash
-    #   working-directory: ${{ inputs.working-directory }}
-    #   env:
-    #     TOKEN: ${{ inputs.token }}
 
     # - name: Build with cov-manage-emit
     #   run: |

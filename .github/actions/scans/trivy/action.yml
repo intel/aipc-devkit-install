@@ -39,6 +39,10 @@ inputs:
     description: 'Name of the report file'
     required: false
     default: 'trivy-results'
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload to Artifactory'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -67,6 +71,7 @@ runs:
       shell: pwsh                                           
 
     - name: Upload Vulnerability Scan Results
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
