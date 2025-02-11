@@ -140,7 +140,7 @@ runs:
       run: |
           curl -o coverity_report.csv \
             -H "Authorization: Bearer ${TOKEN}" \
-            "https://scan.coverity.com/projects/${{ steps.project.outputs.project }}/reports/latest.csv"
+            "https://scan8.scan.coverity.com/api/view/v1/projects/61270/streams/15601/issues?format=csv"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
