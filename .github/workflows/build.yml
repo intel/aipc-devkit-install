@@ -93,7 +93,7 @@ jobs:
   CoverityScan:
     name: CoverityScan
     runs-on: ubuntu-24.04
-    needs: [BuildStage]
+    # needs: [BuildStage]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
