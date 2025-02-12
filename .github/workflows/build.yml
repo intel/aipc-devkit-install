@@ -9,86 +9,83 @@ on:
         required: true
         default: 'false'
 
-permissions:
-  contents: read
-
 env:
   PythonVersion: "3.10.11"
   TrivyVersion: "0.58.0"
   CoverityProject: "intel/aipc-devkit-install"
 
 jobs:
-  # BuildStage:
-  #   runs-on: windows-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+  BuildStage:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Set up Python and Package
-  #       uses: ./.github/actions/envsetup
+      - name: Set up Python and Package
+        uses: ./.github/actions/envsetup
 
-  #     - name: Build aipc-devkit and upload to Artifactory
-  #       uses: ./.github/actions/buildartifact
-  #       with:
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+      - name: Build aipc-devkit and upload to Artifactory
+        uses: ./.github/actions/buildartifact
+        with:
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
   
-  # BanditScan:
-  #   name: BanditScan
-  #   runs-on: windows-latest
-  #   needs: [BuildStage]
-  #   steps:
-  #     - name: CheckoutCode
-  #       uses: actions/checkout@v4
-  #     - name: RunBanditScan
-  #       id: BanditScan
-  #       uses: ./.github/actions/scans/bandit
-  #       with:
-  #         report_name: "bandit-results"
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  BanditScan:
+    name: BanditScan
+    runs-on: windows-latest
+    needs: [BuildStage]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunBanditScan
+        id: BanditScan
+        uses: ./.github/actions/scans/bandit
+        with:
+          report_name: "bandit-results"
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
-  # ClamAVScan:
-  #   name: ClamAVScan
-  #   runs-on: ubuntu-24.04
-  #   needs: [BuildStage]
-  #   steps:
-  #     - name: CheckoutCode
-  #       uses: actions/checkout@v4
-  #     - name: RunSourceClamAVScan
-  #       id: ClamAVScanSource
-  #       uses: ./.github/actions/scans/clamav
-  #       with:
-  #         report_name: "clamavsource-results"
-  #         exclude_paths: ".git,.github"
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-  #     - name: RunBinaryClamAVScan
-  #       if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
-  #       id: ClamAVScanBinary
-  #       uses: ./.github/actions/scans/clamav
-  #       with:
-  #         report_name: "clamavbinary-results"
-  #         exclude_paths: ".git"
-  #         artifact_name: "ArtifactAIPC"
-  #         artifact_path: "./ArtifactAIPC"
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  ClamAVScan:
+    name: ClamAVScan
+    runs-on: ubuntu-24.04
+    needs: [BuildStage]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunSourceClamAVScan
+        id: ClamAVScanSource
+        uses: ./.github/actions/scans/clamav
+        with:
+          report_name: "clamavsource-results"
+          exclude_paths: ".git,.github"
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+      - name: RunBinaryClamAVScan
+        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
+        id: ClamAVScanBinary
+        uses: ./.github/actions/scans/clamav
+        with:
+          report_name: "clamavbinary-results"
+          exclude_paths: ".git"
+          artifact_name: "ArtifactAIPC"
+          artifact_path: "./ArtifactAIPC"
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
-  # TrivyScan:
-  #   name: TrivyScan
-  #   runs-on: windows-latest
-  #   needs: [BuildStage]
-  #   steps:
-  #     - name: CheckoutCode
-  #       uses: actions/checkout@v4
-  #     - name: RunTrivyScan
-  #       id: TrivyScan
-  #       uses: ./.github/actions/scans/trivy
-  #       with:
-  #         trivy_version: ${{ env.TrivyVersion }}
-  #         scan-type: 'fs'
-  #         scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
-  #         severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-  #         scanners: 'vuln,secret,misconfig,license'
-  #         report_name: "trivy-results"
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  TrivyScan:
+    name: TrivyScan
+    runs-on: windows-latest
+    needs: [BuildStage]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunTrivyScan
+        id: TrivyScan
+        uses: ./.github/actions/scans/trivy
+        with:
+          trivy_version: ${{ env.TrivyVersion }}
+          scan-type: 'fs'
+          scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          scanners: 'vuln,secret,misconfig,license'
+          report_name: "trivy-results"
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
   CoverityScan:
     name: CoverityScan
@@ -97,23 +94,17 @@ jobs:
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
-      # - name: RunCoverityScan
-      #   id: RunCoverityScan
-      #   uses: ./.github/actions/scans/coverity
-      #   with:
-      #     project: ${{ env.CoverityProject }}
-      #     build_language: 'other' # PHP/Python/Ruby
-      #     command: '--no-command --fs-capture-search ${{ github.workspace }}'
-      #     email: ${{ secrets.COVERITY_SCAN_EMAIL }}
-      #     token: ${{ secrets.COVERITY_SCAN_TOKEN }}
-      #     report_name: "coverity-results"
-      #     upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-      - uses: vapier/coverity-scan-action@2068473c7bdf8c2fb984a6a40ae76ee7facd7a85 # v1.8.0
+      - name: RunCoverityScan
+        id: RunCoverityScan
+        uses: ./.github/actions/scans/coverity
         with:
+          project: ${{ env.CoverityProject }}
+          build_language: 'other' # PHP/Python/Ruby
+          command: '--no-command --fs-capture-search ${{ github.workspace }}'
           email: ${{ secrets.COVERITY_SCAN_EMAIL }}
           token: ${{ secrets.COVERITY_SCAN_TOKEN }}
-          build_language: 'other'
-          command: '--no-command --fs-capture-search ./ --fs-capture-search-exclude-regex /cov-analysis/.*' 
+          report_name: "coverity-results"
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
   
   # CodeCoverage:
   #   name: CodeCoverage
@@ -129,30 +120,30 @@ jobs:
   #         project_directory: "."
   #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
-  # Linting:
-  #   name: Linting
-  #   runs-on: windows-latest
-  #   needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
-  #   steps:
-  #     - name: CheckoutCode
-  #       uses: actions/checkout@v4
-  #     - name: RunLinting
-  #       id: Linting
-  #       uses: ./.github/actions/linting
-  #       with:
-  #         python-version: ${{ env.PythonVersion }}
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  Linting:
+    name: Linting
+    runs-on: windows-latest
+    needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: RunLinting
+        id: Linting
+        uses: ./.github/actions/linting
+        with:
+          python-version: ${{ env.PythonVersion }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
-  # BlackFormatting:
-  #   name: BlackFormatting
-  #   runs-on: windows-latest
-  #   needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
-  #   steps:
-  #     - name: CheckoutCode
-  #       uses: actions/checkout@v4
-  #     - name: Runblackformatting
-  #       id: blackformatting
-  #       uses: ./.github/actions/blackformatting
-  #       with:
-  #         python-version: ${{ env.PythonVersion }}
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  BlackFormatting:
+    name: BlackFormatting
+    runs-on: windows-latest
+    needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
+    steps:
+      - name: CheckoutCode
+        uses: actions/checkout@v4
+      - name: Runblackformatting
+        id: blackformatting
+        uses: ./.github/actions/blackformatting
+        with:
+          python-version: ${{ env.PythonVersion }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
