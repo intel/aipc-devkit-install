@@ -6,12 +6,13 @@ on:
       upload_to_artifactory:
         description: 'Upload to Artifactory'
         required: true
-        default: 'false'
+        default: 'true'
 
 env:
   PythonVersion: "3.10.11"
   TrivyVersion: "0.58.0"
   CoverityProject: "intel/aipc-devkit-install"
+  upload_to_artifactory: "true"
 
 jobs:
   BuildStage:
@@ -26,7 +27,7 @@ jobs:
       - name: Build aipc-devkit and upload to Artifactory
         uses: ./.github/actions/buildartifact
         with:
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
   
   BanditScan:
     name: BanditScan
@@ -40,7 +41,7 @@ jobs:
         uses: ./.github/actions/scans/bandit
         with:
           report_name: "bandit-results"
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
 
   ClamAVScan:
     name: ClamAVScan
@@ -55,9 +56,9 @@ jobs:
         with:
           report_name: "clamavsource-results"
           exclude_paths: ".git,.github"
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
       - name: RunBinaryClamAVScan
-        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
+        if: ${{ inputs.upload_to_artifactory == 'true' }}
         id: ClamAVScanBinary
         uses: ./.github/actions/scans/clamav
         with:
@@ -65,7 +66,7 @@ jobs:
           exclude_paths: ".git"
           artifact_name: "ArtifactAIPC"
           artifact_path: "./ArtifactAIPC"
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
 
   TrivyScan:
     name: TrivyScan
@@ -84,7 +85,7 @@ jobs:
           severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
           scanners: 'vuln,secret,misconfig,license'
           report_name: "trivy-results"
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
 
   CoverityScan:
     name: CoverityScan
@@ -103,7 +104,7 @@ jobs:
           email: ${{ secrets.COVERITY_SCAN_EMAIL }}
           token: ${{ secrets.COVERITY_SCAN_TOKEN }}
           report_name: "coverity-results"
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
   
   # CodeCoverage:
   #   name: CodeCoverage
@@ -117,7 +118,7 @@ jobs:
   #       uses: ./.github/actions/coverage
   #       with:
   #         project_directory: "."
-  #         upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  #         upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
 
   Linting:
     name: Linting
@@ -131,7 +132,7 @@ jobs:
         uses: ./.github/actions/linting
         with:
           python-version: ${{ env.PythonVersion }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
 
   BlackFormatting:
     name: BlackFormatting
@@ -145,4 +146,4 @@ jobs:
         uses: ./.github/actions/blackformatting
         with:
           python-version: ${{ env.PythonVersion }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
