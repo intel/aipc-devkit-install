@@ -1,13 +1,13 @@
 name: CI for aipc-devkit
 
 on:
-  push:
+  # push:
   workflow_dispatch:
-    inputs:
-      upload_to_artifactory:
-        description: 'Upload to Artifactory'
-        required: true
-        default: 'false'
+    # inputs:
+    #   upload_to_artifactory:
+    #     description: 'Upload to Artifactory'
+    #     required: true
+    #     default: 'false'
 
 env:
   PythonVersion: "3.10.11"
