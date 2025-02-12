@@ -9,6 +9,9 @@ on:
         required: true
         default: 'false'
 
+permissions:
+  contents: read
+
 env:
   PythonVersion: "3.10.11"
   TrivyVersion: "0.58.0"
