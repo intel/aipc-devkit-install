@@ -1,9 +1,6 @@
 name: CI for aipc-devkit
 
 on:
-  push:
-    branches:
-      - ci_aipc_devkit
   workflow_dispatch:
     inputs:
       upload_to_artifactory:
