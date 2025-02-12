@@ -9,8 +9,7 @@ on:
         required: true
         default: 'false'
 
-permissions:
-  contents: read
+permissions: read-all
 
 env:
   PythonVersion: "3.10.11"

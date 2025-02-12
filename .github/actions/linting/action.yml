@@ -57,7 +57,7 @@ runs:
       shell: pwsh
 
     - name: Upload Linting Reports
-      # if: ${{ inputs.upload_to_artifactory == 'true' }}
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: linting-reports
