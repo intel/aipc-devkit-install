@@ -91,6 +91,7 @@ jobs:
   CoverityScan:
     name: CoverityScan
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -106,24 +107,24 @@ jobs:
           report_name: "coverity-results"
           upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
   
-  CodeCoverage:
-    name: CodeCoverage
-    runs-on: ubuntu-24.04
-    needs: [BanditScan, ClamAVScan, TrivyScan]
-    steps:
-      - name: CheckoutCode
-        uses: actions/checkout@v4
-      - name: RunCodeCoverage
-        id: CodeCoverage
-        uses: ./.github/actions/coverage
-        with:
-          project_directory: "."
-          upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
+  # CodeCoverage:
+  #   name: CodeCoverage
+  #   runs-on: ubuntu-24.04
+  #   needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
+  #   steps:
+  #     - name: CheckoutCode
+  #       uses: actions/checkout@v4
+  #     - name: RunCodeCoverage
+  #       id: CodeCoverage
+  #       uses: ./.github/actions/coverage
+  #       with:
+  #         project_directory: "."
+  #         upload_to_artifactory: ${{ inputs.upload_to_artifactory }}
 
   Linting:
     name: Linting
     runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, TrivyScan]
+    needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -137,7 +138,7 @@ jobs:
   BlackFormatting:
     name: BlackFormatting
     runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, TrivyScan]
+    needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
