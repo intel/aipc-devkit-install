@@ -26,28 +26,32 @@ This readme file contains information on how to build the installer for the Inte
 ## 3. Build Instructions
 
 Follow the below steps
-1. Create the Virtual environment
+1. Open a command line terminal and clone the repo.
+    git clone https://github.com/intel/aipc-devkit-install.git
+2. Change the working directory to the repo folder.
+3. Create the Virtual environment
     python -m venv venv
-2. Activate the Virtual environment
+4. Activate the Virtual environment
     .\venv\Scripts\activate
-3. Install "pyinstaller" and "pyinstaller_versionfile" modules
+5. Install "pyinstaller" and "pyinstaller_versionfile" modules
     pip install pyinstaller
-    pip installer pyinstaller_versionfile
-4. Set a version for the Build
-    set BuildVersion=1.1.0.dev0
-5. Build the installer
+    pip install pyinstaller_versionfile
+6. Set a version for the Build
+    set BuildVersion=1.1.0.0
+7. Build the installer
     cd Build
     Run Build.bat
-6. `installer.exe` and `uninstall.exe` is created under `dist` folder.
+8. `installer.exe` and `uninstall.exe` is created under `dist` folder.
 
 ## 4. Installation
 
 1. Copy the `installer.exe` and `unstall.exe` under repo root folder.
-2. Follow the instructions in [Installation_Guide.md](Installation_Guide.md) from point 4 under **Installation Instructions**. Installation will be done under `C:\Intel\aipcdevkit`. After the installation completes, the AI PC virtual environment will be available, and Jupyter Notebook will open in the browser.
+2. Follow the instructions in [Installation_Guide.md](Installation_Guide.md) from point 4 under **Installation Instructions**. Installation will be done under `C:\Intel\aipcdevkit`. 
+3. After the installation completes, the AI PC virtual environment will be available, and Jupyter Notebook will open in the browser.
 
 ## 5. Running Notebooks
 
-In the browser navigate to one of the following notebooks and run it to verify correct execution (requires internet connection).
+In Jupiter notebooks browser, navigate to one of the following notebooks and run it to verify correct execution (requires internet connection).
 - hello-world\hello-world.ipynb
 - llm-chatbot\llm-chatbot.ipynb
 - yolov8-optimization\yolov8-instance-segmentation.ipynb
