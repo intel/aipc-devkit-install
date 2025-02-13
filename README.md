@@ -1,106 +1,52 @@
-# Intel® AI PC Development Kit
+# Intel(R) AI PC Development Kit
 ## VERSION 2024.10.2 README
-### October 30, 2024
+### October 30 2024.
 
-## Table of Contents
+## README Contents
 
-1. [Introduction](#1-introduction)
-2. [System Requirements](#2-system-requirements)
-3. [Installation Instructions](#3-installation-instructions)
-4. [Uninstallation Instructions](#4-uninstallation-instructions)
-5. [Usage Information](#5-usage-information)
-6. [Known Issues](#6-known-issues)
-7. [License Agreement](#7-license-agreement)
-
+1.  [Introduction](#1-introduction)
+2.  [Requirements](#2-requirements)
+3.  [Build Instructions](#3-build-instructions)
+4.  [Installation](#4-installation)
+5.  [Running Notebooks](#5-running-notebooks)
 
 ## 1. Introduction
 
-This README file provides comprehensive information about the Intel® AI PC Development Kit.
+This readme file contains information on how to build the installer for the Intel(R) AI PC Development Kit
 
-The Intel® AI PC Development Kit will install the following software on your system:
+## 2. Requirements
 
-- **Python**                           : 3.10.11
-- **Visual Studio Code**               : 1.91.0
-- **Git**                              : 2.46.0
-- **Vim**                              : 9.1.0
-- **Visual C++ Redistributable**       : 14.32.31332.0
-- **Cmake**                            : 3.30.2
-- **OpenCV**                           : 4.10.0
-- **Intel Driver & Support Assistant** : 24.4.32.8
-- **OpenVino**                         : 2024.4.1
-- **OpenVino Notebooks**               : 2024.4
-- **Intel Demos**                      : 2024.4
-- **Open Model Zoo**                   : 2024.3.0
-- **Dependent Python Modules**
+1. Windows 11 Operating System.
+2. The system must be connected to the Internet.
+3. Python version 3.10.11 is installed for all user under C:\Python310 and PATH environment is updated
+4. Set system environment variables:
+    PIP_TRUSTED_HOST= pypi.org files.pythonhosted.org
 
-## 2.  System Requirements
+## 3. Build Instructions
 
-- **Operating System**: Windows 11
-- **Internet Connection**: Required
-- **Environment Variables**:
-  - `PIP_TRUSTED_HOST=pypi.org files.pythonhosted.org`
-  - Ensure the Git path is included in the system environment variable, e.g., `set PATH=%PATH%;C:\Program Files\Git\bin`
+Follow the below steps
+1. Create the Virtual environment
+    python -m venv venv
+2. Activate the Virtual environment
+    .\venv\Scripts\activate
+3. Install "pyinstaller" and "pyinstaller_versionfile" modules
+    pip install pyinstaller
+    pip installer pyinstaller_versionfile
+4. Set a version for the Build
+    set BuildVersion=1.1.0.dev0
+5. Build the installer
+    cd Build
+    Run Build.bat
+6. `installer.exe` and `uninstall.exe` is created under `dist` folder.
 
-## 3.  Installation Instructions
+## 4. Installation
 
-**Note:** These steps are not required, if the system is pre-installed
-1. Copy `IntelAIPCDevkit_2024.10.2.zip` to `C:\Intel\Setup`.
-2. Unzip the contents of the zip file into the `Setup` folder.
-3. Navigate to `C:\Intel\Setup\IntelAIPCDevkit_2024.10.2`.
-4. Run `installer.exe` with administrative privileges.
-5. The license agreement will appear. Click "I accept the license agreement" to start the installation.
-6. Click "Install".
-7. The installation will begin, and the software listed in section 1 will be installed sequentially.
-8. Accept the licenses as needed.
-9. The installations will proceed with default options.
-10. After the installation completes, the AI PC virtual environment will be available, and Jupyter Notebook will open in the browser.
+1. Copy the `installer.exe` and `unstall.exe` under repo root folder.
+2. Follow the instructions in [Installation_Guide.md](Installation_Guide.md) from point 4 under **Installation Instructions**. Installation will be done under `C:\Intel\aipcdevkit`. After the installation completes, the AI PC virtual environment will be available, and Jupyter Notebook will open in the browser.
 
-## 4.  Uninstallation Instructions
+## 5. Running Notebooks
 
-1. The uninstaller can be found at `C:\Intel\aipcdevkit`.
-2. Run `uninstall.exe` with administrative privileges to remove all the software installed during the installation process. Note that the Intel Driver & Support Assistant (IDSA) will not be uninstalled.
-3. Uninstallation logs will not be removed and can be found at `C:\Intel\UninstallLogs`.
-
-## 5. Usage Information
-
-1. Set up your browser to enable WebNN flags. This is not enabled by default for security reasons.
-   - **Google Chrome**: Type `chrome://flags` in the browser and search for WebNN. Select "Enabled" in the dropdown that appears.
-   - **Microsoft Edge**: Type `edge://flags` in the browser and search for WebNN. Select "Enabled" in the dropdown that appears.
-2. You can restart Jupyter Labs anytime after the installation by running `start_lab.cmd` from `C:\Intel\aipcdevkit`.
-
-## 6. Known Issues
-
-1. **Unable to download software**:
-   - Ensure Internet connection is available and proxies are set as required.
-2. **Jupyter Kernel not working**:
-   - A Jupyter Lab Kernel HTTP Connection error may occur, preventing the installation of Python modules.
-   - Add the environment variable: `PIP_TRUSTED_HOST=pypi.org files.pythonhosted.org`.
-3. **`git+https` module is not working**:
-   - The `git+https` module is not functioning on the dev kit for Jupyter Notebooks, preventing the execution of notebooks that use Hugging Face models and the Intel Optimum package.
-   - Add the environment variable: `PIP_TRUSTED_HOST=pypi.org files.pythonhosted.org`.
-4. **Internet/Network stability**:
-   - The installer requires a stable internet connection as software is downloaded during the installation. The Python modules download timeout is set to 2 minutes. Delays may cause the download/installation of modules to fail.
-
-## 7.  License Agreement
-
-Copyright © 2024 Intel Corporation
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in the
-Software without restriction, including without limitation the rights to use, copy,
-modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-and to permit persons to whom the Software is furnished to do so, subject to the
-following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
+In the browser navigate to one of the following notebooks and run it to verify correct execution (requires internet connection).
+- hello-world\hello-world.ipynb
+- llm-chatbot\llm-chatbot.ipynb
+- yolov8-optimization\yolov8-instance-segmentation.ipynb
