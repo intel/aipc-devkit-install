@@ -19,6 +19,9 @@ inputs:
     required: false
     default: 'false'
 
+permissions: read-all
+#Adding Permission as Read for all of the available permissions
+
 runs:
   using: 'composite'
   steps:
