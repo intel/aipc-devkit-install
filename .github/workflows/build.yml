@@ -133,7 +133,6 @@ jobs:
         id: Linting
         uses: ./.github/actions/linting
         with:
-          python-version: ${{ env.PythonVersion }}
           upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
   BlackFormatting:
