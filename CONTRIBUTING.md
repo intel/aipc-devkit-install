@@ -61,7 +61,7 @@ commit automatically with `git commit -s`.
 ### Provide Feedback
 
 * **Report bugs / issues**
-    If you experience faulty behavior in OpenVINO or its components, you can [create a new issue](https://github.com/intel/aipc-devkit-install/issues) in the GitHub issue tracker.
+    If you experience faulty behavior, you can [create a new issue](https://github.com/intel/aipc-devkit-install/issues) in the GitHub issue tracker.
 * **Propose new features / improvements**
     If you have a suggestion for improvement or idea is already well defined, you can also create a
     [Feature Request Issue](https://github.com/intel/aipc-devkit-install/issues)
@@ -87,6 +87,11 @@ We'll make sure to review your Pull Request as soon as possible and provide you 
 * Give your branches, commits, and Pull Requests meaningful names and descriptions. It helps to track changes later.
 * Make your PRs small - each PR should address one issue. Remove all changes unrelated to the PR.
 * For Work In Progress, use a Draft PR.
+
+### Integration process
+
+* Once the Pull Request is approved, validation process will be initiated.
+* After validation, the changes will be available in the main branch during the release.
 
 ## Need Additional Help? Check these Articles
 
