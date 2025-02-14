@@ -8,6 +8,30 @@ on:
         description: 'Upload to Artifactory'
         required: true
         default: 'false'
+      run_all_scans:
+        description: 'Run scans (Bandit, ClamAV, Trivy, Coverity)'
+        required: true
+        default: 'false'
+      run_linting:
+        description: 'Run Linting (Linting, BlackFormatting)'
+        required: true
+        default: 'false'
+      run_bandit_scan:
+        description: 'Run Bandit Scan'
+        required: true
+        default: 'false'
+      run_clamav_scan:
+        description: 'Run ClamAV Scan'
+        required: true
+        default: 'false'
+      run_trivy_scan:
+        description: 'Run Trivy Scan'
+        required: true
+        default: 'false'
+      run_coverity_scan:
+        description: 'Run Coverity Scan'
+        required: true
+        default: 'false'
 
 permissions: read-all
 
@@ -35,6 +59,7 @@ jobs:
     name: BanditScan
     runs-on: windows-latest
     needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -49,6 +74,7 @@ jobs:
     name: ClamAVScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -74,6 +100,7 @@ jobs:
     name: TrivyScan
     runs-on: windows-latest
     needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -93,6 +120,7 @@ jobs:
     name: CoverityScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -125,7 +153,8 @@ jobs:
   Linting:
     name: Linting
     runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_linting == 'true' }}
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
@@ -138,7 +167,8 @@ jobs:
   BlackFormatting:
     name: BlackFormatting
     runs-on: windows-latest
-    needs: [BanditScan, ClamAVScan, TrivyScan, CoverityScan]
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_linting == 'true' }}
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
