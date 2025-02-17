@@ -1,6 +1,6 @@
-# Intel(R) AI PC Development Kit
-## VERSION 2024.10.2 README
-### October 30 2024.
+# Intel<span style="font-size: 20px;"><sup>® </sup></span> AI PC Development Kit
+#### Version 2024.10.2
+#### October 30 2024
 
 ## README Contents
 
@@ -13,18 +13,18 @@
 
 ## 1. Introduction
 
-AI developers require a combination of tools, software, frameworks, and models to effectively build, train, and deploy AI systems. These resources prepare them to handle all aspects of AI development, from data preprocessing and model training to deployment and monitoring. 
+The Intel® AI PC Development Kit is designed to equip AI developers with a comprehensive suite of tools, libraries, and frameworks necessary for building, training, and deploying AI systems. 
 
-The Intel AI PC Development Kit offers a comprehensive suite of essential tools, libraries, and frameworks to support this process.
+This kit facilitates the entire AI development lifecycle, from data preprocessing and model training to deployment and monitoring. 
 
-This readme file contains information on how to build the installer for the Intel(R) AI PC Development Kit from the source code. 
+This readme file contains information on how to build the installer for the Intel® AI PC Development Kit from the source code. 
 
 ## 2. Requirements
 
-1. Windows 11 Operating System.
-2. The system must be connected to the Internet.
-3. Python version 3.10.11 is installed for all user under C:\Python310 and PATH environment is updated
-4. Set system environment variables:
+1. **Operating System**: Windows 11.
+2. Internet Connection: Required.
+3. Python: Version 3.10.11 installed with path variable. updated
+4. System environment variable:
     - PIP_TRUSTED_HOST= pypi.org files.pythonhosted.org
 
 ## 3. Build Instructions
@@ -49,9 +49,9 @@ Follow the below steps:
 
 ## 4. Installation
 
-1. Copy the `installer.exe` and `uninstall.exe` under repo root folder.
-2. Follow the instructions in [Installation_Guide.md](Installation_Guide.md) from point 4 under **Installation Instructions**. Installation will be done under `C:\Intel\aipcdevkit`. 
-3. After the installation completes, the AI PC virtual environment will be available, and Jupyter Notebook will open in the browser.
+1. Move `installer.exe` and `uninstall.exe` under c:\intel\aipcdevkit folder.
+2. Continue with the installation process by following the steps provided in the [Installation_Guide.md](Installation_Guide.md) starting from section 4 - **Installation Instructions**. This will guide you through the remaining installation steps to complete installation under `C:\Intel\aipcdevkit`. 
+3. Once the installation is complete, the AI PC virtual environment will be set up, and Jupyter Notebook will automatically open in your browser.
 
 ## 5. Running Notebooks
 
