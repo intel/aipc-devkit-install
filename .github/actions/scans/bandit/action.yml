@@ -1,0 +1,51 @@
+
+name: 'Bandit Actions Scan'
+description: 'Perform security scanning using Bandit'
+inputs:
+  checkout_directory:
+    description: "checkout directory to where ingredient repo content is to be copied."
+    default: "src"
+  ref:
+    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
+    required: false
+  token:
+    description: "Github token to fetch source"
+    required: false
+  # Bandit specific inputs
+  report_name:
+    description: 'Name of the report file'
+    required: false
+    default: 'bandit-results'
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload to Artifactory'
+    required: false
+    default: 'false'
+
+permissions: read-all
+#Adding Permission as Read for all of the available permissions
+
+runs:
+  using: 'composite'
+  steps:
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+    
+    - name: Install Bandit
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit
+    
+    - name: Run Bandit Scan
+      shell: bash
+      continue-on-error: true
+      run: |
+        bandit -r . -f json -o ${{ inputs.report_name }}.json
+    
+    - name: Upload Bandit Scan Results
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report_name }}
+        path: ${{ inputs.report_name }}.json
