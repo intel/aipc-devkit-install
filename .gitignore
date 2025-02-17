@@ -5,11 +5,7 @@ AIDevKit/AIDevKit/offlinepackages/
 AIDevKit/AIDevKit.json
 AIDevKit/AIDevKit.zip
 installer.exe
-IDF/7zipToImage/
 Logs/
-OWRBin/
-OWRPackage/
-OutputContext.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -36,7 +32,6 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
