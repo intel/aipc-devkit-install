@@ -22,29 +22,29 @@ This readme file contains information on how to build the installer for the Inte
 ## 2. Requirements
 
 1. **Operating System**: Windows 11.
-2. Internet Connection: Required.
-3. Python: Version 3.10.11 installed with path variable. updated
-4. System environment variable:
-    - PIP_TRUSTED_HOST= pypi.org files.pythonhosted.org
+2. **Internet Connection**: Required. Please include proxy settings as needed.
+3. **Python**: Version 3.10.11 installed with path variable. updated
+4. **System environment variable**:
+    - `PIP_TRUSTED_HOST= pypi.org files.pythonhosted.org`
 
 ## 3. Build Instructions
 
 Follow the below steps:
 1. Open a command line terminal and clone the repo.
-    - git clone https://github.com/intel/aipc-devkit-install.git
+    - `git clone https://github.com/intel/aipc-devkit-install.git`
 2. Change the working directory to the repo folder.
 3. Create the Virtual environment with python 3.10
-    - py -3.10 -m venv venv
+    - `python -3.10 -m venv venv`
 4. Activate the Virtual environment
-    - .\venv\Scripts\activate
+    - `.\venv\Scripts\activate`
 5. Install "pyinstaller" and "pyinstaller_versionfile" modules (Make sure proxy is included as needed)
-    - pip install pyinstaller
-    - pip install pyinstaller_versionfile
+    - `pip install pyinstaller`
+    - `pip install pyinstaller_versionfile`
 6. Set a version for the Build
-    - set BuildVersion=1.1.0.0
+    - `set BuildVersion=1.1.0.0`
 7. Build the installer
-    - cd build
-    - Run Build.bat
+    - `cd build`
+    - `Run Build.bat`
 8. `installer.exe` and `uninstall.exe` is created under `dist` folder.
 
 ## 4. Installation
