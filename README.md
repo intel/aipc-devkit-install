@@ -49,7 +49,7 @@ Follow the below steps:
 
 ## 4. Installation
 
-1. Move `installer.exe` and `uninstall.exe` under c:\intel\aipcdevkit folder.
+1. Copy the `installer.exe` and `uninstall.exe` under repo root folder.
 2. Continue with the installation process by following the steps provided in the [Installation_Guide.md](Installation_Guide.md) starting from section 4 - **Installation Instructions**. This will guide you through the remaining installation steps to complete installation under `C:\Intel\aipcdevkit`. 
 3. Once the installation is complete, the AI PC virtual environment will be set up, and Jupyter Notebook will automatically open in your browser.
 
