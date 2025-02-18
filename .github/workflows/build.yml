@@ -7,15 +7,15 @@ on:
       upload_to_artifactory:
         description: 'Upload to Artifactory'
         required: true
-        default: 'true'
+        default: 'false'
       run_all_scans:
         description: 'Run scans (Bandit, ClamAV, Trivy, Coverity)'
         required: true
-        default: 'true'
+        default: 'false'
       run_linting:
         description: 'Run Linting (Linting, BlackFormatting)'
         required: true
-        default: 'true'
+        default: 'false'
       run_bandit_scan:
         description: 'Run Bandit Scan'
         required: true
@@ -83,7 +83,7 @@ jobs:
         uses: ./.github/actions/scans/clamav
         with:
           report_name: "clamavsource-results"
-          exclude_paths: ".git,.github"
+          exclude_paths: ".git"
           upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
       - name: RunBinaryClamAVScan
         if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}

@@ -33,14 +33,16 @@ runs:
   using: 'composite'
   steps:   
     - name: Download artifact
-      if: ${{ inputs.artifact_name != null && inputs.upload_to_artifactory == 'true' }}
+      if: ${ inputs.artifact_name != null }
+      # if: ${{ inputs.artifact_name != null && inputs.upload_to_artifactory == 'true' }}
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.artifact_name }}
         path: ${{ inputs.artifact_path }}
 
     - name: Show downloaded artifact content
-      if: ${{ inputs.artifact_name != '' && inputs.upload_to_artifactory == 'true' }}
+      if: ${ inputs.artifact_name != null }
+      # if: ${{ inputs.artifact_name != '' && inputs.upload_to_artifactory == 'true' }}
       run: |
         echo "Listing contents of the downloaded artifact:"
         ls -R ${{ inputs.artifact_path }}
@@ -104,7 +106,7 @@ runs:
         fi
         
     - name: Upload ClamAV Scan Results
-      if: ${{ inputs.upload_to_artifactory == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}

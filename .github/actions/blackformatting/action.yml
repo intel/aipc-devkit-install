@@ -53,7 +53,7 @@ runs:
       shell: pwsh
 
     - name: Upload Black output as artifact
-      if: ${{ inputs.upload_to_artifactory == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: black-output
