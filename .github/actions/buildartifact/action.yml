@@ -1,5 +1,5 @@
-name: Build the Project
-description: This action Build the project and upload it to the Artifactory.
+name: Build The Project
+description: This action builds the project and uploads it to the Artifactory.
 inputs:
   upload_to_artifactory:
     description: 'Flag to control whether to upload to Artifactory'
@@ -7,7 +7,7 @@ inputs:
     default: 'false'
 
 permissions: read-all
-#Adding Permission as Read for all of the available permissions
+# Adding read permissions for all available permissions
 
 runs:
   using: "composite"

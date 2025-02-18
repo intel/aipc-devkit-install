@@ -1,21 +1,21 @@
 name: CI for aipc-devkit
 
 on:
-  push:
+  push: # Add specific branches or tags if needed, e.g., branches: [main]
   workflow_dispatch:
     inputs:
       upload_to_artifactory:
         description: 'Upload to Artifactory'
         required: true
-        default: 'false'
+        default: 'true'
       run_all_scans:
         description: 'Run scans (Bandit, ClamAV, Trivy, Coverity)'
         required: true
-        default: 'false'
+        default: 'true'
       run_linting:
         description: 'Run Linting (Linting, BlackFormatting)'
         required: true
-        default: 'false'
+        default: 'true'
       run_bandit_scan:
         description: 'Run Bandit Scan'
         required: true
@@ -33,7 +33,7 @@ on:
         required: true
         default: 'false'
 
-permissions: read-all
+permissions: read-all # Adding Permission as Read for all of the available permissions
 
 env:
   PythonVersion: "3.10.11"
@@ -42,7 +42,7 @@ env:
 
 jobs:
   BuildStage:
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
   
   BanditScan:
     name: BanditScan
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     needs: [BuildStage]
     if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
     steps:
@@ -98,7 +98,7 @@ jobs:
 
   TrivyScan:
     name: TrivyScan
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     needs: [BuildStage]
     if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
     steps:
@@ -129,7 +129,7 @@ jobs:
         uses: ./.github/actions/scans/coverity
         with:
           project: ${{ env.CoverityProject }}
-          build_language: 'other' # PHP/Python/Ruby
+          build_language: 'other' # Python
           command: '--no-command --fs-capture-search ${{ github.workspace }}'
           email: ${{ secrets.COVERITY_SCAN_EMAIL }}
           token: ${{ secrets.COVERITY_SCAN_TOKEN }}
@@ -152,7 +152,7 @@ jobs:
 
   Linting:
     name: Linting
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     needs: [BuildStage]
     if: ${{ github.event.inputs.run_linting == 'true' }}
     steps:
@@ -172,8 +172,8 @@ jobs:
     steps:
       - name: CheckoutCode
         uses: actions/checkout@v4
-      - name: Runblackformatting
-        id: blackformatting
+      - name: RunBlackFormatting
+        id: BlackFormatting
         uses: ./.github/actions/blackformatting
         with:
           python-version: ${{ env.PythonVersion }}

@@ -1,14 +1,14 @@
-name: 'black formatting Action'
+name: 'Black Formatting Action'
 description: 'Perform linting for Python project'
 inputs:
   checkout_directory:
-    description: "checkout directory to where ingredient repo content is to be copied."
+    description: "Checkout directory to where ingredient repo content is to be copied."
     default: "src"
   ref:
-    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
+    description: "Branch to checkout. By default, it will take the short ref name of the branch or tag that triggered the workflow run."
     required: false
   token:
-    description: "Github token to fetch source"
+    description: "GitHub token to fetch source"
     required: false
   python-version:
     description: 'Python version to use'
@@ -20,7 +20,7 @@ inputs:
     default: 'false'
 
 permissions: read-all
-#Adding Permission as Read for all of the available permissions
+# Adding Permission as Read for all of the available permissions
 
 runs:
   using: 'composite'

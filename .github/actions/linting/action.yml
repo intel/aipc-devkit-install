@@ -2,20 +2,21 @@ name: 'Lint Action'
 description: 'Perform linting for project'
 inputs:
   checkout_directory:
-    description: "checkout directory to where ingredient repo content is to be copied."
+    description: "Directory where the repository content will be checked out."
     default: "src"
   ref:
-    description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
+    description: "Branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
     required: false
   token:
-    description: "Github token to fetch source"
+    description: "GitHub token used to fetch the source"
     required: false
   upload_to_artifactory:
-    description: 'Flag to control whether to upload to Artifactory'
+    description: 'Flag to control whether to upload reports to Artifactory'
     required: false
     default: 'false'
 
-permissions: read-all
+permissions:
+  contents: read
 #Adding Permission as Read for all of the available permissions
 
 runs:
@@ -36,28 +37,28 @@ runs:
         python -m pip install --upgrade pip
         pip install flake8 pylint black isort
         pip install flake8-html pylint-report
-      shell: pwsh
+      shell: bash
 
     - name: Run Flake8 Linting
       continue-on-error: true
       run: |
         mkdir -p reports/flake8
         flake8 --format=html --htmldir=reports/flake8 .
-      shell: pwsh
+      shell: bash
 
     - name: Run Pylint
       continue-on-error: true
       run: |
         mkdir -p reports/pylint
         pylint **/*.py > reports/pylint/pylint-report.txt
-      shell: pwsh
+      shell: bash
 
     - name: Run Isort Import Sorting Check
       continue-on-error: true
       run: |
         mkdir -p reports/isort
         isort --check-only . > reports/isort/import-check.txt
-      shell: pwsh
+      shell: bash
 
     - name: Upload Linting Reports
       if: ${{ inputs.upload_to_artifactory == 'true' }}

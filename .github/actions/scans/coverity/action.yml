@@ -1,4 +1,3 @@
-
 name: Coverity Scan with Community Credentials
 description: "This action installs a specific version of Coverity."
 
@@ -9,7 +8,7 @@ inputs:
   ref:
     description: "branch to checkout, by default It will take the short ref name of the branch or tag that triggered the workflow run."
     required: false
-  # Coverity Parameters )
+  # Coverity Parameters 
   project:
     description: Project name in Coverity Scan.
     default: ${{ github.repository }}
@@ -54,7 +53,7 @@ inputs:
     default: 'false'
 
 permissions: read-all
-#Adding Permission as Read for all of the available permissions
+# Setting read permissions for all available scopes to ensure the action has access to necessary resources
 
 runs: 
   using: "composite"
@@ -90,7 +89,7 @@ runs:
         key: cov-build-${{ inputs.build_language }}-${{ inputs.build_platform }}-${{ steps.coverity-cache-lookup.outputs.hash }}
 
     - name: Download Coverity Build Tool (${{ inputs.build_language }} / ${{ inputs.build_platform }})
-      if: steps.cov-build-cache.outputs.cache-hit != 'true'
+      if: "steps.cov-build-cache.outputs.cache-hit != 'true'"
       run: |
         curl https://scan.coverity.com/download/${{ inputs.build_language }}/${{ inputs.build_platform }} \
           --no-progress-meter \
@@ -102,7 +101,7 @@ runs:
         TOKEN: ${{ inputs.token }}
 
     - if: steps.cov-build-cache.outputs.cache-hit != 'true'
-      run: mkdir cov-analysis
+      run: mkdir -p cov-analysis
       shell: bash
       working-directory: ${{ inputs.working-directory }}
   
@@ -130,20 +129,6 @@ runs:
         name: ${{ inputs.report_name }}
         path: ${{ inputs.report_name }}.tgz
 
-    - name: Submit results to Coverity Scan
-      run: |
-        curl \
-          --form token="${TOKEN}" \
-          --form email="${{ inputs.email }}" \
-          --form file=@${{ inputs.report_name }}.tgz \
-          --form version="${{ inputs.version }}" \
-          --form description="${{ inputs.description }}" \
-          "https://scan.coverity.com/builds?project=${{ steps.project.outputs.project }}"
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      env:
-        TOKEN: ${{ inputs.token }}
-    
     - name: Submit results to Coverity Scan
       run: |
         curl \

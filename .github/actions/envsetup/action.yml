@@ -6,8 +6,7 @@ inputs:
     required: false
     default: '3.10.11'
 
-permissions: read-all
-#Adding Permission as Read for all of the available permissions
+permissions: read-all # Adding Permission as Read for all of the available permissions
 
 runs:
   using: "composite"
