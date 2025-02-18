@@ -73,7 +73,7 @@ runs:
       shell: bash                                           
 
     - name: Upload Vulnerability Scan Results
-      # if: ${{ inputs.upload_to_artifactory == 'true' }}
+      if: ${{ inputs.upload_to_artifactory == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
