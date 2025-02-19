@@ -1,7 +1,9 @@
 name: CI for aipc-devkit
 
 on:
-  push: # Add specific branches or tags if needed, e.g., branches: [main]
+  push: 
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       upload_to_artifactory:
