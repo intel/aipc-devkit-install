@@ -45,18 +45,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python and Package
-        uses: ./.github/actions/envsetup
+      # - name: Set up Python and Package
+      #   uses: ./.github/actions/envsetup
 
-      - name: Build aipc-devkit and upload to Artifactory
-        uses: ./.github/actions/buildartifact
-        with:
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+      # - name: Build aipc-devkit and upload to Artifactory
+      #   uses: ./.github/actions/buildartifact
+      #   with:
+      #     upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
   
   BanditScan:
     name: BanditScan
     runs-on: ubuntu-24.04
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
     name: ClamAVScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
           upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
       - name: RunBinaryClamAVScan
-        # if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
+        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
         id: ClamAVScanBinary
         uses: ./.github/actions/scans/clamav
         with:
@@ -108,7 +108,6 @@ jobs:
         id: TrivyScan
         uses: ./.github/actions/scans/trivy
         with:
-          trivy_version: ${{ env.TrivyVersion }}
           scan-type: 'fs'
           scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
           severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
@@ -120,7 +119,7 @@ jobs:
     name: CoverityScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -139,7 +138,7 @@ jobs:
   Linting:
     name: Linting
     runs-on: ubuntu-24.04
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

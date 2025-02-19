@@ -11,10 +11,6 @@ inputs:
     description: "GitHub token for fetching the source"
     required: false
   # Trivy Parameters
-  trivy_version:
-    description: 'Trivy version to use'
-    required: false
-    default: '0.58.0'
   scan-ref:
     description: 'Scan reference'
     required: false
@@ -61,9 +57,11 @@ runs:
 
     - name: Install TrivyScan
       run: |
-        echo "Installing Trivy version: ${{ inputs.trivy_version }}"
-        wget https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy_version }}/trivy_${{ inputs.trivy_version }}_Linux-64bit.deb
-        sudo dpkg -i trivy_${{ inputs.trivy_version }}_Linux-64bit.deb
+        sudo apt-get install -y wget
+        wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.tar.gz
+        tar -xvf trivy_Linux-64bit.tar.gz
+        sudo mv trivy /usr/local/bin/
+
       shell: bash
 
     - name: Verify installation
