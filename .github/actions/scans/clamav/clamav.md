@@ -1,7 +1,26 @@
-name: 'ClamAV Security Scan'
-description: 'Perform virus scanning using ClamAV'
+# ClamAV Security Scan
+
+This GitHub Action performs virus scanning using ClamAV.
+
+## Inputs
+
+- `report_name` (optional): The name of the report file. Default is `clamscan-results`.
+- `exclude_paths` (optional): Directories to exclude from scan, provided as a comma-separated string (e.g., `node_modules,.git,__pycache__`). Default is `.git`.
+- `artifact_name` (optional): Provide the Artifact Name to download for Artifact Scanning.
+- `artifact_path` (optional): Provide the Artifact Download Location for Artifact Scanning. Default is `./ArtifactAIPC`.
+- `upload_to_artifactory` (optional): Flag to control whether to upload to Artifactory. Default is `false`.
+- `run_clamav_scan` (required): Flag to control whether to run the ClamAV scan and upload to Artifactory. Default is `false`.
+
+## Permissions
+
+This action requires read permissions for all available permissions.
+
+## Usage
+
+```yaml
+name: ClamAV Security Scan
+description: Perform virus scanning using ClamAV
 inputs:
-  # ClamAV Parameters
   report_name:
     description: 'Name of the report file'
     required: false
@@ -27,7 +46,6 @@ inputs:
     default: 'false'
 
 permissions: read-all
-# Adding Permission as Read for all of the available permissions
 
 runs:
   using: 'composite'
@@ -53,7 +71,6 @@ runs:
         sudo systemctl stop clamav-freshclam
       shell: bash
 
-     # Step 3: Update virus database
     - name: Update Virus Database
       run: |
         sudo freshclam
@@ -81,7 +98,7 @@ runs:
 
         # Determine the directory to scan
         if [ -n "${{ inputs.artifact_name }}" ]; then
-          SCAN_DIR="${{ inputs.artifact_name }}"
+          SCAN_DIR="${{ inputs.artifact_path }}"
         else
           SCAN_DIR="."
         fi
@@ -94,7 +111,7 @@ runs:
 
         cat ${{ inputs.report_name }}.log
 
-         # Fail the workflow if viruses are found
+        # Fail the workflow if viruses are found
         # Exit codes: 0 = No viruses, 1 = Viruses found, 2 = Error
         if [ $SCAN_RESULT -eq 1 ]; then
           echo "**ClamAV**: ⚠️ Virus detected! Please review the ClamAV scan reports."

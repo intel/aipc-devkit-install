@@ -1,7 +1,27 @@
-name: 'Trivy Vulnerability Scan'
-description: 'Perform vulnerability scanning using Trivy'
+# Trivy Vulnerability Scan
+
+This GitHub Action performs vulnerability scanning using Trivy.
+
+## Inputs
+
+- `scan-ref` (optional): Scan reference. Default is `requirements.txt`.
+- `scan-type` (optional): Scan type to use for scanning vulnerability. Default is `fs`.
+- `scanners` (optional): Comma-separated list of security issues to detect. Default is `vuln,secret,misconfig,license`.
+- `severity` (optional): Severities of vulnerabilities to display. Default is `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`.
+- `report_name` (optional): Name of the report file. Default is `trivy-results`.
+- `upload_to_artifactory` (optional): Flag to control whether to upload the results to Artifactory. Default is `false`.
+- `run_trivy_scan` (optional): Flag to control whether to run the Trivy scan and upload to Artifactory. Default is `false`.
+
+## Permissions
+
+This action requires read permissions for all available permissions.
+
+## Usage
+
+```yaml
+name: Trivy Vulnerability Scan
+description: Perform vulnerability scanning using Trivy
 inputs:
-  # Trivy Parameters
   scan-ref:
     description: 'Scan reference'
     required: false
@@ -27,11 +47,10 @@ inputs:
     required: false
     default: 'false'
   run_trivy_scan:
-    description: 'run trivy scand and also upload to artifactory'
+    description: 'run trivy scan and also upload to artifactory'
     required: false
     default: 'false'
 
-# Adding read permissions for all available permissions
 permissions: read-all
 
 runs:
@@ -53,7 +72,7 @@ runs:
         scanners: 'vuln,secret,misconfig,license'                                        
 
     - name: Upload Vulnerability Scan Results
-      if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
+      if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}

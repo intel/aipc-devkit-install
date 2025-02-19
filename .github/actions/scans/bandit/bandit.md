@@ -1,8 +1,23 @@
+# Bandit Actions Scan
 
-name: 'Bandit Actions Scan'
-description: 'Perform security scanning using Bandit'
+This GitHub Action performs security scanning using Bandit.
+
+## Inputs
+
+- `report_name` (optional): The name of the report file. Default is `bandit-results`.
+- `upload_to_artifactory` (optional): Flag to control whether to upload to Artifactory. Default is `false`.
+- `run_bandit_scan` (optional): Flag to control whether to run the Bandit scan and upload to Artifactory. Default is `false`.
+
+## Permissions
+
+This action requires read permissions for all available permissions.
+
+## Usage
+
+```yaml
+name: Bandit Actions Scan
+description: Perform security scanning using Bandit
 inputs:
-  # Bandit specific inputs
   report_name:
     description: 'Name of the report file'
     required: false
@@ -17,7 +32,6 @@ inputs:
     default: 'false'
 
 permissions: read-all
-#Adding Permission as Read for all of the available permissions
 
 runs:
   using: 'composite'

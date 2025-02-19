@@ -58,6 +58,7 @@ jobs:
   BanditScan:
     name: BanditScan
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
     steps:
       - name: Checkout code
@@ -101,6 +102,7 @@ jobs:
   TrivyScan:
     name: TrivyScan
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
     steps:
       - name: Checkout code
@@ -115,6 +117,7 @@ jobs:
   CoverityScan:
     name: CoverityScan
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
     steps:
       - name: Checkout code
@@ -134,6 +137,7 @@ jobs:
   Linting:
     name: Linting
     runs-on: ubuntu-24.04
+    needs: [BuildStage]
     # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
     steps:
       - name: Checkout code

@@ -1,5 +1,21 @@
-name: 'Lint Action'
-description: 'Perform linting for project'
+# Lint Action
+
+This GitHub Action performs linting for the project using various tools.
+
+## Inputs
+
+- `upload_to_artifactory` (optional): Flag to control whether to upload reports to Artifactory. Default is `false`.
+- `run_linting` (required): Run linting and also upload to Artifactory. Default is `false`.
+
+## Permissions
+
+This action requires read permissions for all available permissions.
+
+## Usage
+
+```yaml
+name: Lint Action
+description: Perform linting for project
 inputs:
   upload_to_artifactory:
     description: 'Flag to control whether to upload reports to Artifactory'
@@ -12,7 +28,7 @@ inputs:
 
 permissions:
   contents: read
-#Adding Permission as Read for all of the available permissions
+# Adding Permission as Read for all of the available permissions
 
 runs:
   using: 'composite'

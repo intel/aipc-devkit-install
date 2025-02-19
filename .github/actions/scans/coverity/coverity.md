@@ -1,8 +1,33 @@
+# Coverity Scan with Community Credentials
+
+This GitHub Action installs a specific version of Coverity and performs a scan.
+
+## Inputs
+
+- `project` (optional): Project name in Coverity Scan. Default is `${{ github.repository }}`.
+- `token` (required): Secret project token for accessing Coverity Scan.
+- `email` (required): Where Coverity Scan should send notifications.
+- `build_language` (optional): Which Coverity Scan language pack to download. Default is `cxx`.
+- `build_platform` (optional): Which Coverity Scan platform pack to download. Default is `linux64`.
+- `command` (optional): Command to pass to `cov-build`. Default is `make`.
+- `working-directory` (optional): Working directory to set for all steps. Default is `${{ github.workspace }}`.
+- `version` (optional): (Informational) The source version being built. Default is `${{ github.sha }}`.
+- `description` (optional): (Informational) A description for this particular build. Default is `coverity-scan-action ${{ github.repository }} / ${{ github.ref }}`.
+- `report_name` (optional): The name of the report file. Default is `coverity-results`.
+- `upload_to_artifactory` (optional): Flag to control whether to upload to Artifactory. Default is `false`.
+- `run_coverity_scan` (optional): Flag to control whether to run the Coverity scan and upload to Artifactory. Default is `false`.
+
+## Permissions
+
+This action requires read permissions for all available permissions.
+
+## Usage
+
+```yaml
 name: Coverity Scan with Community Credentials
 description: "This action installs a specific version of Coverity."
 
 inputs:
-  # Coverity Parameters 
   project:
     description: Project name in Coverity Scan.
     default: ${{ github.repository }}
@@ -51,22 +76,15 @@ inputs:
     default: 'false'
 
 permissions: read-all
-# Setting read permissions for all available scopes to ensure the action has access to necessary resources
 
 runs: 
   using: "composite"
   steps:
-    # Need to encode the project name when using in URLs and HTTP forms.  Valid
-    # GitHub project names only have / that need encoding and
-    # Coverity projects with spaces in their names need encoding so do
-    # an ad-hoc conversion here.  Wait to see if anyone needs something else.
     - name: URL encode project name
       id: project
       run: echo "project=${{ inputs.project }}" | sed -e 's:/:%2F:g' -e 's/ /%20/g' >> $GITHUB_OUTPUT
       shell: bash
 
-    # The Coverity site says the tool is usually updated twice yearly, so the
-    # md5 of download can be used to determine whether there's been an update.
     - name: Lookup Coverity Build Tool hash
       id: coverity-cache-lookup
       run: |
@@ -77,8 +95,6 @@ runs:
       env:
         TOKEN: ${{ inputs.token }}
 
-    # Try to cache the tool to avoid downloading 1GB+ archive on every run.
-    # Cache miss will add ~30s to create, but cache hit will save minutes.
     - name: Cache Coverity Build Tool
       id: cov-build-cache
       uses: actions/cache@v4
