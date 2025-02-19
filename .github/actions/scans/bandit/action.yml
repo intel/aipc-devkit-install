@@ -20,16 +20,17 @@ inputs:
     description: 'Flag to control whether to upload to Artifactory'
     required: false
     default: 'false'
+  run_bandit_scan:
+    description: 'run bandit scan and also upload to artifactory'
+    required: false
+    default: 'false'
 
 permissions: read-all
 #Adding Permission as Read for all of the available permissions
 
 runs:
   using: 'composite'
-  steps:
-    - name: CheckoutCode
-      uses: actions/checkout@v4
-    
+  steps:    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -48,7 +49,7 @@ runs:
         bandit -r . -f json -o ${{ inputs.report_name }}.json
     
     - name: Upload Bandit Scan Results
-      # if: ${{ inputs.upload_to_artifactory == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_bandit_scan == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}

@@ -43,6 +43,10 @@ inputs:
     description: 'Flag to control whether to upload the results to Artifactory'
     required: false
     default: 'false'
+  run_trivy_scan:
+    description: 'run trivy scand and also upload to artifactory'
+    required: false
+    default: 'false'
 
 # Adding read permissions for all available permissions
 permissions: read-all
@@ -50,9 +54,6 @@ permissions: read-all
 runs:
   using: 'composite'
   steps:
-    - name: CheckoutCode
-      uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -76,7 +77,7 @@ runs:
       shell: bash                                           
 
     - name: Upload Vulnerability Scan Results
-      if: ${{ inputs.upload_to_artifactory == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}

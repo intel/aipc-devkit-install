@@ -14,6 +14,10 @@ inputs:
     description: 'Flag to control whether to upload reports to Artifactory'
     required: false
     default: 'false'
+  run_linting:
+    description: 'Run Linting and also upload to artifactory'
+    required: true
+    default: 'false'
 
 permissions:
   contents: read
@@ -22,9 +26,6 @@ permissions:
 runs:
   using: 'composite'
   steps:
-    - name: CheckoutCode
-      uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -66,7 +67,7 @@ runs:
       shell: bash
 
     - name: Upload Linting Reports
-      # if: ${{ inputs.upload_to_artifactory == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_linting == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: linting-reports

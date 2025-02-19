@@ -25,6 +25,10 @@ inputs:
     description: 'Flag to control whether to upload to Artifactory'
     required: false
     default: 'false'
+  run_clamav_scan:
+    description: 'run clamav and also upload to artifactory'
+    required: true
+    default: 'false'
 
 permissions: read-all
 # Adding Permission as Read for all of the available permissions
@@ -32,9 +36,6 @@ permissions: read-all
 runs:
   using: 'composite'
   steps: 
-    - name: CheckoutCode
-      uses: actions/checkout@v4
-
     - name: Download artifact
       if: ${{ inputs.artifact_name != ''}}
       # if: ${{ inputs.artifact_name != '' && inputs.upload_to_artifactory == 'true' }}
@@ -109,7 +110,7 @@ runs:
         fi
         
     - name: Upload ClamAV Scan Results
-      # if: ${{ inputs.upload_to_artifactory == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_clamav_scan == 'true'}}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
