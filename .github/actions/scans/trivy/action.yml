@@ -50,6 +50,9 @@ permissions: read-all
 runs:
   using: 'composite'
   steps:
+    - name: CheckoutCode
+      uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:

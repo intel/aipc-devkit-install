@@ -29,13 +29,8 @@ permissions: read-all
 runs:
   using: 'composite'
   steps:
-
-    # - name: Checkout code
-    #   uses: actions/checkout@v4
-    #   with:
-    #     path: ${{ inputs.checkout_directory }}
-    #     ref: ${{ inputs.ref || github.ref }}
-    #     token: ${{ inputs.token || github.token }}
+    - name: CheckoutCode
+      uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4

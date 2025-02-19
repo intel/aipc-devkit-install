@@ -58,6 +58,9 @@ permissions: read-all
 runs: 
   using: "composite"
   steps:
+    - name: CheckoutCode
+      uses: actions/checkout@v4
+      
     # Need to encode the project name when using in URLs and HTTP forms.  Valid
     # GitHub project names only have / that need encoding and
     # Coverity projects with spaces in their names need encoding so do
