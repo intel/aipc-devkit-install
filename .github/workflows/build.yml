@@ -108,11 +108,6 @@ jobs:
         id: TrivyScan
         uses: ./.github/actions/scans/trivy
         with:
-          scan-type: 'fs'
-          scan-ref: 'Prerequisites/PythonModules/requirements.txt' 
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-          scanners: 'vuln,secret,misconfig,license'
-          report_name: "trivy-results"
           upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
   CoverityScan:

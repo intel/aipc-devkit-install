@@ -55,24 +55,34 @@ runs:
       with:
         python-version: '3.10.11'
 
-    - name: Install TrivyScan
-      run: |
-        sudo apt-get install -y wget
-        wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.tar.gz
-        tar -xvf trivy_Linux-64bit.tar.gz
-        sudo mv trivy /usr/local/bin/
+    # - name: Install TrivyScan
+    #   run: |
+    #     sudo apt-get install -y wget
+    #     wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.tar.gz
+    #          https://github.com/aquasecurity/trivy/releases/download/latest/trivy_Linux-64bit.tar.gz
+    #     tar -xvf trivy_Linux-64bit.tar.gz
+    #     sudo mv trivy /usr/local/bin/
+    #   shell: bash
+    
+    - name: Run Trivy vulnerability scanner in fs mode
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        scan-type: 'fs'
+        scan-ref: 'Prerequisites/PythonModules/requirements.txt'
+        severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+        format: 'json'
+        output: 'trivy-results.json'
+        scanners: 'vuln,secret,misconfig,license'
 
-      shell: bash
+    # - name: Verify installation
+    #   run: |
+    #     trivy --version
+    #   shell: bash
 
-    - name: Verify installation
-      run: |
-        trivy --version
-      shell: bash
-
-    - name: Scan requirements.txt
-      run: |
-        trivy ${{ inputs.scan-type }} ${{ inputs.scan-ref }} --format json --output ${{ inputs.report_name }}.json --severity ${{ inputs.severity }} --scanners ${{ inputs.scanners }}
-      shell: bash                                           
+    # - name: Scan requirements.txt
+    #   run: |
+    #     trivy ${{ inputs.scan-type }} ${{ inputs.scan-ref }} --format json --output ${{ inputs.report_name }}.json --severity ${{ inputs.severity }} --scanners ${{ inputs.scanners }}
+    #   shell: bash                                           
 
     - name: Upload Vulnerability Scan Results
       # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
