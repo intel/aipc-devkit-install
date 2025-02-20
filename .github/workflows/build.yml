@@ -115,6 +115,7 @@ jobs:
         id: TrivyScan
         uses: ./.github/actions/scans/trivy
         with:
+          report_name: "trivy-results"
           scan-type: 'fs'
           scan-ref: 'Prerequisites/PythonModules/requirements.txt'
           severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'

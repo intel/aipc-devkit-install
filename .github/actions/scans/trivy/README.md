@@ -65,12 +65,12 @@ permissions: read-all
     - name: Run Trivy vulnerability scanner in fs mode
       uses: aquasecurity/trivy-action@0.28.0
       with:
-        scan-type: 'fs'
-        scan-ref: 'Prerequisites/PythonModules/requirements.txt'
-        severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+        scan-type: ${{ inputs.scan-type }}
+        scan-ref: ${{ inputs.scan-ref }}
+        severity: ${{ inputs.severity }}
         format: 'json'
-        output: 'trivy-results.json'
-        scanners: 'vuln,secret,misconfig,license'                                        
+        output: ${{ inputs.report_name }}.json
+        scanners: ${{ inputs.scanners }}                                                                              
 ```
 
 ## This step uploads the Trivy scan results to Artifactory if the corresponding flags are set.

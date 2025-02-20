@@ -49,8 +49,8 @@ runs:
         scan-ref: ${{ inputs.scan-ref }}
         severity: ${{ inputs.severity }}
         format: 'json'
-        output: 'trivy-results.json'
-        scanners: ${{ inputs.report_name }}                                       
+        output: ${{ inputs.report_name }}.json
+        scanners: ${{ inputs.scanners }}                                       
 
     - name: Upload Vulnerability Scan Results
       if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
