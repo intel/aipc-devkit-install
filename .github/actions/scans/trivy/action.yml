@@ -4,15 +4,15 @@ inputs:
   # Trivy Parameters
   scan-ref:
     description: 'Scan reference'
-    required: false
+    required: true
     default: 'requirements.txt'
   scan-type:
     description: 'Scan type to use for scanning vulnerability'
-    required: false
+    required: true
     default: 'fs'
   scanners:
     description: 'Comma-separated list of security issues to detect'
-    required: false
+    required: true
     default: 'vuln,secret,misconfig,license'
   severity:
     description: 'Severities of vulnerabilities to display'
@@ -45,12 +45,12 @@ runs:
     - name: Run Trivy vulnerability scanner in fs mode
       uses: aquasecurity/trivy-action@0.28.0
       with:
-        scan-type: 'fs'
-        scan-ref: 'Prerequisites/PythonModules/requirements.txt'
-        severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+        scan-type: ${{ inputs.scan-type }}
+        scan-ref: ${{ inputs.scan-ref }}
+        severity: ${{ inputs.severity }}
         format: 'json'
         output: 'trivy-results.json'
-        scanners: 'vuln,secret,misconfig,license'                                        
+        scanners: ${{ inputs.report_name }}                                       
 
     - name: Upload Vulnerability Scan Results
       if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}

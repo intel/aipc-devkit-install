@@ -4,23 +4,23 @@ This GitHub Action performs virus scanning using ClamAV.
 
 ## Inputs
 
-- `report_name` (optional): The name of the report file. Default is `clamscan-results`.
 - `exclude_paths` (optional): Directories to exclude from scan, provided as a comma-separated string (e.g., `node_modules,.git,__pycache__`). Default is `.git`.
+- `run_clamav_scan` (required): Flag to control whether to run the ClamAV scan and upload to Artifactory. Default is `false`.
+- `report_name` (optional): The name of the report file. Default is `clamscan-results`.
 - `artifact_name` (optional): Provide the Artifact Name to download for Artifact Scanning.
 - `artifact_path` (optional): Provide the Artifact Download Location for Artifact Scanning. Default is `./ArtifactAIPC`.
 - `upload_to_artifactory` (optional): Flag to control whether to upload to Artifactory. Default is `false`.
-- `run_clamav_scan` (required): Flag to control whether to run the ClamAV scan and upload to Artifactory. Default is `false`.
 
 ## Permissions
 
 This action requires read permissions for all available permissions.
+```yaml
+permissions: read-all
+```
 
-## Usage
+## Parameters
 
 ```yaml
-name: ClamAV Security Scan
-description: Perform virus scanning using ClamAV
-inputs:
   report_name:
     description: 'Name of the report file'
     required: false
@@ -44,44 +44,57 @@ inputs:
     description: 'run clamav and also upload to artifactory'
     required: true
     default: 'false'
+```
 
-permissions: read-all
-
-runs:
-  using: 'composite'
-  steps: 
+## This step downloads the specified artifact if the artifact name and path are provided and the upload to Artifactory flag is set.
+```yaml
     - name: Download artifact
       if: ${{ inputs.artifact_name != '' && inputs.artifact_path != '' && inputs.upload_to_artifactory == 'true' }}
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.artifact_name }}
         path: ${{ inputs.artifact_path }}
+```
 
+## This step lists the contents of the downloaded artifact if the artifact name and path are provided and the upload to Artifactory flag is set.
+```yaml
     - name: Show downloaded artifact content
       if: ${{ inputs.artifact_name != '' && inputs.artifact_path != '' && inputs.upload_to_artifactory == 'true' }}
       run: |
         echo "Listing contents of the downloaded artifact:"
         ls -R ${{ inputs.artifact_path }}
       shell: bash
-      
+```
+
+## This step installs ClamAV and stops the freshclam service.
+```yaml      
     - name: Install ClamAV
       run: |
         sudo apt-get update
         sudo apt-get install -y clamav clamav-daemon
         sudo systemctl stop clamav-freshclam
       shell: bash
+```
 
+## This step updates the ClamAV virus database and starts the freshclam service.
+```yaml
     - name: Update Virus Database
       run: |
         sudo freshclam
         sudo systemctl start clamav-freshclam
       shell: bash
+```
 
+## This step verifies the ClamAV installation by checking its version.
+```yaml
     - name: Verify installation
       run: |
         clamscan --version
       shell: bash
+```
 
+## This step runs the ClamAV virus scan on the specified directory, excluding the specified paths, and outputs the results to a log file.
+```yaml
     - name: Run ClamAV Virus Scan
       shell: bash
       continue-on-error: true
@@ -119,10 +132,14 @@ runs:
         elif [ $SCAN_RESULT -eq 2 ]; then
           echo "ClamAV scan encountered an error!"
         fi
-        
+```
+
+ ## This step uploads the ClamAV scan results to Artifactory if the corresponding flags are set.
+ ```yaml
     - name: Upload ClamAV Scan Results
       if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_clamav_scan == 'true'}}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
         path: ${{ inputs.report_name }}.log
+```

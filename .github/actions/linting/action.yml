@@ -1,13 +1,13 @@
 name: 'Lint Action'
 description: 'Perform linting for project'
 inputs:
-  upload_to_artifactory:
-    description: 'Flag to control whether to upload reports to Artifactory'
-    required: false
-    default: 'false'
   run_linting:
     description: 'Run Linting and also upload to artifactory'
     required: true
+    default: 'false'
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload reports to Artifactory'
+    required: false
     default: 'false'
 
 permissions:

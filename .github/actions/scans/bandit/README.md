@@ -11,13 +11,13 @@ This GitHub Action performs security scanning using Bandit.
 ## Permissions
 
 This action requires read permissions for all available permissions.
+```yaml
+permissions: read-all
+```
 
-## Usage
+## Parameters
 
 ```yaml
-name: Bandit Actions Scan
-description: Perform security scanning using Bandit
-inputs:
   report_name:
     description: 'Name of the report file'
     required: false
@@ -30,32 +30,42 @@ inputs:
     description: 'run bandit scan and also upload to artifactory'
     required: false
     default: 'false'
+```
 
-permissions: read-all
+## This step sets up the Python environment with the specified version.
 
-runs:
-  using: 'composite'
-  steps:    
+```yaml    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10.11'
-    
+```
+## This step installs Bandit using pip.
+
+```yaml
     - name: Install Bandit
       shell: bash
       run: |
         python -m pip install --upgrade pip
         pip install bandit
-    
+```
+
+## This step runs the Bandit scan on the repository and outputs the results in JSON format.     
+```yaml
     - name: Run Bandit Scan
       shell: bash
       continue-on-error: true
       run: |
         bandit -r . -f json -o ${{ inputs.report_name }}.json
-    
+```
+
+## This step uploads the Bandit scan results to Artifactory if the corresponding flags are set.
+```yaml
     - name: Upload Bandit Scan Results
       if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_bandit_scan == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
         path: ${{ inputs.report_name }}.json
+```
+      

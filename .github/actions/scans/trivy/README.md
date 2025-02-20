@@ -15,13 +15,13 @@ This GitHub Action performs vulnerability scanning using Trivy.
 ## Permissions
 
 This action requires read permissions for all available permissions.
+```yaml
+permissions: read-all
+```
 
-## Usage
+## Parameters
 
 ```yaml
-name: Trivy Vulnerability Scan
-description: Perform vulnerability scanning using Trivy
-inputs:
   scan-ref:
     description: 'Scan reference'
     required: false
@@ -50,17 +50,18 @@ inputs:
     description: 'run trivy scan and also upload to artifactory'
     required: false
     default: 'false'
+```
 
-permissions: read-all
-
-runs:
-  using: 'composite'
-  steps:
+## This step sets up the Python environment with the specified version.
+```yaml    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10.11'
-    
+```
+
+## This step runs the Trivy vulnerability scanner in filesystem mode and outputs the results in JSON format.
+```yaml
     - name: Run Trivy vulnerability scanner in fs mode
       uses: aquasecurity/trivy-action@0.28.0
       with:
@@ -70,10 +71,14 @@ runs:
         format: 'json'
         output: 'trivy-results.json'
         scanners: 'vuln,secret,misconfig,license'                                        
+```
 
+## This step uploads the Trivy scan results to Artifactory if the corresponding flags are set.
+```yaml
     - name: Upload Vulnerability Scan Results
       if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
         path: ${{ inputs.report_name }}.json
+```

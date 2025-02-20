@@ -2,14 +2,20 @@ name: 'ClamAV Security Scan'
 description: 'Perform virus scanning using ClamAV'
 inputs:
   # ClamAV Parameters
-  report_name:
-    description: 'Name of the report file'
-    required: false
-    default: 'clamscan-results'
   exclude_paths:
     description: 'Directories to exclude from scan, provide with a comma separated string. i.e. node_modules,.git,__pycache__'
     required: false
     default: '.git'
+
+  # input parameter for artifactory
+  run_clamav_scan:
+    description: 'run clamav and also upload to artifactory'
+    required: true
+    default: 'false'
+  report_name:
+    description: 'Name of the report file'
+    required: false
+    default: 'clamscan-results'
   artifact_name:
     description: 'Provide the Artifact Name to download for Artifact Scanning'
     required: false
@@ -21,10 +27,7 @@ inputs:
     description: 'Flag to control whether to upload to Artifactory'
     required: false
     default: 'false'
-  run_clamav_scan:
-    description: 'run clamav and also upload to artifactory'
-    required: true
-    default: 'false'
+  
 
 permissions: read-all
 # Adding Permission as Read for all of the available permissions

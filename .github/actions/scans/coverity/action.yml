@@ -6,7 +6,7 @@ inputs:
   project:
     description: Project name in Coverity Scan.
     default: ${{ github.repository }}
-    required: false
+    required: true
   token:
     description: Secret project token for accessing Coverity Scan.
     required: true
@@ -15,28 +15,26 @@ inputs:
     required: true
   build_language:
     description: Which Coverity Scan language pack to download.
-    default: cxx
-    required: false
+    default: other
+    required: true
   build_platform:
     description: Which Coverity Scan platform pack to download.
     default: linux64
-    required: false
   command:
     description: Command to pass to cov-build.
     default: make
-    required: false
+    required: true
   working-directory:
     description: Working directory to set for all steps.
     default: ${{ github.workspace }}
-    required: false
   version:
     description: (Informational) The source version being built.
     default: ${{ github.sha }}
-    required: false
   description:
     description: (Informational) A description for this particular build.
     default: coverity-scan-action ${{ github.repository }} / ${{ github.ref }}
-    required: false
+
+  # input parameter for artifactory
   report_name:
     description: 'Name of the report file'
     required: false
@@ -111,7 +109,7 @@ runs:
     - name: Build with cov-build
       run: |
         export PATH="${PWD}/cov-analysis/bin:${PATH}"
-        cov-build --dir cov-int --no-command --fs-capture-search ./ --fs-capture-search-exclude-regex "cov-analysis"
+        cov-build --dir cov-int ${{ inputs.command }} --fs-capture-search-exclude-regex "cov-analysis"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
     
