@@ -76,7 +76,7 @@ permissions: read-all
 ## This step uploads the Trivy scan results to Artifactory if the corresponding flags are set.
 ```yaml
     - name: Upload Vulnerability Scan Results
-      if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan == 'true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}

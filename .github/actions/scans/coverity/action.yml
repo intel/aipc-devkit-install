@@ -119,7 +119,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
     
     - name: Upload Coverity Scan Results
-      if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_coverity_scan == 'true'}}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_coverity_scan == 'true'}}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
