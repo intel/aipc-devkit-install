@@ -1,8 +1,9 @@
 name: CI for AIPC Devkit
 
 on:
-  push: 
+  push:
     branches:
+      - ci_aipc_devkit
       - main
   workflow_dispatch:
     inputs:
