@@ -91,7 +91,7 @@ jobs:
           upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
       - name: RunBinaryClamAVScan
-        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
+        # if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
         id: ClamAVScanBinary
         uses: ./.github/actions/scans/clamav
         with:
@@ -152,7 +152,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: RunLinting
         id: Linting
         uses: ./.github/actions/linting
