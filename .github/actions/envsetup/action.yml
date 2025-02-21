@@ -1,0 +1,63 @@
+name: Setup Python and Package
+description: This action sets up Python and installs necessary packages.
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.10.11'
+
+permissions: read-all # Adding Permission as Read for all of the available permissions
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10.11'
+
+    - name: Verify Python in PATH and Install dependencies
+      run: |
+        python --version
+        python -m pip install --upgrade pip
+        python -m pip install pyinstaller
+        python -m pip install pyinstaller-versionfile
+      shell: pwsh
+
+    - name: Copy Python to C:\Python310
+      run: |
+        $pythonPath = (Get-Command python).Path
+        $pythonDir = Split-Path -Parent $pythonPath
+        if (-Not (Test-Path -Path "C:\Python310")) {
+          New-Item -ItemType Directory -Path "C:\Python310"
+        }
+        Copy-Item -Path "$pythonDir\*" -Destination "C:\Python310" -Recurse -Force
+      shell: pwsh
+
+    - name: Verify Python Installation
+      run: |
+        if (Test-Path -Path "C:\Python310\python.exe") {
+          Write-Host "Python installed successfully."
+          C:\Python310\python.exe --version
+        } else {
+          Write-Error "Python installation failed."
+          exit 1
+        }
+      shell: pwsh
+
+    - name: Set up environment variables for Python
+      run: |
+        $newPath = "C:\Python310\Scripts;$env:PATH"
+        $env:PATHS = "C:\Python310;C:\Python310\Scripts;" + $env:PATH
+        [System.Environment]::SetEnvironmentVariable("PATH", $newPath, [System.EnvironmentVariableTarget]::Process)
+        [System.Environment]::SetEnvironmentVariable("PATH", $PATHS, [System.EnvironmentVariableTarget]::Process)
+        Write-Output "Updated PATH: $newPath"
+        Write-Output "Updated PATHS: $PATHS"
+        $env:PYTHONPATH = "C:\Python310"
+      shell: pwsh
+
+    - name: Verify PyInstaller Installation
+      run: |
+        python --version
+        pyinstaller --version
+      shell: pwsh

@@ -1,0 +1,166 @@
+name: CI for AIPC Devkit
+
+on:
+  push:
+    branches:
+      - main
+      - ci_aipc_devkit
+  workflow_dispatch:
+    inputs:
+      upload_to_artifactory:
+        description: 'Upload to Artifactory'
+        required: true
+        default: 'false'
+      run_all_scans:
+        description: 'Run scans (Bandit, ClamAV, Trivy, Coverity, linting)'
+        required: true
+        default: 'false'
+      run_linting:
+        description: 'Run Linting and also upload to artifactory'
+        required: true
+        default: 'false'
+      run_bandit_scan:
+        description: 'Run Bandit Scan and also upload to artifactory'
+        required: true
+        default: 'false'
+      run_clamav_scan:
+        description: 'Run ClamAV Scan and also upload to artifactory'
+        required: true
+        default: 'false'
+      run_trivy_scan:
+        description: 'Run Trivy Scan and also upload to artifactory'
+        required: true
+        default: 'false'
+      run_coverity_scan:
+        description: 'Run Coverity Scan and also upload to artifactory'
+        required: true
+        default: 'false'
+
+permissions: read-all # Adding Permission as Read for all of the available permissions
+
+env:
+  CoverityProject: "intel/aipc-devkit-install" # Project name for Coverity scans
+
+jobs:
+  BuildStage:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python and Package
+        # This action sets up the Python environment and installs necessary packages
+        uses: ./.github/actions/envsetup
+
+      - name: Build aipc-devkit and upload to Artifactory
+        uses: ./.github/actions/buildartifact
+        with:
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+  
+  BanditScan:
+    name: BanditScan
+    runs-on: ubuntu-latest
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: RunBanditScan
+        id: BanditScan
+        uses: ./.github/actions/scans/bandit
+        with:
+          report_name: "bandit-results"
+          run_bandit_scan: ${{ github.event.inputs.run_bandit_scan }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+
+  ClamAVScan:
+    name: ClamAVScan
+    runs-on: ubuntu-latest
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: RunSourceClamAVScan
+        id: ClamAVScanSource
+        uses: ./.github/actions/scans/clamav
+        with:
+          report_name: "clamavsource-results"
+          exclude_paths: ".git"
+          run_clamav_scan: ${{ github.event.inputs.run_clamav_scan }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+
+      # Run binary ClamAV scan only if the artifact is being uploaded to Artifactory
+      - name: RunBinaryClamAVScan
+        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
+        id: ClamAVScanBinary
+        uses: ./.github/actions/scans/clamav
+        with:
+          report_name: "clamavbinary-results"
+          exclude_paths: ".git"
+          artifact_name: "ArtifactAIPC"
+          artifact_path: "./ArtifactAIPC"
+          run_clamav_scan: ${{ github.event.inputs.run_clamav_scan }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+
+  TrivyScan:
+    name: TrivyScan
+    runs-on: ubuntu-latest
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: RunTrivyScan
+        id: TrivyScan
+        uses: ./.github/actions/scans/trivy
+        with:
+          report_name: "trivy-results"
+          scan-type: 'fs'
+          scan-ref: 'Prerequisites/PythonModules/requirements.txt'
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          scanners: 'vuln,secret,misconfig,license' 
+          run_trivy_scan: ${{ github.event.inputs.run_trivy_scan }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+
+  CoverityScan:
+    name: CoverityScan
+    runs-on: ubuntu-latest
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: RunCoverityScan
+        id: RunCoverityScan
+        uses: ./.github/actions/scans/coverity
+        with:
+          project: ${{ env.CoverityProject }}
+          build_language: 'other' # 'other' is used because Coverity does not have a specific option for Python
+          command: '--no-command --fs-capture-search ${{ github.workspace }}'
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+          run_coverity_scan: ${{ github.event.inputs.run_coverity_scan }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+
+  Linting:
+    name: Linting
+    runs-on: ubuntu-latest
+    needs: [BuildStage]
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: RunLinting
+        id: Linting
+        uses: ./.github/actions/linting
+        with:
+          run_linting: ${{ github.event.inputs.run_linting }}
+          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
+
+
