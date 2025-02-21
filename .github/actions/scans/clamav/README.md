@@ -46,7 +46,7 @@ permissions: read-all
     default: 'false'
 ```
 
-## This step downloads the specified artifact if the artifact name and path are provided and the upload to Artifactory flag is set.
+## This step downloads the specified artifact if the artifact name and path are provided and the upload to Artifactory flag is set to do the virus Scan on the Artifacts.
 ```yaml
     - name: Download artifact
       if: ${{ inputs.artifact_name != '' && inputs.artifact_path != '' && inputs.upload_to_artifactory == 'true' }}

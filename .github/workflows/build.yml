@@ -131,6 +131,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: RunCoverityScan
         id: RunCoverityScan
         uses: ./.github/actions/scans/coverity
@@ -151,6 +152,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
       - name: RunLinting
         id: Linting
         uses: ./.github/actions/linting

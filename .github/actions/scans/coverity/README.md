@@ -142,7 +142,7 @@ permissions: read-all
     - name: Build with cov-build
       run: |
         export PATH="${PWD}/cov-analysis/bin:${PATH}"
-        cov-build --dir cov-int --no-command --fs-capture-search ./ --fs-capture-search-exclude-regex "cov-analysis"
+        cov-build --dir cov-int ${{ inputs.command }} --fs-capture-search-exclude-regex "cov-analysis"
       shell: bash
       working-directory: ${{ inputs.working-directory }}
 ```
