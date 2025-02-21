@@ -59,7 +59,7 @@ jobs:
     name: BanditScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
     name: ClamAVScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -91,7 +91,7 @@ jobs:
           upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
 
       - name: RunBinaryClamAVScan
-        # if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
+        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
         id: ClamAVScanBinary
         uses: ./.github/actions/scans/clamav
         with:
@@ -106,7 +106,7 @@ jobs:
     name: TrivyScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,7 +127,7 @@ jobs:
     name: CoverityScan
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -148,7 +148,7 @@ jobs:
     name: Linting
     runs-on: ubuntu-24.04
     needs: [BuildStage]
-    # if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
+    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
