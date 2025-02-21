@@ -53,7 +53,7 @@ runs:
         scanners: ${{ inputs.scanners }}                                       
 
     - name: Upload Vulnerability Scan Results
-      if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
+      # if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.report_name }}
