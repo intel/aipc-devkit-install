@@ -4,36 +4,45 @@ on:
   push:
     branches:
       - main
-      - ci_aipc_devkit
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       upload_to_artifactory:
         description: 'Upload to Artifactory'
         required: true
+        type: boolean
         default: 'false'
       run_all_scans:
         description: 'Run scans (Bandit, ClamAV, Trivy, Coverity, linting)'
         required: true
+        type: boolean
         default: 'false'
       run_linting:
         description: 'Run Linting and also upload to artifactory'
         required: true
+        type: boolean
         default: 'false'
       run_bandit_scan:
         description: 'Run Bandit Scan and also upload to artifactory'
         required: true
+        type: boolean
         default: 'false'
       run_clamav_scan:
         description: 'Run ClamAV Scan and also upload to artifactory'
         required: true
+        type: boolean
         default: 'false'
       run_trivy_scan:
         description: 'Run Trivy Scan and also upload to artifactory'
         required: true
+        type: boolean
         default: 'false'
       run_coverity_scan:
         description: 'Run Coverity Scan and also upload to artifactory'
         required: true
+        type: boolean
         default: 'false'
 
 permissions: read-all # Adding Permission as Read for all of the available permissions
