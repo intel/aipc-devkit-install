@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main
-      - ci_aipc_devkit
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       upload_to_artifactory:
