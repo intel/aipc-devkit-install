@@ -32,7 +32,7 @@ This readme file contains information on how to build the installer for the Inte
 Follow the below steps:
 1. Open a command line terminal and clone the repo.
     - `git clone https://github.com/intel/aipc-devkit-install.git`
-2. Change the working directory to the repo folder.
+2. Change the working directory to the repo folder `aipc-devkit-install`.
 3. Create the Virtual environment with python 3.10
     - `python -3.10 -m venv venv`
 4. Activate the Virtual environment
@@ -49,7 +49,7 @@ Follow the below steps:
 
 ## 4. Installation
 
-1. Copy the `installer.exe` and `uninstall.exe` under repo root folder.
+1. Copy the `installer.exe` and `uninstall.exe` under repo folder `aipc-devkit-install`.
 2. Continue with the installation process by following the steps provided in the [Installation_Guide.md](Installation_Guide.md) starting from section 4 - **Installation Instructions**. This will guide you through the remaining installation steps to complete installation under `C:\Intel\aipcdevkit`. 
 3. Once the installation is complete, the AI PC virtual environment will be set up, and Jupyter Notebook will automatically open in your browser.
 

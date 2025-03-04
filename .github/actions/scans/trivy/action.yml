@@ -1,0 +1,60 @@
+name: 'Trivy Vulnerability Scan'
+description: 'Perform vulnerability scanning using Trivy'
+inputs:
+  # Trivy Parameters
+  scan-ref:
+    description: 'Scan reference'
+    required: true
+    default: 'requirements.txt'
+  scan-type:
+    description: 'Scan type to use for scanning vulnerability'
+    required: true
+    default: 'fs'
+  scanners:
+    description: 'Comma-separated list of security issues to detect'
+    required: true
+    default: 'vuln,secret,misconfig,license'
+  severity:
+    description: 'Severities of vulnerabilities to display'
+    required: false
+    default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+  report_name:
+    description: 'Name of the report file'
+    required: false
+    default: 'trivy-results'
+  upload_to_artifactory:
+    description: 'Flag to control whether to upload the results to Artifactory'
+    required: false
+    default: 'false'
+  run_trivy_scan:
+    description: 'run trivy scand and also upload to artifactory'
+    required: false
+    default: 'false'
+
+# Adding read permissions for all available permissions
+permissions: read-all
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10.11'
+    
+    - name: Run Trivy vulnerability scanner in fs mode
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        scan-type: ${{ inputs.scan-type }}
+        scan-ref: ${{ inputs.scan-ref }}
+        severity: ${{ inputs.severity }}
+        format: 'json'
+        output: ${{ inputs.report_name }}.json
+        scanners: ${{ inputs.scanners }}                                       
+
+    - name: Upload Vulnerability Scan Results
+      if: ${{ inputs.upload_to_artifactory == 'true' || inputs.run_trivy_scan=='true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report_name }}
+        path: ${{ inputs.report_name }}.json
