@@ -12,6 +12,7 @@ REM other than those that are expressly stated in the License.
 
 echo " Start Building Intel AI PC Development Kit"
 set arg1=%BuildVersion%
+CD ..
 IF "%arg1%"=="" set arg1=1.1.0.0
 
 create-version-file installer_metadata.yml --outfile file_version_info.txt --version %arg1%
