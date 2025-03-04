@@ -23,7 +23,7 @@ This readme file contains information on how to build the installer for the Inte
 
 1. **Operating System**: Windows 11.
 2. **Internet Connection**: Required. Please include proxy settings as needed.
-3. **Python**: Version 3.10.11 installed with path variable. updated
+3. **Python**: Version 3.10.11 installed under `C:\python310` with path variable updated.
 4. **System environment variable**:
     - `PIP_TRUSTED_HOST= pypi.org files.pythonhosted.org`
 

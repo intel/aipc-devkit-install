@@ -13,7 +13,9 @@ runs:
   using: "composite"
   steps:
     - name: Run Build
-      run: .\build\Build.bat
+      run: |
+        cd build
+        .\Build.bat
       shell: pwsh
 
     - name: Prepare files for upload
