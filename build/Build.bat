@@ -24,7 +24,11 @@ set "PYTHON_REG_KEY=HKEY_CURRENT_USER\Software\Python\PythonCore\3.10\InstallPat
 For /F "Tokens=2*" %%A In ('
     ""%Cmd%" /D /C ""%Reg%" Query "%PYTHON_REG_KEY%" /V "" 2^>Nul""')Do Set "Dir=%%~B"
 
-If Not Defined Dir GoTo end
+If Defined Dir GoTo found
+
+set "Dir=C:\Python310"
+If Exist "%Dir%\python.exe" GoTo found
+GoTo end
 
 :found
 echo "Python installation found in %Dir%"
