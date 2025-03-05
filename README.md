@@ -34,7 +34,10 @@ Follow the below steps:
     - `git clone https://github.com/intel/aipc-devkit-install.git`
 2. Change the working directory to the repo folder `aipc-devkit-install`.
 3. Create the Virtual environment with python 3.10
-    - `python -3.10 -m venv venv`
+    - If multiple versions of python is installed in the system, use below command
+        - `py -3.10 -m venv venv`
+    - If only python 3.10 version is installed in the system, use below command
+        - `python -3.10 -m venv venv`
 4. Activate the Virtual environment
     - `.\venv\Scripts\activate`
 5. Install "pyinstaller" and "pyinstaller_versionfile" modules (Make sure proxy is included as needed)
