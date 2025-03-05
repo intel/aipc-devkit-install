@@ -32,7 +32,6 @@ If Exist "%Dir%\python.exe" GoTo found
 GoTo end
 
 :found
-echo "Python installation found in %Dir%"
 If "%Dir:~-1%"=="\" Set "PYTHON_INSTALLPATH=%Dir:~,-1%"
 
 echo " Start Building Intel AI PC Development Kit"
