@@ -10,7 +10,6 @@ REM transmit this software or the related documents without Intel's prior writte
 
 REM This software and the related documents are provided as is, with no express or implied warranties, 
 REM other than those that are expressly stated in the License.
-@echo on
 SetLocal EnableExtensions DisableDelayedExpansion
 
 For %%A In (Cmd Reg)Do Set "%%A=%SystemRoot%\System32\%%A.exe"
