@@ -43,7 +43,10 @@ The Intel® AI PC Development Kit will install the following software on your sy
 
 ## 3.  Installation Instructions
 
-**Note:** These steps are not required, if the system is pre-installed
+**Note 1:** These steps are not required, if the system is pre-installed.
+
+**Note 2:** If you are building the installer from source with the help of [README.md](README.md), then skip first 3 steps and continue with step 4
+
 1. Copy `IntelAIPCDevkit_2024.10.2.zip` to `C:\Intel\Setup`.
 2. Unzip the contents of the zip file into the `Setup` folder.
 3. Navigate to `C:\Intel\Setup\IntelAIPCDevkit_2024.10.2`.

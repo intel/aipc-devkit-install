@@ -1,3 +1,4 @@
+@echo off
 REM Copyright (C) 2024 Intel Corporation
 REM Author: Krishna Lakhotia <krishna.lakhotia@intel.com>
 REM Author: Balasubramanyam Agalukote Lakshmipathi <balasubramanyam.agalukote.lakshmipathi@intel.com>

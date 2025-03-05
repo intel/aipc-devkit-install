@@ -9,7 +9,7 @@
 3.  [Build Instructions](#3-build-instructions)
 4.  [Installation](#4-installation)
 5.  [Running Notebooks](#5-running-notebooks)
-6.  [License Agreemen](#6-license-agreement)
+6.  [License Agreement](#6-license-agreement)
 
 ## 1. Introduction
 
