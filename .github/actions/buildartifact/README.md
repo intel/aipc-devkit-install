@@ -25,7 +25,9 @@ permissions: read-all
 ## This step runs the build script using PowerShell.
 ```yaml
     - name: Run Build
-      run: .\build\Build.bat
+      run: |
+        cd build
+        .\Build.bat
       shell: pwsh
  ``` 
 
