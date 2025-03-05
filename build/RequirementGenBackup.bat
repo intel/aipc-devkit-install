@@ -1,3 +1,4 @@
+@echo off
 REM Copyright (C) 2024 Intel Corporation
 REM Author: Krishna Lakhotia <krishna.lakhotia@intel.com>
 REM Author: Balasubramanyam Agalukote Lakshmipathi <balasubramanyam.agalukote.lakshmipathi@intel.com>
@@ -10,7 +11,6 @@ REM transmit this software or the related documents without Intel's prior writte
 REM This software and the related documents are provided as is, with no express or implied warranties, 
 REM other than those that are expressly stated in the License.
 
-@echo off
 SetLocal EnableExtensions DisableDelayedExpansion
 
 For %%A In (Cmd Reg)Do Set "%%A=%SystemRoot%\System32\%%A.exe"
