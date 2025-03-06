@@ -48,12 +48,12 @@ Follow the below steps:
 7. Build the installer
     - `cd build`
     - `Run Build.bat`
-8. `installer.exe` and `uninstall.exe` is created under `dist` folder.
+8. `installer.exe` and `uninstall.exe` is created under `aipc-devkit-install\dist` folder.
 
 ## 4. Installation
 
 1. Copy the `installer.exe` and `uninstall.exe` under repo folder `aipc-devkit-install`.
-2. Continue with the installation process by following the steps provided in the [Installation_Guide.md](Installation_Guide.md) starting from section 4 - **Installation Instructions**. This will guide you through the remaining installation steps to complete installation under `C:\Intel\aipcdevkit`. 
+2. Continue with the installation process by following the steps provided in the [Installation_Guide.md](Installation_Guide.md) starting from step 3 of section 4 - **Installation Instructions**. This will guide you through the remaining installation steps to complete installation under `C:\Intel\aipcdevkit`. 
 3. Once the installation is complete, the AI PC virtual environment will be set up, and Jupyter Notebook will automatically open in your browser.
 
 ## 5. Running Notebooks
