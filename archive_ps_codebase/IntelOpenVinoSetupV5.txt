@@ -369,7 +369,7 @@ if (Test-Path -Path $dloadPath)
 	if ( -Not ( Test-Path "openvino_notebooks" ) ) {
     	Start-Process -FilePath "C:\Program Files\Git\bin\git.exe" -ArgumentList "clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git" -Wait
 	} else {
-		Write-Host "SKIP cloneing (folder exists): openvino_notebooks"
+		Write-Host "SKIP cloning (folder exists): openvino_notebooks"
 	}
 
 	if ( -Not ( Test-Path "open_model_zoo" ) ) {
