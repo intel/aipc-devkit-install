@@ -253,7 +253,7 @@ grpcio==1.70.0
     #   -r requirementsbase.in
     #   tensorboard
     #   tensorflow-intel
-h11==0.14.0
+h11==0.16.0
     # via
     #   -r requirementsbase.in
     #   httpcore
@@ -327,7 +327,7 @@ jedi==0.19.2
     # via
     #   -r requirementsbase.in
     #   ipython
-jinja2==3.1.5
+jinja2==3.1.6
     # via
     #   -r requirementsbase.in
     #   jupyter-server
@@ -414,7 +414,7 @@ jupyterlab-widgets==3.0.13
     # via
     #   -r requirementsbase.in
     #   ipywidgets
-keras==3.8.0
+keras==3.9.0
     # via
     #   -r requirementsbase.in
     #   tensorflow-intel
@@ -1046,7 +1046,7 @@ torchvision==0.21.0
     # via
     #   -r requirementsbase.in
     #   ultralytics
-tornado==6.4.2
+tornado==6.5
     # via
     #   -r requirementsbase.in
     #   ipykernel
@@ -1078,7 +1078,7 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
-transformers==4.48.3
+transformers==4.50.0
     # via
     #   -r requirementsbase.in
     #   intel-npu-acceleration-library
