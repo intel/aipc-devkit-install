@@ -134,7 +134,7 @@ onnx
 onnxruntime
 opencv-python
 openvino
-openvino-dev
+## openvino-dev
 openvino-telemetry
 opt-einsum
 optimum

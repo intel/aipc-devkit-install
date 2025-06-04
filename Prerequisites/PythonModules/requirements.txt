@@ -18,15 +18,15 @@
 #
 about-time==4.2.1
     # via alive-progress
-absl-py==2.1.0
+absl-py==2.2.2
     # via
     #   -r requirementsbase.in
     #   keras
     #   tensorboard
-    #   tensorflow-intel
-aiohappyeyeballs==2.4.6
+    #   tensorflow
+aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.11.12
+aiohttp==3.11.16
     # via
     #   -r requirementsbase.in
     #   datasets
@@ -39,7 +39,9 @@ alive-progress==3.2.0
     # via
     #   -r requirementsbase.in
     #   pymoo
-anyio==4.8.0
+altgraph==0.17.4
+    # via pyinstaller
+anyio==4.9.0
     # via
     #   -r requirementsbase.in
     #   httpx
@@ -63,8 +65,8 @@ asttokens==3.0.0
 astunparse==1.6.3
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
-async-lru==2.0.4
+    #   tensorflow
+async-lru==2.0.5
     # via
     #   -r requirementsbase.in
     #   jupyterlab
@@ -72,7 +74,7 @@ async-timeout==5.0.1
     # via
     #   -r requirementsbase.in
     #   aiohttp
-attrs==25.1.0
+attrs==25.3.0
     # via
     #   -r requirementsbase.in
     #   aiohttp
@@ -90,6 +92,8 @@ babel==2.17.0
     # via
     #   -r requirementsbase.in
     #   jupyterlab-server
+backports-tarfile==1.2.0
+    # via jaraco-context
 beautifulsoup4==4.13.3
     # via
     #   -r requirementsbase.in
@@ -98,7 +102,9 @@ bleach[css]==6.2.0
     # via
     #   -r requirementsbase.in
     #   nbconvert
-cachetools==5.5.1
+build==1.2.2.post1
+    # via tensorflow-intel
+cachetools==5.5.2
     # via
     #   -r requirementsbase.in
     #   google-auth
@@ -130,6 +136,7 @@ cma==3.2.2
 colorama==0.4.6
     # via
     #   -r requirementsbase.in
+    #   build
     #   click
     #   ipython
     #   pytest
@@ -151,15 +158,15 @@ cycler==0.12.1
     # via
     #   -r requirementsbase.in
     #   matplotlib
-datasets==3.2.0
+datasets==3.5.0
     # via
     #   -r requirementsbase.in
     #   optimum-intel
-debugpy==1.8.12
+debugpy==1.8.13
     # via
     #   -r requirementsbase.in
     #   ipykernel
-decorator==5.1.1
+decorator==5.2.1
     # via
     #   -r requirementsbase.in
     #   ipython
@@ -168,7 +175,6 @@ defusedxml==0.7.1
     # via
     #   -r requirementsbase.in
     #   nbconvert
-    #   openvino-dev
 deprecated==1.2.18
     # via
     #   -r requirementsbase.in
@@ -182,6 +188,8 @@ dill==0.3.8
     #   datasets
     #   multiprocess
     #   pymoo
+docutils==0.21.2
+    # via readme-renderer
 exceptiongroup==1.2.2
     # via
     #   -r requirementsbase.in
@@ -196,7 +204,7 @@ fastjsonschema==2.21.1
     # via
     #   -r requirementsbase.in
     #   nbformat
-filelock==3.17.0
+filelock==3.18.0
     # via
     #   -r requirementsbase.in
     #   datasets
@@ -208,8 +216,8 @@ flatbuffers==25.2.10
     # via
     #   -r requirementsbase.in
     #   onnxruntime
-    #   tensorflow-intel
-fonttools==4.56.0
+    #   tensorflow
+fonttools==4.57.0
     # via
     #   -r requirementsbase.in
     #   matplotlib
@@ -222,7 +230,7 @@ frozenlist==1.5.0
     #   -r requirementsbase.in
     #   aiohttp
     #   aiosignal
-fsspec[http]==2024.9.0
+fsspec[http]==2024.12.0
     # via
     #   -r requirementsbase.in
     #   datasets
@@ -233,7 +241,7 @@ future==1.0.0
 gast==0.6.0
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
 google-auth==2.38.0
     # via
     #   -r requirementsbase.in
@@ -243,25 +251,25 @@ google-auth-oauthlib==1.2.1
 google-pasta==0.2.0
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
 grapheme==0.6.0
     # via
     #   -r requirementsbase.in
     #   alive-progress
-grpcio==1.70.0
+grpcio==1.71.0
     # via
     #   -r requirementsbase.in
     #   tensorboard
-    #   tensorflow-intel
+    #   tensorflow
 h11==0.14.0
     # via
     #   -r requirementsbase.in
     #   httpcore
-h5py==3.12.1
+h5py==3.13.0
     # via
     #   -r requirementsbase.in
     #   keras
-    #   tensorflow-intel
+    #   tensorflow
 httpcore==1.0.7
     # via
     #   -r requirementsbase.in
@@ -270,7 +278,7 @@ httpx==0.28.1
     # via
     #   -r requirementsbase.in
     #   jupyterlab
-huggingface-hub==0.28.1
+huggingface-hub==0.30.2
     # via
     #   -r requirementsbase.in
     #   datasets
@@ -282,6 +290,8 @@ humanfriendly==10.0
     # via
     #   -r requirementsbase.in
     #   coloredlogs
+id==1.5.0
+    # via twine
 idna==3.10
     # via
     #   -r requirementsbase.in
@@ -298,21 +308,22 @@ importlib-metadata==8.6.1
     # via
     #   -r requirementsbase.in
     #   diffusers
-iniconfig==2.0.0
+    #   keyring
+iniconfig==2.1.0
     # via
     #   -r requirementsbase.in
     #   pytest
-intel-cmplr-lib-ur==2025.0.5
+intel-cmplr-lib-ur==2025.1.0
     # via intel-openmp
 intel-npu-acceleration-library==1.4.0
     # via -r requirementsbase.in
-intel-openmp==2025.0.5
+intel-openmp==2025.1.0
     # via mkl
 ipykernel==6.29.5
     # via
     #   -r requirementsbase.in
     #   jupyterlab
-ipython==8.32.0
+ipython==8.35.0
     # via
     #   -r requirementsbase.in
     #   ipykernel
@@ -323,11 +334,17 @@ isoduration==20.11.0
     # via
     #   -r requirementsbase.in
     #   jsonschema
+jaraco-classes==3.4.0
+    # via keyring
+jaraco-context==6.0.1
+    # via keyring
+jaraco-functools==4.1.0
+    # via keyring
 jedi==0.19.2
     # via
     #   -r requirementsbase.in
     #   ipython
-jinja2==3.1.5
+jinja2==3.1.6
     # via
     #   -r requirementsbase.in
     #   jupyter-server
@@ -342,7 +359,7 @@ joblib==1.4.2
     #   -r requirementsbase.in
     #   librosa
     #   scikit-learn
-json5==0.10.0
+json5==0.12.0
     # via
     #   -r requirementsbase.in
     #   jupyterlab-server
@@ -400,7 +417,7 @@ jupyter-server-terminals==0.5.3
     # via
     #   -r requirementsbase.in
     #   jupyter-server
-jupyterlab==4.3.5
+jupyterlab==4.4.0
     # via -r requirementsbase.in
 jupyterlab-pygments==0.3.0
     # via
@@ -414,10 +431,12 @@ jupyterlab-widgets==3.0.13
     # via
     #   -r requirementsbase.in
     #   ipywidgets
-keras==3.8.0
+keras==3.9.2
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
+keyring==25.6.0
+    # via twine
 kiwisolver==1.4.8
     # via
     #   -r requirementsbase.in
@@ -430,8 +449,8 @@ lazy-loader==0.4
 libclang==18.1.1
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
-librosa==0.10.2.post1
+    #   tensorflow
+librosa==0.11.0
     # via -r requirementsbase.in
 llvmlite==0.44.0
     # via
@@ -451,7 +470,7 @@ markupsafe==3.0.2
     #   jinja2
     #   nbconvert
     #   werkzeug
-matplotlib==3.10.0
+matplotlib==3.10.1
     # via
     #   -r requirementsbase.in
     #   pycocotools
@@ -467,17 +486,21 @@ mdurl==0.1.2
     # via
     #   -r requirementsbase.in
     #   markdown-it-py
-mistune==3.1.1
+mistune==3.1.3
     # via
     #   -r requirementsbase.in
     #   nbconvert
-mkl==2025.0.1
+mkl==2025.1.0
     # via -r requirementsbase.in
-ml-dtypes==0.4.1
+ml-dtypes==0.5.1
     # via
     #   -r requirementsbase.in
     #   keras
-    #   tensorflow-intel
+    #   tensorflow
+more-itertools==10.6.0
+    # via
+    #   jaraco-classes
+    #   jaraco-functools
 mpmath==1.3.0
     # via
     #   -r requirementsbase.in
@@ -486,7 +509,7 @@ msgpack==1.1.0
     # via
     #   -r requirementsbase.in
     #   librosa
-multidict==6.1.0
+multidict==6.2.0
     # via
     #   -r requirementsbase.in
     #   aiohttp
@@ -521,16 +544,17 @@ nest-asyncio==1.6.0
     # via
     #   -r requirementsbase.in
     #   ipykernel
-networkx==3.1
+networkx==3.3
     # via
     #   -r requirementsbase.in
     #   nncf
-    #   openvino-dev
     #   scikit-image
     #   torch
-neural-compressor==3.2
+neural-compressor==3.3.1
     # via intel-npu-acceleration-library
-ninja==1.11.1.3
+nh3==0.2.21
+    # via readme-renderer
+ninja==1.11.1.4
     # via
     #   -r requirementsbase.in
     #   nncf
@@ -540,7 +564,7 @@ notebook-shim==0.2.4
     # via
     #   -r requirementsbase.in
     #   jupyterlab
-numba==0.61.0
+numba==0.61.2
     # via
     #   -r requirementsbase.in
     #   librosa
@@ -567,7 +591,6 @@ numpy==1.26.4
     #   opencv-python
     #   opencv-python-headless
     #   openvino
-    #   openvino-dev
     #   optimum
     #   pandas
     #   pycocotools
@@ -579,7 +602,7 @@ numpy==1.26.4
     #   soundfile
     #   soxr
     #   tensorboard
-    #   tensorflow-intel
+    #   tensorflow
     #   tifffile
     #   torchvision
     #   transformers
@@ -593,7 +616,7 @@ onnx==1.17.0
     # via
     #   -r requirementsbase.in
     #   optimum-intel
-onnxruntime==1.20.1
+onnxruntime==1.21.0
     # via -r requirementsbase.in
 opencv-python==4.11.0.86
     # via
@@ -601,29 +624,24 @@ opencv-python==4.11.0.86
     #   ultralytics
 opencv-python-headless==4.11.0.86
     # via neural-compressor
-openvino==2024.4.0
-    # via
-    #   -r requirementsbase.in
-    #   openvino-dev
-openvino-dev==2024.4.0
+openvino==2025.0.0
     # via -r requirementsbase.in
-openvino-telemetry==2024.1.0
+openvino-telemetry==2025.1.0
     # via
     #   -r requirementsbase.in
     #   nncf
     #   openvino
-    #   openvino-dev
 opt-einsum==3.4.0
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
 optimum==1.24.0
     # via
     #   -r requirementsbase.in
     #   optimum-intel
 optimum-intel==1.22.0
     # via -r requirementsbase.in
-optree==0.14.0
+optree==0.15.0
     # via
     #   -r requirementsbase.in
     #   keras
@@ -634,6 +652,7 @@ overrides==7.7.0
 packaging==24.2
     # via
     #   -r requirementsbase.in
+    #   build
     #   datasets
     #   huggingface-hub
     #   ipykernel
@@ -648,14 +667,17 @@ packaging==24.2
     #   nncf
     #   onnxruntime
     #   openvino
-    #   openvino-dev
     #   optimum
     #   pooch
+    #   pyinstaller
+    #   pyinstaller-hooks-contrib
     #   pytest
     #   scikit-image
     #   tensorboard
-    #   tensorflow-intel
+    #   tensorflow
     #   transformers
+    #   twine
+    #   wheel
 pandas==2.2.3
     # via
     #   -r requirementsbase.in
@@ -674,6 +696,8 @@ parso==0.8.4
     #   jedi
 pdfkit==1.0.0
     # via -r requirementsbase.in
+pefile==2023.2.7
+    # via pyinstaller
 pillow==11.1.0
     # via
     #   -r requirementsbase.in
@@ -684,7 +708,7 @@ pillow==11.1.0
     #   scikit-image
     #   torchvision
     #   ultralytics
-platformdirs==4.3.6
+platformdirs==4.3.7
     # via
     #   -r requirementsbase.in
     #   jupyter-core
@@ -697,7 +721,7 @@ pooch==1.8.2
     # via
     #   -r requirementsbase.in
     #   librosa
-prettytable==3.14.0
+prettytable==3.16.0
     # via neural-compressor
 prometheus-client==0.21.1
     # via
@@ -707,18 +731,18 @@ prompt-toolkit==3.0.50
     # via
     #   -r requirementsbase.in
     #   ipython
-propcache==0.2.1
+propcache==0.3.1
     # via
     #   aiohttp
     #   yarl
-protobuf==5.29.3
+protobuf==5.29.4
     # via
     #   -r requirementsbase.in
     #   onnx
     #   onnxruntime
     #   tensorboard
-    #   tensorflow-intel
-psutil==6.1.1
+    #   tensorflow
+psutil==7.0.0
     # via
     #   -r requirementsbase.in
     #   ipykernel
@@ -734,7 +758,7 @@ py-cpuinfo==9.0.0
     #   neural-compressor
     #   nncf
     #   ultralytics
-pyarrow==19.0.0
+pyarrow==19.0.1
     # via
     #   -r requirementsbase.in
     #   datasets
@@ -745,7 +769,7 @@ pyasn1==0.6.1
     #   -r requirementsbase.in
     #   pyasn1-modules
     #   rsa
-pyasn1-modules==0.4.1
+pyasn1-modules==0.4.2
     # via
     #   -r requirementsbase.in
     #   google-auth
@@ -764,21 +788,28 @@ pygments==2.19.1
     #   -r requirementsbase.in
     #   ipython
     #   nbconvert
+    #   readme-renderer
     #   rich
+pyinstaller==6.12.0
+    # via tensorflow-intel
+pyinstaller-hooks-contrib==2025.2
+    # via pyinstaller
 pymoo==0.6.1.3
     # via
     #   -r requirementsbase.in
     #   nncf
-pyparsing==3.2.1
+pyparsing==3.2.3
     # via
     #   -r requirementsbase.in
     #   matplotlib
     #   pydot
+pyproject-hooks==1.2.0
+    # via build
 pyreadline3==3.5.4
     # via
     #   -r requirementsbase.in
     #   humanfriendly
-pytest==8.3.4
+pytest==8.3.5
     # via -r requirementsbase.in
 python-dateutil==2.9.0.post0
     # via
@@ -787,18 +818,22 @@ python-dateutil==2.9.0.post0
     #   jupyter-client
     #   matplotlib
     #   pandas
-python-json-logger==3.2.1
+python-json-logger==3.3.0
     # via
     #   -r requirementsbase.in
     #   jupyter-events
-pytz==2025.1
+pytz==2025.2
     # via
     #   -r requirementsbase.in
     #   pandas
-pywin32==308
+pywin32==310
     # via
     #   -r requirementsbase.in
     #   jupyter-core
+pywin32-ctypes==0.2.3
+    # via
+    #   keyring
+    #   pyinstaller
 pywinpty==2.0.15
     # via
     #   -r requirementsbase.in
@@ -812,19 +847,20 @@ pyyaml==6.0.2
     #   huggingface-hub
     #   jupyter-events
     #   neural-compressor
-    #   openvino-dev
     #   transformers
     #   ultralytics
-pyzmq==26.2.1
+pyzmq==26.4.0
     # via
     #   -r requirementsbase.in
     #   ipykernel
     #   jupyter-client
     #   jupyter-server
-rapidfuzz==3.12.1
+rapidfuzz==3.13.0
     # via
     #   -r requirementsbase.in
     #   jiwer
+readme-renderer==44.0
+    # via twine
 referencing==0.36.2
     # via
     #   -r requirementsbase.in
@@ -842,35 +878,42 @@ requests==2.32.3
     #   datasets
     #   diffusers
     #   huggingface-hub
+    #   id
     #   jupyterlab-server
     #   neural-compressor
-    #   openvino-dev
     #   pooch
     #   requests-oauthlib
-    #   tensorflow-intel
+    #   requests-toolbelt
+    #   tensorflow
     #   transformers
+    #   twine
     #   ultralytics
 requests-oauthlib==2.0.0
     # via
     #   -r requirementsbase.in
     #   google-auth-oauthlib
+requests-toolbelt==1.0.0
+    # via twine
 rfc3339-validator==0.1.4
     # via
     #   -r requirementsbase.in
     #   jsonschema
     #   jupyter-events
+rfc3986==2.0.0
+    # via twine
 rfc3986-validator==0.1.1
     # via
     #   -r requirementsbase.in
     #   jsonschema
     #   jupyter-events
-rich==13.9.4
+rich==14.0.0
     # via
     #   -r requirementsbase.in
     #   keras
     #   nncf
+    #   twine
     #   typer
-rpds-py==0.22.3
+rpds-py==0.24.0
     # via
     #   -r requirementsbase.in
     #   jsonschema
@@ -879,7 +922,7 @@ rsa==4.9
     # via
     #   -r requirementsbase.in
     #   google-auth
-safetensors==0.5.2
+safetensors==0.5.3
     # via
     #   -r requirementsbase.in
     #   diffusers
@@ -887,7 +930,7 @@ safetensors==0.5.2
     #   transformers
 schema==0.7.7
     # via neural-compressor
-scikit-image==0.25.1
+scikit-image==0.25.2
     # via -r requirementsbase.in
 scikit-learn==1.6.1
     # via
@@ -895,7 +938,7 @@ scikit-learn==1.6.1
     #   librosa
     #   neural-compressor
     #   nncf
-scipy==1.15.1
+scipy==1.15.2
     # via
     #   -r requirementsbase.in
     #   librosa
@@ -918,7 +961,7 @@ sentencepiece==0.2.0
     # via
     #   -r requirementsbase.in
     #   optimum-intel
-sentry-sdk==2.21.0
+sentry-sdk==2.25.1
     # via -r requirementsbase.in
 shellingham==1.5.4
     # via
@@ -932,7 +975,7 @@ six==1.17.0
     #   python-dateutil
     #   rfc3339-validator
     #   tensorboard
-    #   tensorflow-intel
+    #   tensorflow
 sniffio==1.3.1
     # via
     #   -r requirementsbase.in
@@ -962,40 +1005,38 @@ sympy==1.13.1
     #   torch
 tabulate==0.9.0
     # via nncf
-tbb==2022.0.0
+tbb==2022.1.0
     # via mkl
-tcmlib==1.2.0
+tcmlib==1.3.0
     # via
     #   tbb
     #   umf
 tdqm==0.0.1
     # via -r requirementsbase.in
-tensorboard==2.18.0
+tensorboard==2.19.0
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
 tensorboard-data-server==0.7.2
     # via
     #   -r requirementsbase.in
     #   tensorboard
-tensorflow==2.18.0
+tensorflow==2.19.0
     # via
     #   -r requirementsbase.in
     #   tf-keras
 tensorflow-estimator==2.15.0
     # via -r requirementsbase.in
-tensorflow-intel==2.18.0
-    # via
-    #   -r requirementsbase.in
-    #   tensorflow
+tensorflow-intel==0.0.1
+    # via -r requirementsbase.in
 tensorflow-io-gcs-filesystem==0.31.0
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
 termcolor==2.3.0
     # via
     #   -r requirementsbase.in
-    #   tensorflow-intel
+    #   tensorflow
     #   yaspin
 terminado==0.18.1
     # via
@@ -1004,15 +1045,15 @@ terminado==0.18.1
     #   jupyter-server-terminals
 texttable==1.7.0
     # via -r requirementsbase.in
-tf-keras==2.18.0
+tf-keras==2.19.0
     # via -r requirementsbase.in
 thop==0.1.1.post2209072238
     # via -r requirementsbase.in
-threadpoolctl==3.5.0
+threadpoolctl==3.6.0
     # via
     #   -r requirementsbase.in
     #   scikit-learn
-tifffile==2025.1.10
+tifffile==2025.3.30
     # via
     #   -r requirementsbase.in
     #   scikit-image
@@ -1020,13 +1061,14 @@ tinycss2==1.4.0
     # via
     #   -r requirementsbase.in
     #   bleach
-tokenizers==0.21.0
+tokenizers==0.21.1
     # via
     #   -r requirementsbase.in
     #   transformers
 tomli==2.2.1
     # via
     #   -r requirementsbase.in
+    #   build
     #   jupyterlab
     #   pytest
 torch==2.6.0
@@ -1084,13 +1126,15 @@ transformers==4.48.3
     #   intel-npu-acceleration-library
     #   optimum
     #   optimum-intel
-typer==0.15.1
+twine==6.1.0
+    # via tensorflow-intel
+typer==0.15.2
     # via -r requirementsbase.in
 types-python-dateutil==2.9.0.20241206
     # via
     #   -r requirementsbase.in
     #   arrow
-typing-extensions==4.12.2
+typing-extensions==4.13.1
     # via
     #   -r requirementsbase.in
     #   anyio
@@ -1104,18 +1148,18 @@ typing-extensions==4.12.2
     #   optree
     #   referencing
     #   rich
-    #   tensorflow-intel
+    #   tensorflow
     #   torch
     #   typer
-tzdata==2025.1
+tzdata==2025.2
     # via
     #   -r requirementsbase.in
     #   pandas
-ultralytics==8.3.75
+ultralytics==8.3.105
     # via -r requirementsbase.in
 ultralytics-thop==2.0.14
     # via ultralytics
-umf==0.9.1
+umf==0.10.0
     # via intel-cmplr-lib-ur
 uri-template==1.3.0
     # via
@@ -1126,6 +1170,7 @@ urllib3==2.3.0
     #   -r requirementsbase.in
     #   requests
     #   sentry-sdk
+    #   twine
 wcwidth==0.2.13
     # via
     #   -r requirementsbase.in
@@ -1148,7 +1193,7 @@ werkzeug==3.1.3
     # via
     #   -r requirementsbase.in
     #   tensorboard
-wheel==0.45.1
+wheel==0.46.1
     # via astunparse
 widgetsnbextension==4.0.13
     # via
@@ -1158,12 +1203,12 @@ wrapt==1.17.2
     # via
     #   -r requirementsbase.in
     #   deprecated
-    #   tensorflow-intel
+    #   tensorflow
 xxhash==3.5.0
     # via
     #   -r requirementsbase.in
     #   datasets
-yarl==1.18.3
+yarl==1.19.0
     # via
     #   -r requirementsbase.in
     #   aiohttp
