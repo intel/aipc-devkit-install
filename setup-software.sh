@@ -43,6 +43,23 @@ verify_dependencies(){
     echo "$S_VALID Dependencies installed"
 }
 
+install_uv(){
+    echo -e "\n# Installing UV"
+    if ! command -v uv &> /dev/null; then
+        wget -qO- https://astral.sh/uv/install.sh | sh
+        # Add UV to PATH for current session
+        export PATH="$HOME/.local/bin:$PATH"
+        # Verify installation
+        if command -v uv &> /dev/null; then
+            echo "$S_VALID UV installed successfully"
+        else
+            echo "Warning: UV installation may require a shell restart to update PATH"
+        fi
+    else
+        echo "$S_VALID UV is already installed"
+    fi
+}
+
 install_openvino_notebook(){
 
     echo -e "\n# Git clone OpenVINO™ notebooks"
@@ -149,6 +166,7 @@ setup() {
     fi
     cd ~/intel
     verify_dependencies
+    install_uv
     install_openvino_notebook
     install_openvino_notebook2
     install_openvino_genai
