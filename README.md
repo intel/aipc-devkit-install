@@ -6,7 +6,8 @@ This repository contains scripts to set up Intel GPU and NPU drivers on Ubuntu 2
 
 The setup consists of two main scripts:
 - **`setup-drivers.sh`**: Main driver installation script (requires root privileges)
-- **`simple_test_driver_versions.sh`**: Diagnostic tool for troubleshooting GitHub API connectivity issues
+- **`verify_connectivity_driver_versions.sh`**: Diagnostic tool for troubleshooting GitHub API connectivity issues
+- **`verify_latest_driver_names.sh`**: Tool to inspect available driver assets and verify naming patterns
 
 ## Quick Start
 
@@ -21,13 +22,13 @@ sudo ./setup-drivers.sh
 The script will display a troubleshooting message:
 ```
 Error: Failed to get latest release for intel/intel-graphics-compiler
-Troubleshooting: Run './simple_test_driver_versions.sh' to diagnose GitHub API connectivity issues
+Troubleshooting: Run './verify_connectivity_driver_versions.sh' to diagnose GitHub API connectivity issues
 ```
 
 ### 3. Run the Diagnostic Tool
 
 ```bash
-./simple_test_driver_versions.sh
+./verify_connectivity_driver_versions.sh
 ```
 
 ### 4. Fix Any Issues

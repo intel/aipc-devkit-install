@@ -19,7 +19,7 @@ get_latest_github_release() {
     local version=$(curl -s "https://api.github.com/repos/$repo/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     if [ -z "$version" ]; then
         echo "Error: Failed to get latest release for $repo"
-        echo "Troubleshooting: Run './simple_test_driver_versions.sh' to diagnose GitHub API connectivity issues"
+        echo "Troubleshooting: Run './verify_connectivity_driver_versions.sh' to diagnose GitHub API connectivity issues"
         exit 1
     fi
     echo "$version"
@@ -33,7 +33,7 @@ get_github_release_assets() {
     local assets=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag" | grep '"browser_download_url":' | grep "$filter" | sed -E 's/.*"([^"]+)".*/\1/')
     if [ -z "$assets" ]; then
         echo "Error: Failed to get release assets for $repo tag $tag with filter $filter"
-        echo "Troubleshooting: Run './simple_test_driver_versions.sh' to diagnose GitHub API connectivity issues"
+        echo "Troubleshooting: Run './verify_connectivity_driver_versions.sh' to diagnose GitHub API connectivity issues"
         exit 1
     fi
     echo "$assets"
@@ -163,8 +163,9 @@ verify_compute_runtime(){
     get_github_release_assets "intel/intel-graphics-compiler" "$IGC_VERSION" "intel-igc-opencl.*amd64.deb" | head -1 | xargs wget
     
     # Download Intel Compute Runtime packages
-    get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "intel-level-zero-gpu-dbgsym.*amd64.ddeb" | head -1 | xargs wget
-    get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "intel-level-zero-gpu_.*amd64.deb" | head -1 | xargs wget
+    get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "intel-ocloc_.*amd64.deb" | head -1 | xargs wget
+    get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "libze-intel-gpu1-dbgsym.*amd64.ddeb" | head -1 | xargs wget
+    get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "libze-intel-gpu1_.*amd64.deb" | head -1 | xargs wget
     get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "intel-opencl-icd-dbgsym.*amd64.ddeb" | head -1 | xargs wget
     get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "intel-opencl-icd_.*amd64.deb" | head -1 | xargs wget
     get_github_release_assets "intel/compute-runtime" "$COMPUTE_RUNTIME_VERSION" "libigdgmm12.*amd64.deb" | head -1 | xargs wget
@@ -325,7 +326,7 @@ verify_drivers(){
 
 setup(){
     echo "# Intel AI PC Linux Setup - Driver Installation"
-    echo "# If installation fails due to download issues, run './simple_test_driver_versions.sh' for diagnostics"
+    echo "# If installation fails due to download issues, run './verify_connectivity_driver_versions.sh' for diagnostics"
     echo
     
     verify_dependencies
