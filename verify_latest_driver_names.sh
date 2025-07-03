@@ -114,6 +114,14 @@ show_current_patterns() {
     echo "  - libigdgmm12.*amd64.deb"
     echo "  - .*\.sum (checksum file)"
     echo
+    echo "Intel NPU Driver patterns:"
+    echo "  - intel-driver-compiler-npu.*ubuntu24.04.*amd64.deb"
+    echo "  - intel-fw-npu.*ubuntu24.04.*amd64.deb"
+    echo "  - intel-level-zero-npu.*ubuntu24.04.*amd64.deb"
+    echo
+    echo "Level Zero patterns:"
+    echo "  - level-zero_.*u24.04.*amd64.deb"
+    echo
 }
 
 # Function to test asset pattern matching
@@ -184,7 +192,7 @@ fi
 echo
 
 # Repository information
-repos=("intel/intel-graphics-compiler" "intel/compute-runtime")
+repos=("intel/intel-graphics-compiler" "intel/compute-runtime" "intel/linux-npu-driver" "oneapi-src/level-zero")
 
 for repo in "${repos[@]}"; do
     echo "----------------------------------------"
@@ -203,6 +211,20 @@ for repo in "${repos[@]}"; do
             test_pattern_matching "$repo" "$tag" "intel-opencl-icd-dbgsym.*amd64\.ddeb"
             test_pattern_matching "$repo" "$tag" "intel-opencl-icd_.*amd64\.deb"
             test_pattern_matching "$repo" "$tag" "libigdgmm12.*amd64\.deb"
+        fi
+        
+        # Test patterns for NPU driver
+        if [ "$repo" = "intel/linux-npu-driver" ]; then
+            echo "=== Testing NPU Driver Patterns Against Actual Assets ==="
+            test_pattern_matching "$repo" "$tag" "intel-driver-compiler-npu.*ubuntu24.04.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "intel-fw-npu.*ubuntu24.04.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "intel-level-zero-npu.*ubuntu24.04.*amd64\.deb"
+        fi
+        
+        # Test patterns for Level Zero
+        if [ "$repo" = "oneapi-src/level-zero" ]; then
+            echo "=== Testing Level Zero Patterns Against Actual Assets ==="
+            test_pattern_matching "$repo" "$tag" "level-zero_.*u24.04.*amd64\.deb"
         fi
     else
         echo "Failed to get release information for $repo"
