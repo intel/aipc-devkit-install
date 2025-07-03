@@ -6,7 +6,18 @@
 echo "=== Simple Driver Version Test ==="
 echo
 echo "Note: This script uses the GitHub API which has rate limits."
-echo "If you encounter rate limit errors, set GITHUB_TOKEN environment variable."
+
+# Check GitHub token status
+if [ -n "$GITHUB_TOKEN" ]; then
+    echo "✓ GitHub token is configured (${#GITHUB_TOKEN} characters)"
+    echo "  This will allow higher rate limits and better reliability."
+else
+    echo "⚠ No GitHub token found in environment"
+    echo "  Recommendation: Set GITHUB_TOKEN for better reliability:"
+    echo "  1. Get a token at: https://github.com/settings/tokens"
+    echo "  2. export GITHUB_TOKEN=your_token_here"
+    echo "  3. Re-run this script"
+fi
 echo
 
 # Test HTTPS connectivity
@@ -21,9 +32,12 @@ fi
 # Test GitHub API basic endpoint
 echo "2. Testing GitHub API..."
 if [ -n "$GITHUB_TOKEN" ]; then
-    echo "   Using GitHub authentication token"
+    echo "   ✓ GitHub token is set (length: ${#GITHUB_TOKEN} characters)"
+    echo "   Using authenticated requests..."
     API_RESPONSE=$(curl -s --connect-timeout 5 --max-time 10 -H "Authorization: token $GITHUB_TOKEN" https://api.github.com)
 else
+    echo "   ⚠ No GitHub token set - using unauthenticated requests"
+    echo "   Note: This may hit rate limits quickly. Set GITHUB_TOKEN for better reliability."
     API_RESPONSE=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com)
 fi
 
@@ -54,8 +68,10 @@ get_version_simple() {
     
     local response
     if [ -n "$GITHUB_TOKEN" ]; then
+        echo "   Using authenticated request..."
         response=$(curl -s --connect-timeout 10 --max-time 30 -H "Authorization: token $GITHUB_TOKEN" "$url")
     else
+        echo "   Using unauthenticated request..."
         response=$(curl -s --connect-timeout 10 --max-time 30 "$url")
     fi
     local exit_code=$?

@@ -10,6 +10,19 @@ echo "This script safely checks what driver assets are available from GitHub rel
 echo "No files will be downloaded or installed"
 echo
 
+# Check GitHub token status
+if [ -n "$GITHUB_TOKEN" ]; then
+    echo "✓ GitHub token is configured (${#GITHUB_TOKEN} characters)"
+    echo "  Using authenticated requests for higher rate limits"
+    AUTH_HEADER="Authorization: token $GITHUB_TOKEN"
+else
+    echo "⚠ No GitHub token found in environment"
+    echo "  Using unauthenticated requests (may hit rate limits quickly)"
+    echo "  Recommendation: Set GITHUB_TOKEN for better reliability"
+    AUTH_HEADER=""
+fi
+echo
+
 # Check if jq is available
 if ! command -v jq &> /dev/null; then
     echo "Error: jq is required but not installed. Install with: sudo apt install jq"
@@ -19,26 +32,31 @@ fi
 # Function to safely get latest release tag
 get_latest_release_tag() {
     local repo="$1"
-    echo "Checking latest release for $repo..."
+    echo "Checking latest release for $repo..." >&2
     
-    local response=$(curl -s "https://api.github.com/repos/$repo/releases/latest")
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/latest")
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/latest")
+    fi
     
     # Check if we got rate limited
     if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
-        echo "ERROR: GitHub API rate limit exceeded"
-        echo "Solution: Set GITHUB_TOKEN environment variable with a personal access token"
-        echo "Visit: https://github.com/settings/tokens"
+        echo "ERROR: GitHub API rate limit exceeded" >&2
+        echo "Solution: Set GITHUB_TOKEN environment variable with a personal access token" >&2
+        echo "Visit: https://github.com/settings/tokens" >&2
         return 1
     fi
     
     local tag=$(echo "$response" | jq -r '.tag_name // "ERROR"')
     if [ "$tag" = "ERROR" ] || [ "$tag" = "null" ]; then
-        echo "ERROR: Could not get latest release tag for $repo"
-        echo "Response: $response" | head -3
+        echo "ERROR: Could not get latest release tag for $repo" >&2
+        echo "Response: $response" | head -3 >&2
         return 1
     fi
     
-    echo "Latest release: $tag"
+    echo "Latest release: $tag" >&2
     echo "$tag"
 }
 
@@ -49,7 +67,12 @@ list_release_assets() {
     echo
     echo "=== Assets for $repo release $tag ==="
     
-    local response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag")
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    fi
     
     # Check if we got rate limited
     if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
@@ -101,7 +124,12 @@ test_pattern_matching() {
     
     echo "Testing pattern '$pattern' against $repo $tag:"
     
-    local response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag")
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    fi
     local assets=$(echo "$response" | jq -r '.assets[]?.name // empty')
     
     local matches=$(echo "$assets" | grep -E "$pattern" || echo "")
@@ -121,7 +149,14 @@ test_pattern_matching() {
 echo "Checking GitHub API connectivity..."
 
 # Test basic API access
-if ! curl -s "https://api.github.com/rate_limit" | jq -r '.rate.remaining' > /dev/null; then
+test_response=""
+if [ -n "$GITHUB_TOKEN" ]; then
+    test_response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/rate_limit")
+else
+    test_response=$(curl -s "https://api.github.com/rate_limit")
+fi
+
+if ! echo "$test_response" | jq -r '.rate.remaining' > /dev/null; then
     echo "ERROR: Cannot access GitHub API or jq parsing failed"
     exit 1
 fi
@@ -130,7 +165,11 @@ echo "✓ GitHub API accessible"
 echo
 
 # Check rate limit status
-rate_info=$(curl -s "https://api.github.com/rate_limit")
+if [ -n "$GITHUB_TOKEN" ]; then
+    rate_info=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/rate_limit")
+else
+    rate_info=$(curl -s "https://api.github.com/rate_limit")
+fi
 remaining=$(echo "$rate_info" | jq -r '.rate.remaining')
 limit=$(echo "$rate_info" | jq -r '.rate.limit')
 reset_time=$(echo "$rate_info" | jq -r '.rate.reset')
