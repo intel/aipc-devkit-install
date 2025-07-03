@@ -115,12 +115,12 @@ install_ollama(){
 
     echo -e "\n# Install Ollama"
     cd ~/intel
-    curl -fsSL https://ollama.com/install.sh | sh
+    wget https://github.com/ipex-llm/ipex-llm/releases/download/v2.3.0-nightly/ollama-ipex-llm-2.3.0b20250630-ubuntu.tgz
+    tar -zxvf ollama-ipex-llm-2.3.0b20250630-ubuntu.tgz
+    cd ollama-ipex-llm-2.3.0b20250630-ubuntu
+    ./start-ollama.sh &
     sleep 5
-    ollama pull llama3.2:1b
-    #ollama run llama3.2:1b
-    #What is OpenVINO?
-    #/bye
+    ./ollama pull llama3.2:1b
     echo -e "\n# Ollama install complete"
 }
 
@@ -129,7 +129,7 @@ install_chrome(){
     echo -e "\n# Install chrome"
     cd ~/intel
     wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    sudo dpkg -i google-chrome-stable_current_amd64.deb
+    sudo apt -y install ./google-chrome-stable_current_amd64.deb
     echo -e "\n# chrome install complete"
 }
 
