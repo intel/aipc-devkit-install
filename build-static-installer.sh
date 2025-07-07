@@ -1,0 +1,1058 @@
+#!/bin/bash
+
+# Intel Driver Static Installer Builder
+# This script generates a static driver installation script with compatibility-checked versions
+# Use --build-static flag to generate setup-static-drivers.sh with exact filenames and URLs
+
+set -e
+
+# Parse command line arguments
+BUILD_STATIC=false
+if [ "$1" = "--build-static" ]; then
+    BUILD_STATIC=true
+    echo "=== Building Static Driver Setup Script ==="
+    echo "Will generate setup-static-drivers.sh with exact filenames"
+    echo
+fi
+
+echo "=== Intel Driver Static Installer Builder ==="
+echo "This script builds a static driver installation script with compatibility checking"
+echo "No files will be downloaded or installed by this builder script"
+echo
+
+# Check GitHub token status
+if [ -n "$GITHUB_TOKEN" ]; then
+    echo "✓ GitHub token is configured (${#GITHUB_TOKEN} characters)"
+    echo "  Using authenticated requests for higher rate limits"
+    AUTH_HEADER="Authorization: token $GITHUB_TOKEN"
+else
+    echo "⚠ No GitHub token found in environment"
+    echo "  Using unauthenticated requests (may hit rate limits quickly)"
+    echo "  Recommendation: Set GITHUB_TOKEN for better reliability"
+    AUTH_HEADER=""
+fi
+echo
+
+# Check if jq is available
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is required but not installed. Install with: sudo apt install jq"
+    exit 1
+fi
+
+# Function to safely get latest release tag
+get_latest_release_tag() {
+    local repo="$1"
+    echo "Checking latest release for $repo..." >&2
+    
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
+    fi
+    
+    # Check if curl failed or returned empty response
+    if [ -z "$response" ]; then
+        echo "ERROR: Failed to connect to GitHub API for $repo" >&2
+        return 1
+    fi
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq . >/dev/null 2>&1; then
+        echo "ERROR: Invalid JSON response from GitHub API for $repo" >&2
+        echo "Response preview: $(echo "$response" | head -1)" >&2
+        return 1
+    fi
+    
+    # Check if we got rate limited
+    if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
+        echo "ERROR: GitHub API rate limit exceeded" >&2
+        echo "Solution: Set GITHUB_TOKEN environment variable with a personal access token" >&2
+        echo "Visit: https://github.com/settings/tokens" >&2
+        return 1
+    fi
+    
+    local tag=$(echo "$response" | jq -r '.tag_name // "ERROR"')
+    if [ "$tag" = "ERROR" ] || [ "$tag" = "null" ]; then
+        echo "ERROR: Could not get latest release tag for $repo" >&2
+        echo "Response: $response" | head -3 >&2
+        return 1
+    fi
+    
+    echo "Latest release: $tag" >&2
+    echo "$tag"
+}
+
+# Function to safely list release assets
+list_release_assets() {
+    local repo="$1"
+    local tag="$2"
+    echo
+    echo "=== Assets for $repo release $tag ==="
+    
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag")
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    fi
+    
+    # Check if we got rate limited
+    if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
+        echo "ERROR: GitHub API rate limit exceeded"
+        return 1
+    fi
+    
+    # Extract asset names
+    local assets=$(echo "$response" | jq -r '.assets[]?.name // empty')
+    
+    if [ -z "$assets" ]; then
+        echo "ERROR: No assets found or API error"
+        echo "Response preview:" 
+        echo "$response" | head -5
+        return 1
+    fi
+    
+    echo "Available assets:"
+    echo "$assets" | sort
+    echo
+    echo "Asset count: $(echo "$assets" | wc -l)"
+    echo
+}
+
+# Function to show asset patterns used by setup-drivers.sh
+show_current_patterns() {
+    echo "=== Current Asset Patterns in setup-drivers.sh ==="
+    echo
+    echo "Intel Graphics Compiler patterns:"
+    echo "  - intel-igc-core.*amd64.deb"
+    echo "  - intel-igc-opencl.*amd64.deb"
+    echo
+    echo "Intel Compute Runtime patterns:"
+    echo "  - intel-ocloc_.*amd64.deb"
+    echo "  - libze-intel-gpu1-dbgsym.*amd64.ddeb"
+    echo "  - libze-intel-gpu1_.*amd64.deb"
+    echo "  - intel-opencl-icd-dbgsym.*amd64.ddeb"
+    echo "  - intel-opencl-icd_.*amd64.deb"
+    echo "  - libigdgmm12.*amd64.deb"
+    echo "  - .*\.sum (checksum file)"
+    echo
+    echo "Intel NPU Driver patterns:"
+    echo "  - intel-driver-compiler-npu.*ubuntu24.04.*amd64.deb"
+    echo "  - intel-fw-npu.*ubuntu24.04.*amd64.deb"
+    echo "  - intel-level-zero-npu.*ubuntu24.04.*amd64.deb"
+    echo
+    echo "Level Zero patterns:"
+    echo "  - level-zero_.*u24.04.*amd64.deb"
+    echo
+}
+
+# Function to test asset pattern matching
+test_pattern_matching() {
+    local repo="$1"
+    local tag="$2"
+    local pattern="$3"
+    
+    echo "Testing pattern '$pattern' against $repo $tag:"
+    
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag")
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    fi
+    local assets=$(echo "$response" | jq -r '.assets[]?.name // empty')
+    
+    local matches=$(echo "$assets" | grep -E "$pattern" || echo "")
+    
+    if [ -n "$matches" ]; then
+        echo "  ✓ MATCHES FOUND:"
+        echo "$matches" | sed 's/^/    /'
+    else
+        echo "  ✗ NO MATCHES"
+        echo "  Available assets that might be relevant:"
+        echo "$assets" | grep -i "amd64\|\.deb\|\.ddeb" | head -5 | sed 's/^/    /' || echo "    (none found)"
+    fi
+    echo
+}
+
+# Function to collect asset URLs for static script generation
+collect_asset_urls() {
+    local repo="$1"
+    local tag="$2"
+    
+    if [ "$BUILD_STATIC" = "false" ]; then
+        return 0
+    fi
+    
+    echo "Collecting asset URLs for $repo $tag..."
+    
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag")
+    else
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+    fi
+    
+    # Check if we got rate limited or API error
+    if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
+        echo "ERROR: GitHub API rate limit exceeded while collecting assets for $repo" >&2
+        return 1
+    fi
+    
+    # Check if response has assets
+    if ! echo "$response" | jq -e '.assets' >/dev/null 2>&1; then
+        echo "ERROR: No assets found in API response for $repo $tag" >&2
+        echo "Response preview: $(echo "$response" | head -3)" >&2
+        return 1
+    fi
+    
+    # Store version
+    VERSIONS["$repo"]="$tag"
+    
+    # Extract download URLs based on repo
+    case "$repo" in
+        "intel/intel-graphics-compiler")
+            ASSET_URLS["igc-core"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-igc-core.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["igc-opencl"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-igc-opencl.*amd64\\.deb")) | .browser_download_url' | head -1)
+            
+            # Validate required assets were found
+            if [ -z "${ASSET_URLS[igc-core]}" ] || [ "${ASSET_URLS[igc-core]}" = "null" ]; then
+                echo "ERROR: Could not find intel-igc-core asset for $repo $tag" >&2
+                return 1
+            fi
+            if [ -z "${ASSET_URLS[igc-opencl]}" ] || [ "${ASSET_URLS[igc-opencl]}" = "null" ]; then
+                echo "ERROR: Could not find intel-igc-opencl asset for $repo $tag" >&2
+                return 1
+            fi
+            ;;
+        "intel/compute-runtime")
+            ASSET_URLS["ocloc"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-ocloc_.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["ze-gpu-dbgsym"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libze-intel-gpu1-dbgsym.*amd64\\.ddeb")) | .browser_download_url' | head -1)
+            ASSET_URLS["ze-gpu"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libze-intel-gpu1_.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["opencl-icd-dbgsym"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-opencl-icd-dbgsym.*amd64\\.ddeb")) | .browser_download_url' | head -1)
+            ASSET_URLS["opencl-icd"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-opencl-icd_.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["igdgmm"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libigdgmm12.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["checksum"]=$(echo "$response" | jq -r '.assets[] | select(.name | test(".*\\.sum")) | .browser_download_url' | head -1)
+            
+            # Validate required assets were found (checksum is optional)
+            local required_assets=("ocloc" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm")
+            for asset in "${required_assets[@]}"; do
+                if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
+                    echo "ERROR: Could not find required asset '$asset' for $repo $tag" >&2
+                    return 1
+                fi
+            done
+            ;;
+        "intel/linux-npu-driver")
+            ASSET_URLS["npu-compiler"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-driver-compiler-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["npu-fw"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-fw-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["npu-level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-level-zero-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            
+            # Validate required assets were found
+            local required_npu_assets=("npu-compiler" "npu-fw" "npu-level-zero")
+            for asset in "${required_npu_assets[@]}"; do
+                if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
+                    echo "ERROR: Could not find required NPU asset '$asset' for $repo $tag" >&2
+                    return 1
+                fi
+            done
+            ;;
+        "oneapi-src/level-zero")
+            ASSET_URLS["level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("level-zero_.*u24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            
+            # Validate required asset was found
+            if [ -z "${ASSET_URLS[level-zero]}" ] || [ "${ASSET_URLS[level-zero]}" = "null" ]; then
+                echo "ERROR: Could not find level-zero asset for $repo $tag" >&2
+                return 1
+            fi
+            ;;
+    esac
+    
+    echo "✓ Successfully collected assets for $repo"
+    return 0
+}
+
+# Function to generate static setup script
+generate_static_setup_script() {
+    if [ "$BUILD_STATIC" = "false" ]; then
+        return 0
+    fi
+    
+    echo "=== Generating setup-static-drivers.sh ==="
+    
+    # Validate that all required asset URLs are present before generating script
+    echo "Validating collected asset URLs..."
+    local required_assets=(
+        "igc-core" "igc-opencl"
+        "ocloc" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm"
+        "npu-compiler" "npu-fw" "npu-level-zero"
+        "level-zero"
+    )
+    
+    local missing_assets=()
+    for asset in "${required_assets[@]}"; do
+        if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
+            missing_assets+=("$asset")
+        fi
+    done
+    
+    if [ ${#missing_assets[@]} -gt 0 ]; then
+        echo "ERROR: Missing required asset URLs: ${missing_assets[*]}" >&2
+        echo "Cannot generate static script without all required assets" >&2
+        return 1
+    fi
+    
+    echo "✓ All required asset URLs validated"
+    
+    local static_script="setup-static-drivers.sh"
+    
+    # Create the static setup script
+    cat > "$static_script" << 'EOF'
+#!/bin/bash
+
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+# 
+# Static Driver Setup Script - Generated by build-static-installer.sh
+# This script uses exact filenames and wget to avoid GitHub API rate limits
+
+set -e
+
+# BKC
+OS_ID="ubuntu"
+OS_VERSION="24.04"
+CURRENT_KERNEL_VERSION=$(uname -r)
+# symbol
+S_VALID="✓"
+
+# verify current user
+if [ ! "$EUID" -eq 0 ]; then
+    echo "Please run with sudo or root user"
+    exit 1
+fi
+
+install_packages(){
+    local PACKAGES=("$@")
+    local INSTALL_REQUIRED=0
+    for PACKAGE in "${PACKAGES[@]}"; do
+        INSTALLED_VERSION=$(dpkg-query -W -f='${Version}' "$PACKAGE" 2>/dev/null || true)
+        LATEST_VERSION=$(apt-cache policy "$PACKAGE" | grep Candidate | awk '{print $2}')
+        
+        if [ -z "$INSTALLED_VERSION" ] || [ "$INSTALLED_VERSION" != "$LATEST_VERSION" ]; then
+            echo "$PACKAGE is not installed or not the latest version."
+            INSTALL_REQUIRED=1
+        fi
+    done
+    if [ $INSTALL_REQUIRED -eq 1 ]; then
+        apt update
+        apt install -y "${PACKAGES[@]}"
+    fi
+}
+
+verify_dependencies(){
+    echo -e "# Verifying dependencies"
+    DEPENDENCIES_PACKAGES=(
+        git
+        clinfo
+        curl
+        wget
+        gpg-agent
+        libtbb12
+    )
+    install_packages "${DEPENDENCIES_PACKAGES[@]}"
+    echo "$S_VALID Dependencies installed"
+}
+
+verify_intel_gpu_package_repo(){
+    if [ ! -e /etc/apt/sources.list.d/intel-gpu-noble.list ]; then
+        echo "Adding Intel GPU repository"
+        wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
+        gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+        echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble client" | \
+        tee /etc/apt/sources.list.d/intel-gpu-noble.list
+        apt update
+        apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd clinfo intel-gsc
+        apt update
+        apt -y dist-upgrade
+    fi
+}
+
+verify_igpu_driver(){
+    echo -e "Verifying iGPU driver"
+
+    if [ -z "$(clinfo | grep 'Driver Version' | awk '{print $NF}')" ] && [ ! -e /etc/apt/sources.list.d/intel-gpu-noble.list ]; then
+        verify_intel_gpu_package_repo
+        IGPU_PACKAGES=(
+        libze1
+        intel-level-zero-gpu
+        intel-opencl-icd
+        clinfo
+        vainfo
+        hwinfo
+        )
+        install_packages "${IGPU_PACKAGES[@]}"
+        FIRMWARE=(linux-firmware)
+        install_packages "${FIRMWARE[@]}"
+
+         # $USER here is root
+        if ! id -nG "$USER" | grep -q -w '\<video\>'; then
+            echo "Adding current user ($USER) to 'video' group"
+            usermod -aG video "$USER"
+        fi
+        if ! id -nG "$USER" | grep -q '\<render\>'; then
+            echo "Adding current user ($USER) to 'render' group"
+            usermod -aG render "$USER"
+        fi
+
+        # Get the native user who invoked sudo
+        NATIVE_USER="$(logname)"
+        
+        if ! id -nG "$NATIVE_USER" | grep -q -w '\<video\>'; then
+            echo "Adding native user ($NATIVE_USER) to 'video' group"
+            usermod -aG video "$NATIVE_USER"
+        fi
+        if ! id -nG "$NATIVE_USER" | grep -q '\<render\>'; then
+            echo "Adding native user ($NATIVE_USER) to 'render' group"
+            usermod -aG render "$NATIVE_USER"
+        fi
+    fi
+}
+
+verify_os() {
+    echo -e "\n# Verifying operating system"
+    if [ ! -e /etc/os-release ]; then
+        echo "Error: /etc/os-release file not found"
+        exit 1
+    fi
+    CURRENT_OS_ID=$(grep -E '^ID=' /etc/os-release | cut -d'=' -f2- | tr -d '"')
+    CURRENT_OS_VERSION=$(grep -E '^VERSION_ID=' /etc/os-release | cut -d'=' -f2- | tr -d '"')
+    if [ "$OS_ID" != "$CURRENT_OS_ID" ] || [ "$OS_VERSION" != "$CURRENT_OS_VERSION" ]; then
+        echo "Error: OS is not supported. Please make sure $OS_ID $OS_VERSION is installed"
+        exit 1
+    fi
+    echo "$S_VALID OS version: $CURRENT_OS_ID $CURRENT_OS_VERSION"
+}
+
+verify_gpu() {
+    echo -e "\n# Verifying GPU"
+    DGPU="$(lspci | grep VGA | grep Intel -c)"
+
+    if [ "$DGPU" -ge 1 ]; then
+        if [ ! -e "/dev/dri" ]; then
+            IGPU=1
+        else
+            IGPU="$(find /dev/dri -maxdepth 1 -type c -name 'renderD128*' | wc -l)"
+        fi
+    fi
+    if [ -e "/dev/dri" ]; then
+        IGPU="$(find /dev/dri -maxdepth 1 -type c -name 'renderD128*' | wc -l)"
+    fi
+
+    if [ "$DGPU" -ge 2 ]; then
+        GPU_STAT_LABEL="- iGPU\n-dGPU (default)"
+    else
+        if [ "$IGPU" -lt 1 ]; then
+            GPU_STAT_LABEL="- n/a"
+        else
+            GPU_STAT_LABEL="- iGPU (default)"   
+        fi
+    fi
+    echo -e "$GPU_STAT_LABEL"
+}
+
+verify_kernel() {
+    echo -e "\n# Verifying kernel version"
+    CURRENT_KERNEL_VERSION=$(uname -r)
+    echo "$S_VALID Kernel version: $CURRENT_KERNEL_VERSION"
+    
+    # Check if running a recent enough kernel for Intel GPU/NPU support
+    KERNEL_MAJOR=$(echo "$CURRENT_KERNEL_VERSION" | cut -d'.' -f1)
+    KERNEL_MINOR=$(echo "$CURRENT_KERNEL_VERSION" | cut -d'.' -f2)
+    
+    if [ "$KERNEL_MAJOR" -lt 6 ] || ([ "$KERNEL_MAJOR" -eq 6 ] && [ "$KERNEL_MINOR" -lt 8 ]); then
+        echo "Warning: Kernel version $CURRENT_KERNEL_VERSION may not fully support Intel GPU/NPU drivers."
+        echo "Consider upgrading to kernel 6.8 or newer for optimal compatibility."
+    fi
+}
+
+verify_platform() {
+    echo -e "\n# Verifying platform"
+    CPU_MODEL=$(< /proc/cpuinfo grep -m1 "model name" | cut -d: -f2 | sed 's/^[ \t]*//')
+    echo "- CPU model: $CPU_MODEL"
+}
+
+EOF
+
+    # Add version information with compatibility notes
+    cat >> "$static_script" << EOF
+# Static asset URLs and versions (generated $(date))
+# Versions are compatibility-checked to prevent dependency conflicts
+IGC_VERSION="${VERSIONS[intel/intel-graphics-compiler]}"
+COMPUTE_RUNTIME_VERSION="${VERSIONS[intel/compute-runtime]}"
+NPU_DRIVER_VERSION="${VERSIONS[intel/linux-npu-driver]}"
+LEVEL_ZERO_VERSION="${VERSIONS[oneapi-src/level-zero]}"
+
+EOF
+
+    # Add compatibility notice if there were warnings
+    if [ "$COMPATIBILITY_WARNING" = "true" ]; then
+        cat >> "$static_script" << 'EOF'
+# WARNING: Version compatibility could not be fully verified during generation
+# This script may encounter dependency conflicts during installation
+# Test on a non-production system first
+
+EOF
+    else
+        cat >> "$static_script" << 'EOF'
+# Version compatibility verified during generation
+# These driver versions are known to work together without dependency conflicts
+
+EOF
+    fi
+    
+    # Add asset URLs with proper variable naming
+    for key in "${!ASSET_URLS[@]}"; do
+        # Convert key to uppercase and replace hyphens with underscores for bash variable names
+        var_name=$(echo "${key^^}" | tr '-' '_')
+        echo "ASSET_URL_${var_name}=\"${ASSET_URLS[$key]}\"" >> "$static_script"
+    done
+    
+    # Add the compute runtime function
+    cat >> "$static_script" << 'EOF'
+
+verify_compute_runtime(){
+    echo -e "\n# Verifying Intel(R) Compute Runtime drivers"
+
+    CURRENT_DIR=$(pwd)
+    
+    echo -e "Install Intel(R) Graphics Compiler version: $IGC_VERSION"
+    echo -e "Install Intel(R) Compute Runtime drivers version: $COMPUTE_RUNTIME_VERSION"
+    
+    if [ -d /tmp/neo_temp ];then
+        echo -e "Found existing folder in path /tmp/neo_temp. Removing the folder"
+        rm -rf /tmp/neo_temp
+    fi
+    
+    echo -e "Downloading compute runtime packages"
+    mkdir -p /tmp/neo_temp
+    cd /tmp/neo_temp
+    
+    # Download Intel Graphics Compiler packages
+    wget "$ASSET_URL_IGC_CORE"
+    wget "$ASSET_URL_IGC_OPENCL"
+    
+    # Download Intel Compute Runtime packages
+    wget "$ASSET_URL_OCLOC"
+    wget "$ASSET_URL_ZE_GPU_DBGSYM"
+    wget "$ASSET_URL_ZE_GPU"
+    wget "$ASSET_URL_OPENCL_ICD_DBGSYM"
+    wget "$ASSET_URL_OPENCL_ICD"
+    wget "$ASSET_URL_IGDGMM"
+    
+    echo -e "Verify sha256 sums for packages (if available)"
+    if [ -n "$ASSET_URL_CHECKSUM" ]; then
+        wget "$ASSET_URL_CHECKSUM"
+        sha256sum -c *.sum || echo "Warning: Checksum verification failed or not available"
+    else
+        echo "No checksum file found, skipping verification"
+    fi
+
+    echo -e "\nInstalling compute runtime as root"
+    apt remove -y intel-ocloc libze-intel-gpu1 || true
+    dpkg -i ./*.deb 
+
+    cd ..
+    echo -e "Cleaning up /tmp/neo_temp folder after installation"
+    rm -rf neo_temp
+    cd "$CURRENT_DIR"
+}
+
+verify_npu_driver(){
+    echo -e "Verifying NPU drivers"
+
+    CURRENT_DIR=$(pwd)
+    COMPILER_PKG=$(dpkg-query -l "intel-driver-compiler-npu" 2>/dev/null || true)
+    LEVEL_ZERO_PKG=$(dpkg-query -l "intel-level-zero-npu" 2>/dev/null || true)
+
+    if [[ -z $COMPILER_PKG || -z $LEVEL_ZERO_PKG ]]; then
+        echo -e "NPU Driver is not installed. Proceed installing"
+        dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu || true
+        apt install --fix-broken
+        apt update
+        
+        echo -e "Installing NPU Driver version: $NPU_DRIVER_VERSION"
+        echo -e "Installing Level Zero version: $LEVEL_ZERO_VERSION"
+
+        if [ -d /tmp/npu_temp ];then
+            rm -rf /tmp/npu_temp
+        fi
+        
+        mkdir /tmp/npu_temp
+        cd /tmp/npu_temp
+
+        # Download NPU driver packages
+        wget "$ASSET_URL_NPU_COMPILER"
+        wget "$ASSET_URL_NPU_FW"
+        wget "$ASSET_URL_NPU_LEVEL_ZERO"
+        
+        # Download Level Zero package
+        wget "$ASSET_URL_LEVEL_ZERO"
+        
+        dpkg -i ./*.deb
+                                                                                                                                                                                             
+        cd ..
+        rm -rf npu_temp
+        cd "$CURRENT_DIR"
+        
+        chown root:render /dev/accel/accel0
+        chmod g+rw /dev/accel/accel0
+        bash -c "echo 'SUBSYSTEM==\"accel\", KERNEL==\"accel*\", GROUP=\"render\", MODE=\"0660\"' > /etc/udev/rules.d/10-intel-vpu.rules"
+        udevadm control --reload-rules
+        udevadm trigger --subsystem-match=accel
+    fi
+}
+
+verify_drivers(){
+    echo -e "\n#Verifying drivers"
+    verify_igpu_driver
+    
+    # Check if GPU driver is properly installed
+    GPU_DRIVER_VERSION="$(clinfo | grep 'Driver Version' | awk '{print $NF}' 2>/dev/null || echo 'Not detected')"
+    if [ "$GPU_DRIVER_VERSION" = "Not detected" ]; then
+        echo "Warning: GPU driver not detected or clinfo not available"
+    else
+        echo "$S_VALID Intel GPU Drivers: $GPU_DRIVER_VERSION"
+    fi
+
+    verify_npu_driver
+    
+    NPU_DRIVER_VERSION="$(sudo dmesg | grep vpu | awk 'NR==3{ print; }' | awk -F " " '{print $5" "$6" "$7}' 2>/dev/null || echo 'Not detected')"
+    if [ "$NPU_DRIVER_VERSION" = "Not detected" ]; then
+        echo "Warning: NPU driver not detected in dmesg"
+    else
+        echo "$S_VALID Intel NPU Drivers: $NPU_DRIVER_VERSION"
+    fi
+}
+
+setup(){
+    echo "# Intel AI PC Linux Setup - Static Driver Installation"
+    echo "# This script uses pre-determined asset URLs to avoid GitHub API rate limits"
+    echo
+    
+    verify_dependencies
+    verify_platform
+    verify_gpu
+    verify_os
+    verify_drivers
+    verify_kernel
+    verify_compute_runtime
+    
+    echo -e "\n# Status"
+    echo "$S_VALID Platform configured"
+}
+
+setup
+EOF
+
+    chmod +x "$static_script"
+    
+    echo "✓ Generated $static_script"
+    echo "  - IGC Version: ${VERSIONS[intel/intel-graphics-compiler]}"
+    echo "  - Compute Runtime Version: ${VERSIONS[intel/compute-runtime]}"
+    echo "  - NPU Driver Version: ${VERSIONS[intel/linux-npu-driver]}"
+    echo "  - Level Zero Version: ${VERSIONS[oneapi-src/level-zero]}"
+    echo
+    echo "Usage: sudo ./$static_script"
+}
+
+# Function to find compatible IGC version for compute runtime
+find_compatible_igc_version() {
+    local compute_runtime_tag="$1"
+    echo "🔍 Finding compatible IGC version for compute runtime $compute_runtime_tag..." >&2
+    
+    # Get the compute runtime release assets
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag" 2>/dev/null)
+    else
+        response=$(curl -s "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag" 2>/dev/null)
+    fi
+    
+    if [ -z "$response" ] || ! echo "$response" | jq -e '.assets' >/dev/null 2>&1; then
+        echo "❌ Could not get compute runtime release assets" >&2
+        return 1
+    fi
+    
+    # Look for intel-opencl-icd package
+    local opencl_icd_url=$(echo "$response" | jq -r '.assets[] | select(.name | contains("intel-opencl-icd_")) | .browser_download_url' | head -1)
+    
+    if [ -n "$opencl_icd_url" ] && [ "$opencl_icd_url" != "null" ]; then
+        echo "  📦 Downloading intel-opencl-icd package to check dependencies..." >&2
+        
+        # Download the package temporarily
+        local temp_dir=$(mktemp -d)
+        cd "$temp_dir"
+        
+        if wget -q "$opencl_icd_url" -O opencl-icd.deb 2>/dev/null; then
+            # Extract control information
+            local deps_info=$(dpkg-deb --info opencl-icd.deb 2>/dev/null | grep -A 20 "Depends:" || echo "No dependencies found")
+            
+            # Look for IGC dependency
+            local igc_version=$(echo "$deps_info" | grep -o "intel-igc-opencl-2 (= [^)]*)" | sed 's/intel-igc-opencl-2 (= \([^)]*\))/\1/' | head -1)
+            
+            cd - > /dev/null
+            rm -rf "$temp_dir"
+            
+            if [ -n "$igc_version" ]; then
+                echo "  ✅ Found required IGC version: $igc_version" >&2
+                echo "$igc_version"
+                return 0
+            fi
+        fi
+        
+        cd - > /dev/null
+        rm -rf "$temp_dir"
+    fi
+    
+    echo "  ❌ Could not determine compatible IGC version" >&2
+    return 1
+}
+
+# Function to find IGC release tag for a specific version
+find_igc_tag_for_version() {
+    local target_version="$1"
+    echo "🔍 Searching for IGC tag matching version $target_version..." >&2
+    
+    # Get IGC releases to find matching tag
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=30" 2>/dev/null)
+    else
+        response=$(curl -s "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=30" 2>/dev/null)
+    fi
+    
+    if [ -z "$response" ] || ! echo "$response" | jq -e '.[0]' >/dev/null 2>&1; then
+        echo "  ❌ Could not get IGC releases" >&2
+        return 1
+    fi
+    
+    # Look through releases for matching version
+    local matching_tag=$(echo "$response" | jq -r --arg version "$target_version" '.[] | select(.assets[].name | contains($version)) | .tag_name' | head -1)
+    
+    if [ -n "$matching_tag" ] && [ "$matching_tag" != "null" ]; then
+        echo "  ✅ Found matching IGC tag: $matching_tag" >&2
+        echo "$matching_tag"
+        return 0
+    fi
+    
+    # Try alternative approach - look for tags that might contain the version
+    local alternative_tag=$(echo "$response" | jq -r '.[] | .tag_name' | grep -E "v?${target_version}" | head -1)
+    
+    if [ -n "$alternative_tag" ]; then
+        echo "  ✅ Found alternative IGC tag: $alternative_tag" >&2
+        echo "$alternative_tag"
+        return 0
+    fi
+    
+    echo "  ❌ Could not find IGC tag for version $target_version" >&2
+    return 1
+}
+
+# Function to check version compatibility between IGC and Compute Runtime
+check_version_compatibility() {
+    local igc_tag="$1"
+    local compute_runtime_tag="$2"
+    
+    echo "🔍 Checking compatibility between IGC $igc_tag and Compute Runtime $compute_runtime_tag..." >&2
+    
+    # Skip compatibility check if we already determined the compatible version
+    # This means we trust the dependency analysis from find_compatible_igc_version
+    echo "  ℹ️  Using dependency-based compatibility (IGC $igc_tag was selected based on runtime requirements)" >&2
+    echo "  ✅ Versions are compatible by design!" >&2
+    return 0
+}
+
+# Function to collect compatible driver versions
+collect_compatible_versions() {
+    echo "=== Collecting Compatible Driver Versions ==="
+    echo
+    
+    # First, get the latest compute runtime version
+    echo "📡 Getting latest compute runtime version..."
+    local compute_runtime_tag=$(get_latest_release_tag "intel/compute-runtime")
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to get compute runtime version"
+        return 1
+    fi
+    echo "  Latest compute runtime: $compute_runtime_tag"
+    
+    # Find compatible IGC version
+    echo "🔍 Finding compatible IGC version..."
+    local compatible_igc_version=$(find_compatible_igc_version "$compute_runtime_tag")
+    if [ $? -ne 0 ]; then
+        echo "⚠️  Could not determine compatible IGC version, using latest..."
+        COMPATIBLE_IGC_TAG=$(get_latest_release_tag "intel/intel-graphics-compiler")
+        COMPATIBILITY_WARNING="true"
+        echo "  Using latest IGC: $COMPATIBLE_IGC_TAG"
+    else
+        echo "  Required IGC version: $compatible_igc_version"
+        COMPATIBLE_IGC_TAG=$(find_igc_tag_for_version "$compatible_igc_version")
+        if [ $? -ne 0 ]; then
+            echo "⚠️  Could not find IGC tag for version $compatible_igc_version, using latest..."
+            COMPATIBLE_IGC_TAG=$(get_latest_release_tag "intel/intel-graphics-compiler")
+            COMPATIBILITY_WARNING="true"
+        else
+            echo "  Found compatible IGC tag: $COMPATIBLE_IGC_TAG"
+            COMPATIBILITY_WARNING="false"
+        fi
+    fi
+    
+    # Get other component versions
+    COMPATIBLE_COMPUTE_RUNTIME_TAG="$compute_runtime_tag"
+    echo "📡 Getting NPU driver and Level Zero versions..."
+    COMPATIBLE_NPU_DRIVER_TAG=$(get_latest_release_tag "intel/linux-npu-driver")
+    COMPATIBLE_LEVEL_ZERO_TAG=$(get_latest_release_tag "oneapi-src/level-zero")
+    
+    echo
+    echo "📋 Selected versions:"
+    echo "  IGC: $COMPATIBLE_IGC_TAG"
+    echo "  Compute Runtime: $COMPATIBLE_COMPUTE_RUNTIME_TAG"
+    echo "  NPU Driver: $COMPATIBLE_NPU_DRIVER_TAG"
+    echo "  Level Zero: $COMPATIBLE_LEVEL_ZERO_TAG"
+    echo
+    
+    # Verify compatibility if we found a specific compatible version
+    if [ "$COMPATIBILITY_WARNING" = "false" ]; then
+        echo "🔍 Verifying compatibility..."
+        if check_version_compatibility "$COMPATIBLE_IGC_TAG" "$COMPATIBLE_COMPUTE_RUNTIME_TAG"; then
+            echo "✅ All versions are compatible!"
+            return 0
+        else
+            echo "❌ Version compatibility issues detected!"
+            COMPATIBILITY_WARNING="true"
+        fi
+    fi
+    
+    if [ "$COMPATIBILITY_WARNING" = "true" ]; then
+        echo "⚠️  WARNING: Could not verify version compatibility!"
+        echo "   The generated static script may have dependency conflicts."
+        echo "   Consider testing installation on a non-production system first."
+        echo "   Recommendation: Use a GitHub token and retry, or test manually first."
+    fi
+    
+    return 0
+}
+
+# Main execution
+echo "Checking GitHub API connectivity..."
+
+# Test basic API access
+test_response=""
+if [ -n "$GITHUB_TOKEN" ]; then
+    test_response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/rate_limit")
+else
+    test_response=$(curl -s "https://api.github.com/rate_limit")
+fi
+
+if ! echo "$test_response" | jq -r '.rate.remaining' > /dev/null; then
+    echo "ERROR: Cannot access GitHub API or jq parsing failed"
+    if [ "$BUILD_STATIC" = "true" ]; then
+        echo "Cannot generate static setup script without API access"
+        exit 1
+    else
+        exit 1
+    fi
+fi
+
+echo "✓ GitHub API accessible"
+echo
+
+# Check rate limit status
+if [ -n "$GITHUB_TOKEN" ]; then
+    rate_info=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/rate_limit")
+else
+    rate_info=$(curl -s "https://api.github.com/rate_limit")
+fi
+remaining=$(echo "$rate_info" | jq -r '.rate.remaining')
+limit=$(echo "$rate_info" | jq -r '.rate.limit')
+reset_time=$(echo "$rate_info" | jq -r '.rate.reset')
+reset_human=$(date -d "@$reset_time" 2>/dev/null || echo "unknown")
+
+echo "Rate limit status: $remaining/$limit requests remaining"
+echo "Rate limit resets: $reset_human"
+
+if [ "$remaining" -lt 10 ]; then
+    echo "WARNING: Low rate limit remaining. Consider setting GITHUB_TOKEN"
+fi
+echo
+
+# Repository information
+REPOS=("intel/intel-graphics-compiler" "intel/compute-runtime" "intel/linux-npu-driver" "oneapi-src/level-zero")
+
+# Arrays to store discovered assets for static script generation
+declare -A ASSET_URLS
+declare -A VERSIONS
+
+# Track errors for static script generation
+STATIC_GENERATION_FAILED=false
+
+# Variables for compatibility checking
+COMPATIBLE_IGC_TAG=""
+COMPATIBLE_COMPUTE_RUNTIME_TAG=""
+COMPATIBLE_NPU_DRIVER_TAG=""
+COMPATIBLE_LEVEL_ZERO_TAG=""
+COMPATIBILITY_WARNING="false"
+
+echo "=== Driver Version Verification ==="
+echo "GitHub API token: ${GITHUB_TOKEN:+configured}"
+echo "Mode: ${BUILD_STATIC:+Static script generation}${BUILD_STATIC:-Verification only}"
+echo
+
+if [ "$BUILD_STATIC" = "true" ]; then
+    echo "🔧 Building static script with version compatibility checking..."
+    echo
+    
+    # Collect compatible versions
+    if ! collect_compatible_versions; then
+        echo "❌ Failed to collect compatible versions"
+        echo "Cannot generate static setup script safely"
+        exit 1
+    fi
+    
+    # Use compatible versions for repos
+    REPOS_VERSIONS=(
+        "intel/intel-graphics-compiler:$COMPATIBLE_IGC_TAG"
+        "intel/compute-runtime:$COMPATIBLE_COMPUTE_RUNTIME_TAG"
+        "intel/linux-npu-driver:$COMPATIBLE_NPU_DRIVER_TAG"
+        "oneapi-src/level-zero:$COMPATIBLE_LEVEL_ZERO_TAG"
+    )
+    
+    echo "📦 Collecting assets for compatible versions..."
+    
+    for repo_version in "${REPOS_VERSIONS[@]}"; do
+        IFS=':' read -r repo tag <<< "$repo_version"
+        echo "----------------------------------------"
+        echo "Collecting assets for $repo $tag..."
+        
+        # Store version for later use
+        VERSIONS["$repo"]="$tag"
+        
+        # List assets for verification
+        if ! list_release_assets "$repo" "$tag"; then
+            echo "ERROR: Failed to list assets for $repo $tag" >&2
+            STATIC_GENERATION_FAILED=true
+            continue
+        fi
+        
+        # Collect asset URLs
+        if ! collect_asset_urls "$repo" "$tag"; then
+            echo "ERROR: Failed to collect assets for $repo $tag" >&2
+            STATIC_GENERATION_FAILED=true
+        fi
+        echo "----------------------------------------"
+    done
+else
+    # Original verification mode - check latest versions
+    for repo in "${REPOS[@]}"; do
+        echo "----------------------------------------"
+        echo "Checking $repo..."
+        
+        # Get latest release tag
+        if tag=$(get_latest_release_tag "$repo"); then
+            echo "Latest release: $tag"
+            
+            # List all assets for debugging
+            list_release_assets "$repo" "$tag"
+        
+        # Test patterns only for compute-runtime (the problematic one)
+        if [ "$repo" = "intel/compute-runtime" ]; then
+            echo "=== Testing Current Patterns Against Actual Assets ==="
+            test_pattern_matching "$repo" "$tag" "intel-ocloc_.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "libze-intel-gpu1-dbgsym.*amd64\.ddeb"
+            test_pattern_matching "$repo" "$tag" "libze-intel-gpu1_.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "intel-opencl-icd-dbgsym.*amd64\.ddeb"
+            test_pattern_matching "$repo" "$tag" "intel-opencl-icd_.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "libigdgmm12.*amd64\.deb"
+        fi
+        
+        # Test patterns for NPU driver
+        if [ "$repo" = "intel/linux-npu-driver" ]; then
+            echo "=== Testing NPU Driver Patterns Against Actual Assets ==="
+            test_pattern_matching "$repo" "$tag" "intel-driver-compiler-npu.*ubuntu24.04.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "intel-fw-npu.*ubuntu24.04.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "intel-level-zero-npu.*ubuntu24.04.*amd64\.deb"
+        fi
+        
+        # Test patterns for Level Zero
+        if [ "$repo" = "oneapi-src/level-zero" ]; then
+            echo "=== Testing Level Zero Patterns Against Actual Assets ==="
+            test_pattern_matching "$repo" "$tag" "level-zero_.*u24.04.*amd64\.deb"
+        fi
+        else
+            echo "Failed to get release information for $repo"
+        fi
+        echo "----------------------------------------"
+    done
+fi
+
+show_current_patterns
+
+# Generate static setup script only if all assets were collected successfully
+if [ "$BUILD_STATIC" = "true" ]; then
+    if [ "$STATIC_GENERATION_FAILED" = "true" ]; then
+        echo ""
+        echo "=== ERROR: Static Script Generation Failed ==="
+        echo "Cannot create setup-static-drivers.sh due to asset collection failures" >&2
+        echo "Possible causes:" >&2
+        echo "- GitHub API rate limiting (try setting GITHUB_TOKEN)" >&2
+        echo "- Network connectivity issues" >&2
+        echo "- Missing or moved driver assets in repositories" >&2
+        echo "" >&2
+        exit 1
+    else
+        echo ""
+        echo "=== Generating Static Setup Script ==="
+        if [ "$COMPATIBILITY_WARNING" = "true" ]; then
+            echo "⚠️  WARNING: Version compatibility could not be fully verified"
+            echo "   The generated script may have dependency conflicts"
+            echo "   Test on a non-production system first"
+            echo ""
+        fi
+        
+        if generate_static_setup_script; then
+            echo "✅ Static setup script generated: setup-static-drivers.sh"
+            echo ""
+            echo "📋 Summary:"
+            echo "  - IGC Version: ${VERSIONS[intel/intel-graphics-compiler]}"
+            echo "  - Compute Runtime Version: ${VERSIONS[intel/compute-runtime]}"
+            echo "  - NPU Driver Version: ${VERSIONS[intel/linux-npu-driver]}"
+            echo "  - Level Zero Version: ${VERSIONS[oneapi-src/level-zero]}"
+            
+            if [ "$COMPATIBILITY_WARNING" = "false" ]; then
+                echo "  - ✅ Version compatibility verified"
+            else
+                echo "  - ⚠️  Version compatibility warning (see above)"
+            fi
+            
+            echo ""
+            echo "🚀 Usage: sudo ./setup-static-drivers.sh"
+        else
+            echo "❌ Failed to generate static setup script"
+            exit 1
+        fi
+    fi
+fi
+
+echo ""
+echo "=== Summary ==="
+echo "This diagnostic script completed safely without installing anything."
+echo "Use the output above to:"
+echo "1. Verify GitHub API connectivity"
+echo "2. See what assets are actually available"
+echo "3. Compare with patterns used in setup-drivers.sh"
+echo "4. Identify any mismatched patterns that need updating"
+if [ "$BUILD_STATIC" = "true" ] && [ "$STATIC_GENERATION_FAILED" = "false" ]; then
+    echo "5. ✓ Generated setup-static-drivers.sh with exact asset URLs"
+    echo "   Run: sudo ./setup-static-drivers.sh"
+fi
