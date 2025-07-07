@@ -46,9 +46,22 @@ get_latest_release_tag() {
     
     local response
     if [ -n "$GITHUB_TOKEN" ]; then
-        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/latest")
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
     else
-        response=$(curl -s "https://api.github.com/repos/$repo/releases/latest")
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
+    fi
+    
+    # Check if curl failed or returned empty response
+    if [ -z "$response" ]; then
+        echo "ERROR: Failed to connect to GitHub API for $repo" >&2
+        return 1
+    fi
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq . >/dev/null 2>&1; then
+        echo "ERROR: Invalid JSON response from GitHub API for $repo" >&2
+        echo "Response preview: $(echo "$response" | head -1)" >&2
+        return 1
     fi
     
     # Check if we got rate limited
@@ -181,6 +194,19 @@ collect_asset_urls() {
         response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
     fi
     
+    # Check if we got rate limited or API error
+    if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
+        echo "ERROR: GitHub API rate limit exceeded while collecting assets for $repo" >&2
+        return 1
+    fi
+    
+    # Check if response has assets
+    if ! echo "$response" | jq -e '.assets' >/dev/null 2>&1; then
+        echo "ERROR: No assets found in API response for $repo $tag" >&2
+        echo "Response preview: $(echo "$response" | head -3)" >&2
+        return 1
+    fi
+    
     # Store version
     VERSIONS["$repo"]="$tag"
     
@@ -189,6 +215,16 @@ collect_asset_urls() {
         "intel/intel-graphics-compiler")
             ASSET_URLS["igc-core"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-igc-core.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["igc-opencl"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-igc-opencl.*amd64\\.deb")) | .browser_download_url' | head -1)
+            
+            # Validate required assets were found
+            if [ -z "${ASSET_URLS[igc-core]}" ] || [ "${ASSET_URLS[igc-core]}" = "null" ]; then
+                echo "ERROR: Could not find intel-igc-core asset for $repo $tag" >&2
+                return 1
+            fi
+            if [ -z "${ASSET_URLS[igc-opencl]}" ] || [ "${ASSET_URLS[igc-opencl]}" = "null" ]; then
+                echo "ERROR: Could not find intel-igc-opencl asset for $repo $tag" >&2
+                return 1
+            fi
             ;;
         "intel/compute-runtime")
             ASSET_URLS["ocloc"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-ocloc_.*amd64\\.deb")) | .browser_download_url' | head -1)
@@ -198,16 +234,43 @@ collect_asset_urls() {
             ASSET_URLS["opencl-icd"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-opencl-icd_.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["igdgmm"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libigdgmm12.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["checksum"]=$(echo "$response" | jq -r '.assets[] | select(.name | test(".*\\.sum")) | .browser_download_url' | head -1)
+            
+            # Validate required assets were found (checksum is optional)
+            local required_assets=("ocloc" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm")
+            for asset in "${required_assets[@]}"; do
+                if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
+                    echo "ERROR: Could not find required asset '$asset' for $repo $tag" >&2
+                    return 1
+                fi
+            done
             ;;
         "intel/linux-npu-driver")
             ASSET_URLS["npu-compiler"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-driver-compiler-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["npu-fw"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-fw-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["npu-level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-level-zero-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            
+            # Validate required assets were found
+            local required_npu_assets=("npu-compiler" "npu-fw" "npu-level-zero")
+            for asset in "${required_npu_assets[@]}"; do
+                if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
+                    echo "ERROR: Could not find required NPU asset '$asset' for $repo $tag" >&2
+                    return 1
+                fi
+            done
             ;;
         "oneapi-src/level-zero")
             ASSET_URLS["level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("level-zero_.*u24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            
+            # Validate required asset was found
+            if [ -z "${ASSET_URLS[level-zero]}" ] || [ "${ASSET_URLS[level-zero]}" = "null" ]; then
+                echo "ERROR: Could not find level-zero asset for $repo $tag" >&2
+                return 1
+            fi
             ;;
     esac
+    
+    echo "✓ Successfully collected assets for $repo"
+    return 0
 }
 
 # Function to generate static setup script
@@ -217,6 +280,30 @@ generate_static_setup_script() {
     fi
     
     echo "=== Generating setup-static-drivers.sh ==="
+    
+    # Validate that all required asset URLs are present before generating script
+    echo "Validating collected asset URLs..."
+    local required_assets=(
+        "igc-core" "igc-opencl"
+        "ocloc" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm"
+        "npu-compiler" "npu-fw" "npu-level-zero"
+        "level-zero"
+    )
+    
+    local missing_assets=()
+    for asset in "${required_assets[@]}"; do
+        if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
+            missing_assets+=("$asset")
+        fi
+    done
+    
+    if [ ${#missing_assets[@]} -gt 0 ]; then
+        echo "ERROR: Missing required asset URLs: ${missing_assets[*]}" >&2
+        echo "Cannot generate static script without all required assets" >&2
+        return 1
+    fi
+    
+    echo "✓ All required asset URLs validated"
     
     local static_script="setup-static-drivers.sh"
     
@@ -599,22 +686,38 @@ fi
 echo
 
 # Repository information
-repos=("intel/intel-graphics-compiler" "intel/compute-runtime" "intel/linux-npu-driver" "oneapi-src/level-zero")
+REPOS=("intel/intel-graphics-compiler" "intel/compute-runtime" "intel/linux-npu-driver" "oneapi-src/level-zero")
 
 # Arrays to store discovered assets for static script generation
 declare -A ASSET_URLS
 declare -A VERSIONS
 
-for repo in "${repos[@]}"; do
+# Track errors for static script generation
+STATIC_GENERATION_FAILED=false
+
+echo "=== Driver Version Verification ==="
+echo "GitHub API token: ${GITHUB_TOKEN:+configured}"
+echo "Mode: ${BUILD_STATIC:+Static script generation}${BUILD_STATIC:-Verification only}"
+echo
+
+for repo in "${REPOS[@]}"; do
     echo "----------------------------------------"
+    echo "Checking $repo..."
     
     # Get latest release tag
     if tag=$(get_latest_release_tag "$repo"); then
-        # List all assets
+        echo "Latest release: $tag"
+        
+        # List all assets for debugging
         list_release_assets "$repo" "$tag"
         
         # Collect asset URLs for static script generation
-        collect_asset_urls "$repo" "$tag"
+        if [ "$BUILD_STATIC" = "true" ]; then
+            if ! collect_asset_urls "$repo" "$tag"; then
+                echo "ERROR: Failed to collect assets for $repo" >&2
+                STATIC_GENERATION_FAILED=true
+            fi
+        fi
         
         # Test patterns only for compute-runtime (the problematic one)
         if [ "$repo" = "intel/compute-runtime" ]; then
@@ -640,20 +743,40 @@ for repo in "${repos[@]}"; do
             echo "=== Testing Level Zero Patterns Against Actual Assets ==="
             test_pattern_matching "$repo" "$tag" "level-zero_.*u24.04.*amd64\.deb"
         fi
-        
-        # Collect asset URLs for static script generation
-        collect_asset_urls "$repo" "$tag"
     else
         echo "Failed to get release information for $repo"
+        if [ "$BUILD_STATIC" = "true" ]; then
+            echo "ERROR: Cannot build static script - failed to get release for $repo" >&2
+            STATIC_GENERATION_FAILED=true
+        fi
     fi
     echo "----------------------------------------"
 done
 
 show_current_patterns
 
-# Generate static setup script if requested
-generate_static_setup_script
+# Generate static setup script only if all assets were collected successfully
+if [ "$BUILD_STATIC" = "true" ]; then
+    if [ "$STATIC_GENERATION_FAILED" = "true" ]; then
+        echo ""
+        echo "=== ERROR: Static Script Generation Failed ==="
+        echo "Cannot create setup-static-drivers.sh due to asset collection failures" >&2
+        echo "Possible causes:" >&2
+        echo "- GitHub API rate limiting (try setting GITHUB_TOKEN)" >&2
+        echo "- Network connectivity issues" >&2
+        echo "- Missing or moved driver assets in repositories" >&2
+        echo "" >&2
+        exit 1
+    else
+        echo ""
+        echo "=== Generating Static Setup Script ==="
+        generate_static_setup_script
+        echo "✓ Static setup script generated: setup-static-drivers.sh"
+        echo "You can now run this script on systems without internet access to GitHub"
+    fi
+fi
 
+echo ""
 echo "=== Summary ==="
 echo "This diagnostic script completed safely without installing anything."
 echo "Use the output above to:"
@@ -661,7 +784,7 @@ echo "1. Verify GitHub API connectivity"
 echo "2. See what assets are actually available"
 echo "3. Compare with patterns used in setup-drivers.sh"
 echo "4. Identify any mismatched patterns that need updating"
-if [ "$BUILD_STATIC" = "true" ]; then
+if [ "$BUILD_STATIC" = "true" ] && [ "$STATIC_GENERATION_FAILED" = "false" ]; then
     echo "5. ✓ Generated setup-static-drivers.sh with exact asset URLs"
     echo "   Run: sudo ./setup-static-drivers.sh"
 fi
