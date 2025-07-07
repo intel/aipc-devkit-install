@@ -405,9 +405,11 @@ EOF
     echo "LEVEL_ZERO_VERSION=\"${VERSIONS[oneapi-src/level-zero]}\"" >> "$static_script"
     echo >> "$static_script"
     
-    # Add asset URLs
+    # Add asset URLs with proper variable naming
     for key in "${!ASSET_URLS[@]}"; do
-        echo "ASSET_URL_${key^^}=\"${ASSET_URLS[$key]}\"" >> "$static_script"
+        # Convert key to uppercase and replace hyphens with underscores for bash variable names
+        var_name=$(echo "${key^^}" | tr '-' '_')
+        echo "ASSET_URL_${var_name}=\"${ASSET_URLS[$key]}\"" >> "$static_script"
     done
     
     # Add the compute runtime function
