@@ -560,7 +560,7 @@ verify_compute_runtime(){
 
     echo -e "\nInstalling compute runtime as root"
     apt remove -y intel-ocloc libze-intel-gpu1 || true
-    dpkg -i ./*.deb 
+    dpkg -i ./*.deb ./*.ddeb
 
     cd ..
     echo -e "Cleaning up /tmp/neo_temp folder after installation"
@@ -599,7 +599,7 @@ verify_npu_driver(){
         # Download Level Zero package
         wget "$ASSET_URL_LEVEL_ZERO"
         
-        dpkg -i ./*.deb
+        dpkg -i ./*.deb ./*.ddeb 2>/dev/null || dpkg -i ./*.deb
                                                                                                                                                                                              
         cd ..
         rm -rf npu_temp

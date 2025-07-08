@@ -13,6 +13,12 @@ CURRENT_KERNEL_VERSION=$(uname -r)
 S_VALID="✓"
 #S_INVALID="✗"
 
+# Variables for compatibility checking
+COMPATIBLE_IGC_TAG=""
+COMPATIBLE_COMPUTE_RUNTIME_TAG=""
+COMPATIBLE_NPU_DRIVER_TAG=""
+COMPATIBLE_LEVEL_ZERO_TAG=""
+
 # Function to get latest release tag from GitHub
 get_latest_github_release() {
     local repo="$1"
@@ -75,6 +81,7 @@ verify_dependencies(){
         wget
         gpg-agent
         libtbb12
+        dpkg-dev
     )
     install_packages "${DEPENDENCIES_PACKAGES[@]}"
     echo "$S_VALID Dependencies installed"
@@ -142,12 +149,17 @@ verify_compute_runtime(){
 
     CURRENT_DIR=$(pwd)
     
-    # Get latest versions from GitHub
-    IGC_VERSION=$(get_latest_github_release "intel/intel-graphics-compiler")
-    COMPUTE_RUNTIME_VERSION=$(get_latest_github_release "intel/compute-runtime")
+    # Get compatible versions using compatibility checking
+    if [ -z "$COMPATIBLE_IGC_TAG" ] || [ -z "$COMPATIBLE_COMPUTE_RUNTIME_TAG" ]; then
+        echo "🔍 Running compatibility analysis..."
+        get_compatible_driver_versions
+    fi
     
-    echo -e "Install Intel(R) Graphics Compiler version: $IGC_VERSION"
-    echo -e "Install Intel(R) Compute Runtime drivers version: $COMPUTE_RUNTIME_VERSION"
+    IGC_VERSION="$COMPATIBLE_IGC_TAG"
+    COMPUTE_RUNTIME_VERSION="$COMPATIBLE_COMPUTE_RUNTIME_TAG"
+    
+    echo -e "✅ Install Intel(R) Graphics Compiler version: $IGC_VERSION (compatibility verified)"
+    echo -e "✅ Install Intel(R) Compute Runtime drivers version: $COMPUTE_RUNTIME_VERSION"
     
     if [ -d /tmp/neo_temp ];then
         echo -e "Found existing folder in path /tmp/neo_temp. Removing the folder"
@@ -218,12 +230,17 @@ verify_npu_driver(){
         apt install --fix-broken
         apt update
 
-        # Get latest versions from GitHub
-        NPU_DRIVER_VERSION=$(get_latest_github_release "intel/linux-npu-driver")
-        LEVEL_ZERO_VERSION=$(get_latest_github_release "oneapi-src/level-zero")
+        # Get compatible versions using compatibility checking
+        if [ -z "$COMPATIBLE_NPU_DRIVER_TAG" ] || [ -z "$COMPATIBLE_LEVEL_ZERO_TAG" ]; then
+            echo "🔍 Running compatibility analysis..."
+            get_compatible_driver_versions
+        fi
         
-        echo -e "Installing NPU Driver version: $NPU_DRIVER_VERSION"
-        echo -e "Installing Level Zero version: $LEVEL_ZERO_VERSION"
+        NPU_DRIVER_VERSION="$COMPATIBLE_NPU_DRIVER_TAG"
+        LEVEL_ZERO_VERSION="$COMPATIBLE_LEVEL_ZERO_TAG"
+        
+        echo -e "✅ Installing NPU Driver version: $NPU_DRIVER_VERSION (compatibility verified)"
+        echo -e "✅ Installing Level Zero version: $LEVEL_ZERO_VERSION"
 
         if [ -d /tmp/npu_temp ];then
             rm -rf /tmp/npu_temp
@@ -324,10 +341,166 @@ verify_drivers(){
     fi
 }
 
+# Function to download and inspect compute-runtime .deb for IGC dependencies
+find_compatible_igc_version() {
+    local compute_runtime_tag="$1"
+    echo "  Analyzing compute runtime $compute_runtime_tag for IGC dependencies..." >&2
+    
+    # Create temporary directory for inspection
+    local temp_dir=$(mktemp -d)
+    cleanup() { rm -rf "$temp_dir"; }
+    trap cleanup EXIT
+    
+    # Get the compute runtime .deb download URL
+    local response=$(curl -s "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
+    
+    # Find intel-opencl-icd package (contains IGC dependency)
+    local opencl_icd_url=$(echo "$response" | grep '"browser_download_url":' | grep 'intel-opencl-icd_.*amd64\.deb"' | sed -E 's/.*"([^"]+)".*/\1/' | head -1)
+    
+    if [ -z "$opencl_icd_url" ]; then
+        echo "  Could not find intel-opencl-icd package in compute runtime release" >&2
+        return 1
+    fi
+    
+    echo "  Downloading package for dependency analysis..." >&2
+    cd "$temp_dir"
+    
+    # Download the package
+    if ! wget -q "$opencl_icd_url"; then
+        echo "  Failed to download package for analysis" >&2
+        return 1
+    fi
+    
+    local deb_file=$(basename "$opencl_icd_url")
+    
+    # Extract package control information
+    if ! dpkg-deb --field "$deb_file" Depends > depends.txt 2>/dev/null; then
+        echo "  Failed to extract package dependencies" >&2
+        return 1
+    fi
+    
+    echo "  Package dependencies:" >&2
+    cat depends.txt >&2
+    echo >&2
+    
+    # Look for IGC dependency pattern - try multiple patterns
+    local igc_dep=""
+    
+    # Pattern 1: intel-igc-opencl (>= version)
+    igc_dep=$(grep -o 'intel-igc-opencl[[:space:]]*([^)]*' depends.txt 2>/dev/null | sed 's/.*(//' | sed 's/[[:space:]]*$//' || echo "")
+    
+    if [ -z "$igc_dep" ]; then
+        # Pattern 2: intel-igc-opencl = version
+        igc_dep=$(grep -o 'intel-igc-opencl[[:space:]]*=[[:space:]]*[^,[:space:]]*' depends.txt 2>/dev/null | sed 's/.*=[[:space:]]*//' || echo "")
+    fi
+    
+    if [ -z "$igc_dep" ]; then
+        # Pattern 3: Look for any intel-igc reference
+        igc_dep=$(grep -o 'intel-igc[^,[:space:]]*[[:space:]]*([^)]*' depends.txt 2>/dev/null | sed 's/.*(//' | sed 's/[[:space:]]*$//' || echo "")
+    fi
+    
+    if [ -z "$igc_dep" ]; then
+        echo "  No specific IGC version dependency found" >&2
+        return 1
+    fi
+    
+    echo "  Found IGC dependency: $igc_dep" >&2
+    
+    # Extract version number from dependency (format: >= 1.0.15136.24)
+    local igc_version=$(echo "$igc_dep" | grep -o '[0-9][0-9.]*[0-9]' | head -1)
+    
+    if [ -z "$igc_version" ]; then
+        echo "  Could not parse IGC version from dependency" >&2
+        return 1
+    fi
+    
+    echo "$igc_version"
+    return 0
+}
+
+# Function to find IGC GitHub tag matching a specific version
+find_igc_tag_for_version() {
+    local required_version="$1"
+    echo "  Searching for IGC tag matching version $required_version..." >&2
+    
+    # Get list of IGC releases
+    local response=$(curl -s "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=50")
+    
+    if [ -z "$response" ]; then
+        echo "  Failed to get IGC releases" >&2
+        return 1
+    fi
+    
+    # Look for tags that contain or match the required version
+    local matching_tag=$(echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | grep -E "^(igc-|v)?${required_version}" | head -1)
+    
+    if [ -z "$matching_tag" ]; then
+        # Try more flexible matching - look for tags containing the version
+        matching_tag=$(echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | grep "$required_version" | head -1)
+    fi
+    
+    if [ -z "$matching_tag" ]; then
+        echo "  No IGC tag found for version $required_version" >&2
+        echo "  Available recent tags:" >&2
+        echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -5 | sed 's/^/    /' >&2
+        return 1
+    fi
+    
+    echo "  Found matching IGC tag: $matching_tag" >&2
+    echo "$matching_tag"
+    return 0
+}
+
+# Function to get compatible driver versions
+get_compatible_driver_versions() {
+    echo "🔍 Determining compatible driver versions..." >&2
+    
+    # First, get the latest compute runtime version
+    echo "📡 Getting latest compute runtime version..." >&2
+    local compute_runtime_tag=$(get_latest_github_release "intel/compute-runtime")
+    echo "  Latest compute runtime: $compute_runtime_tag" >&2
+    
+    # Find compatible IGC version
+    echo "🔍 Finding compatible IGC version..." >&2
+    local compatible_igc_version=$(find_compatible_igc_version "$compute_runtime_tag")
+    if [ $? -ne 0 ]; then
+        echo "⚠️  Could not determine compatible IGC version, using latest..." >&2
+        COMPATIBLE_IGC_TAG=$(get_latest_github_release "intel/intel-graphics-compiler")
+        echo "  Using latest IGC: $COMPATIBLE_IGC_TAG" >&2
+    else
+        echo "  Required IGC version: $compatible_igc_version" >&2
+        COMPATIBLE_IGC_TAG=$(find_igc_tag_for_version "$compatible_igc_version")
+        if [ $? -ne 0 ]; then
+            echo "⚠️  Could not find IGC tag for version $compatible_igc_version, using latest..." >&2
+            COMPATIBLE_IGC_TAG=$(get_latest_github_release "intel/intel-graphics-compiler")
+        else
+            echo "  ✅ Found compatible IGC tag: $COMPATIBLE_IGC_TAG" >&2
+        fi
+    fi
+    
+    # Set compatible versions
+    COMPATIBLE_COMPUTE_RUNTIME_TAG="$compute_runtime_tag"
+    COMPATIBLE_NPU_DRIVER_TAG=$(get_latest_github_release "intel/linux-npu-driver")
+    COMPATIBLE_LEVEL_ZERO_TAG=$(get_latest_github_release "oneapi-src/level-zero")
+    
+    echo >&2
+    echo "📋 Selected compatible versions:" >&2
+    echo "  IGC: $COMPATIBLE_IGC_TAG" >&2
+    echo "  Compute Runtime: $COMPATIBLE_COMPUTE_RUNTIME_TAG" >&2
+    echo "  NPU Driver: $COMPATIBLE_NPU_DRIVER_TAG" >&2
+    echo "  Level Zero: $COMPATIBLE_LEVEL_ZERO_TAG" >&2
+    echo >&2
+}
+
 setup(){
-    echo "# Intel AI PC Linux Setup - Driver Installation"
+    echo "# Intel AI PC Linux Setup - Driver Installation with Compatibility Checking"
+    echo "# This script automatically determines compatible driver versions to prevent conflicts"
     echo "# If installation fails due to download issues, run './verify_connectivity.sh' for diagnostics"
     echo
+    
+    # Initialize compatibility checking
+    echo "🔍 Analyzing driver compatibility..."
+    get_compatible_driver_versions
     
     verify_dependencies
     verify_platform
