@@ -2,7 +2,7 @@
 
 > **Note**: Compatibility checking is now **integrated into the main script**. Most users should use:
 > ```bash
-> ./verify_latest_driver_names.sh --build-static
+> ./build-static-installer.sh --build-static
 > ```
 > This standalone tool is **optional** and primarily useful for development, debugging, or testing specific version combinations.
 
