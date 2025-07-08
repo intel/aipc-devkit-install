@@ -666,114 +666,202 @@ EOF
     echo "Usage: sudo ./$static_script"
 }
 
-# Function to find compatible IGC version for compute runtime
+# Function to download and inspect compute-runtime .deb for IGC dependencies
 find_compatible_igc_version() {
     local compute_runtime_tag="$1"
-    echo "🔍 Finding compatible IGC version for compute runtime $compute_runtime_tag..." >&2
+    echo "  Analyzing compute runtime $compute_runtime_tag for IGC dependencies..." >&2
     
-    # Get the compute runtime release assets
+    # Create temporary directory for inspection
+    local temp_dir=$(mktemp -d)
+    cleanup() { rm -rf "$temp_dir"; }
+    trap cleanup EXIT
+    
+    # Get the compute runtime .deb download URL
     local response
     if [ -n "$GITHUB_TOKEN" ]; then
-        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag" 2>/dev/null)
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
     else
-        response=$(curl -s "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag" 2>/dev/null)
+        response=$(curl -s "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
     fi
     
-    if [ -z "$response" ] || ! echo "$response" | jq -e '.assets' >/dev/null 2>&1; then
-        echo "❌ Could not get compute runtime release assets" >&2
+    # Find intel-opencl-icd package (contains IGC dependency)
+    local opencl_icd_url=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-opencl-icd_.*amd64\\.deb$")) | .browser_download_url' | head -1)
+    
+    if [ -z "$opencl_icd_url" ] || [ "$opencl_icd_url" = "null" ]; then
+        echo "  Could not find intel-opencl-icd package in compute runtime release" >&2
         return 1
     fi
     
-    # Look for intel-opencl-icd package
-    local opencl_icd_url=$(echo "$response" | jq -r '.assets[] | select(.name | contains("intel-opencl-icd_")) | .browser_download_url' | head -1)
+    echo "  Downloading package for dependency analysis..." >&2
+    cd "$temp_dir"
     
-    if [ -n "$opencl_icd_url" ] && [ "$opencl_icd_url" != "null" ]; then
-        echo "  📦 Downloading intel-opencl-icd package to check dependencies..." >&2
-        
-        # Download the package temporarily
-        local temp_dir=$(mktemp -d)
-        cd "$temp_dir"
-        
-        if wget -q "$opencl_icd_url" -O opencl-icd.deb 2>/dev/null; then
-            # Extract control information
-            local deps_info=$(dpkg-deb --info opencl-icd.deb 2>/dev/null | grep -A 20 "Depends:" || echo "No dependencies found")
-            
-            # Look for IGC dependency
-            local igc_version=$(echo "$deps_info" | grep -o "intel-igc-opencl-2 (= [^)]*)" | sed 's/intel-igc-opencl-2 (= \([^)]*\))/\1/' | head -1)
-            
-            cd - > /dev/null
-            rm -rf "$temp_dir"
-            
-            if [ -n "$igc_version" ]; then
-                echo "  ✅ Found required IGC version: $igc_version" >&2
-                echo "$igc_version"
-                return 0
-            fi
-        fi
-        
-        cd - > /dev/null
-        rm -rf "$temp_dir"
+    # Download the package
+    if ! wget -q "$opencl_icd_url"; then
+        echo "  Failed to download package for analysis" >&2
+        return 1
     fi
     
-    echo "  ❌ Could not determine compatible IGC version" >&2
-    return 1
+    local deb_file=$(basename "$opencl_icd_url")
+    
+    # Extract package control information
+    if ! dpkg-deb --field "$deb_file" Depends > depends.txt 2>/dev/null; then
+        echo "  Failed to extract package dependencies" >&2
+        return 1
+    fi
+    
+    echo "  Package dependencies:" >&2
+    cat depends.txt >&2
+    echo >&2
+    
+    # Look for IGC dependency pattern - try multiple patterns
+    local igc_dep=""
+    
+    # Pattern 1: intel-igc-opencl (>= version)
+    igc_dep=$(grep -o 'intel-igc-opencl[[:space:]]*([^)]*' depends.txt 2>/dev/null | sed 's/.*(//' | sed 's/[[:space:]]*$//' || echo "")
+    
+    if [ -z "$igc_dep" ]; then
+        # Pattern 2: intel-igc-opencl = version
+        igc_dep=$(grep -o 'intel-igc-opencl[[:space:]]*=[[:space:]]*[^,[:space:]]*' depends.txt 2>/dev/null | sed 's/.*=[[:space:]]*//' || echo "")
+    fi
+    
+    if [ -z "$igc_dep" ]; then
+        # Pattern 3: Look for any intel-igc reference
+        igc_dep=$(grep -o 'intel-igc[^,[:space:]]*[[:space:]]*([^)]*' depends.txt 2>/dev/null | sed 's/.*(//' | sed 's/[[:space:]]*$//' || echo "")
+    fi
+    
+    if [ -z "$igc_dep" ]; then
+        echo "  No specific IGC version dependency found" >&2
+        return 1
+    fi
+    
+    echo "  Found IGC dependency: $igc_dep" >&2
+    
+    # Extract version number from dependency (format: >= 1.0.15136.24)
+    local igc_version=$(echo "$igc_dep" | grep -o '[0-9][0-9.]*[0-9]' | head -1)
+    
+    if [ -z "$igc_version" ]; then
+        echo "  Could not parse IGC version from dependency" >&2
+        return 1
+    fi
+    
+    echo "$igc_version"
+    return 0
 }
 
-# Function to find IGC release tag for a specific version
+# Function to find IGC GitHub tag matching a specific version
 find_igc_tag_for_version() {
-    local target_version="$1"
-    echo "🔍 Searching for IGC tag matching version $target_version..." >&2
+    local required_version="$1"
+    echo "  Searching for IGC tag matching version $required_version..." >&2
     
-    # Get IGC releases to find matching tag
+    # Get list of IGC releases
     local response
     if [ -n "$GITHUB_TOKEN" ]; then
-        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=30" 2>/dev/null)
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=50")
     else
-        response=$(curl -s "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=30" 2>/dev/null)
+        response=$(curl -s "https://api.github.com/repos/intel/intel-graphics-compiler/releases?per_page=50")
     fi
     
-    if [ -z "$response" ] || ! echo "$response" | jq -e '.[0]' >/dev/null 2>&1; then
-        echo "  ❌ Could not get IGC releases" >&2
+    if [ -z "$response" ]; then
+        echo "  Failed to get IGC releases" >&2
         return 1
     fi
     
-    # Look through releases for matching version
-    local matching_tag=$(echo "$response" | jq -r --arg version "$target_version" '.[] | select(.assets[].name | contains($version)) | .tag_name' | head -1)
+    # Look for tags that contain or match the required version
+    local matching_tag=$(echo "$response" | jq -r ".[].tag_name" | grep -E "^(igc-|v)?${required_version}" | head -1)
     
-    if [ -n "$matching_tag" ] && [ "$matching_tag" != "null" ]; then
-        echo "  ✅ Found matching IGC tag: $matching_tag" >&2
-        echo "$matching_tag"
-        return 0
+    if [ -z "$matching_tag" ]; then
+        # Try more flexible matching - look for tags containing the version
+        matching_tag=$(echo "$response" | jq -r ".[].tag_name" | grep "$required_version" | head -1)
     fi
     
-    # Try alternative approach - look for tags that might contain the version
-    local alternative_tag=$(echo "$response" | jq -r '.[] | .tag_name' | grep -E "v?${target_version}" | head -1)
-    
-    if [ -n "$alternative_tag" ]; then
-        echo "  ✅ Found alternative IGC tag: $alternative_tag" >&2
-        echo "$alternative_tag"
-        return 0
+    if [ -z "$matching_tag" ]; then
+        echo "  No IGC tag found for version $required_version" >&2
+        echo "  Available recent tags:" >&2
+        echo "$response" | jq -r ".[].tag_name" | head -5 | sed 's/^/    /' >&2
+        return 1
     fi
     
-    echo "  ❌ Could not find IGC tag for version $target_version" >&2
-    return 1
+    echo "  Found matching IGC tag: $matching_tag" >&2
+    echo "$matching_tag"
+    return 0
 }
 
-# Function to check version compatibility between IGC and Compute Runtime
+# Function to verify version compatibility between IGC and compute-runtime
 check_version_compatibility() {
     local igc_tag="$1"
     local compute_runtime_tag="$2"
     
-    echo "🔍 Checking compatibility between IGC $igc_tag and Compute Runtime $compute_runtime_tag..." >&2
+    echo "  Cross-checking IGC $igc_tag with compute-runtime $compute_runtime_tag..." >&2
     
-    # Skip compatibility check if we already determined the compatible version
-    # This means we trust the dependency analysis from find_compatible_igc_version
-    echo "  ℹ️  Using dependency-based compatibility (IGC $igc_tag was selected based on runtime requirements)" >&2
-    echo "  ✅ Versions are compatible by design!" >&2
+    # Basic sanity check - make sure both tags exist and have releases
+    local igc_response
+    local cr_response
+    
+    if [ -n "$GITHUB_TOKEN" ]; then
+        igc_response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/intel-graphics-compiler/releases/tags/$igc_tag")
+        cr_response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
+    else
+        igc_response=$(curl -s "https://api.github.com/repos/intel/intel-graphics-compiler/releases/tags/$igc_tag")
+        cr_response=$(curl -s "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
+    fi
+    
+    # Check if both releases exist
+    local igc_exists=$(echo "$igc_response" | jq -r '.tag_name // "null"')
+    local cr_exists=$(echo "$cr_response" | jq -r '.tag_name // "null"')
+    
+    if [ "$igc_exists" = "null" ]; then
+        echo "  IGC release $igc_tag not found" >&2
+        return 1
+    fi
+    
+    if [ "$cr_exists" = "null" ]; then
+        echo "  Compute runtime release $compute_runtime_tag not found" >&2
+        return 1
+    fi
+    
+    # Check if both have assets (packages)
+    local igc_assets=$(echo "$igc_response" | jq -r '.assets[].name' | grep -c '\.deb$' || echo "0")
+    local cr_assets=$(echo "$cr_response" | jq -r '.assets[].name' | grep -c '\.deb$' || echo "0")
+    
+    if [ "$igc_assets" -eq 0 ]; then
+        echo "  IGC release $igc_tag has no .deb packages" >&2
+        return 1
+    fi
+    
+    if [ "$cr_assets" -eq 0 ]; then
+        echo "  Compute runtime release $compute_runtime_tag has no .deb packages" >&2
+        return 1
+    fi
+    
+    echo "  ✓ Both releases exist and have packages" >&2
+    
+    # Additional check: verify IGC release date is not too much newer than compute runtime
+    local igc_date=$(echo "$igc_response" | jq -r '.published_at')
+    local cr_date=$(echo "$cr_response" | jq -r '.published_at')
+    
+    if [ "$igc_date" != "null" ] && [ "$cr_date" != "null" ]; then
+        # Convert to timestamps for comparison (if available)
+        local igc_ts=$(date -d "$igc_date" +%s 2>/dev/null || echo "0")
+        local cr_ts=$(date -d "$cr_date" +%s 2>/dev/null || echo "0")
+        
+        if [ "$igc_ts" -gt 0 ] && [ "$cr_ts" -gt 0 ]; then
+            # Allow IGC to be up to 90 days newer than compute runtime
+            local max_diff=$((90 * 24 * 3600))  # 90 days in seconds
+            local time_diff=$((igc_ts - cr_ts))
+            
+            if [ "$time_diff" -gt "$max_diff" ]; then
+                echo "  Warning: IGC release is significantly newer than compute runtime" >&2
+                echo "  This may indicate version incompatibility" >&2
+                return 1
+            fi
+        fi
+    fi
+    
+    echo "  ✓ Version compatibility checks passed" >&2
     return 0
 }
 
-# Function to collect compatible driver versions
+# Collect compatible driver versions
 collect_compatible_versions() {
     echo "=== Collecting Compatible Driver Versions ==="
     echo
@@ -915,7 +1003,7 @@ if [ "$BUILD_STATIC" = "true" ]; then
     
     # Collect compatible versions
     if ! collect_compatible_versions; then
-        echo "❌ Failed to collect compatible versions"
+        echo "❌ Failed to get compatible versions"
         echo "Cannot generate static setup script safely"
         exit 1
     fi
