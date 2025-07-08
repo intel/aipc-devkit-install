@@ -7,49 +7,36 @@ This repository contains scripts to set up Intel GPU and NPU drivers on Ubuntu 2
 The setup consists of several scripts to provide flexible driver installation options:
 - **`setup-drivers.sh`**: Main driver installation script (requires root privileges and GitHub API access)
 - **`setup-static-drivers.sh`**: Static driver installation script (generated file, no API dependencies)
-- **`verify_connectivity_driver_versions.sh`**: Diagnostic tool for troubleshooting GitHub API connectivity issues
-- **`verify_latest_driver_names.sh`**: Tool to inspect available driver assets and optionally generate static installer
+- **`verify_connectivity.sh`**: Diagnostic tool for troubleshooting GitHub API connectivity issues
+- **`build-static-installer.sh`**: Tool to build static driver installers with compatibility checking
 
 ## Installation Methods
 
 You have **two options** for installing Intel GPU and NPU drivers:
 
-### Option 1: Direct Installation (Recommended if you have GITHUB_TOKEN)
+### Option 1: Two-Step Static Installation (⭐ **RECOMMENDED**)
 
-If you have a GitHub token set up, you can use the original direct method:
-
-```bash
-# Set your GitHub token (get one from https://github.com/settings/tokens)
-export GITHUB_TOKEN=your_personal_access_token_here
-
-# Run the installation
-sudo -E ./setup-drivers.sh
-```
-
-### Option 2: Two-Step Static Installation (Recommended to avoid rate limits)
-
-If you don't have a GitHub token or want to avoid API rate limits, use the two-step process:
+The preferred method that avoids API rate limits and provides maximum reliability:
 
 ```bash
-# Step 1: Verify connectivity and generate static installer
-./verify_latest_driver_names.sh --build-static
+# Step 1: Build static installer with compatibility checking
+./build-static-installer.sh --build-static
 
 # Step 2: Run the generated static installer
 sudo ./setup-static-drivers.sh
 ```
 
 **Benefits of the static method:**
-- ✅ No GitHub API rate limits
-- ✅ No need for GitHub token
-- ✅ Faster installation (direct downloads)
-- ✅ More reliable (no API dependencies)
-- ✅ Can be run offline after generation
+- ✅ **No GitHub API rate limits**
+- ✅ **No need for GitHub token**
+- ✅ **Faster installation** (direct downloads)
+- ✅ **More reliable** (no API dependencies)
+- ✅ **Version compatibility verified**
+- ✅ **Can be run offline** after generation
 
-## Quick Start
+### Option 2: Direct Installation (Alternative if you have GITHUB_TOKEN)
 
-Choose one of the two installation methods below:
-
-### Method 1: Direct Installation (If you have GITHUB_TOKEN)
+If you prefer the single-step method and have a GitHub token configured:
 
 ```bash
 # Set your GitHub token (get one from https://github.com/settings/tokens)
@@ -59,38 +46,54 @@ export GITHUB_TOKEN=your_personal_access_token_here
 sudo -E ./setup-drivers.sh
 ```
 
-### Method 2: Two-Step Static Installation (Recommended)
+## Quick Start
+
+Choose one of the two installation methods below:
+
+### Method 1: Two-Step Static Installation (⭐ **RECOMMENDED**)
 
 ```bash
-# Step 1: Verify connectivity and generate static installer
-./verify_latest_driver_names.sh --build-static
+# Step 1: Build static installer with compatibility checking
+./build-static-installer.sh --build-static
 
 # Step 2: Run the generated static installer
 sudo ./setup-static-drivers.sh
 ```
 
+### Method 2: Direct Installation (If you have GITHUB_TOKEN)
+
+```bash
+# Set your GitHub token (get one from https://github.com/settings/tokens)
+export GITHUB_TOKEN=your_personal_access_token_here
+
+# Run the installation
+sudo -E ./setup-drivers.sh
+```
+
 ## Troubleshooting Installation Issues
 
-### If Method 1 Fails Due to Download Issues
+### If Method 2 (Direct) Fails Due to Download Issues
 
 The script will display a troubleshooting message:
 
 ```
 Error: Failed to get latest release for intel/intel-graphics-compiler
-Troubleshooting: Run './verify_connectivity_driver_versions.sh' to diagnose GitHub API connectivity issues
+Troubleshooting: Run './verify_connectivity.sh' to diagnose GitHub API connectivity issues
 ```
 
 ### Run the Diagnostic Tool
 
 ```bash
-./verify_connectivity_driver_versions.sh
+./verify_connectivity.sh
 ```
 
 ### Fix Any Issues
 
 If you encounter GitHub API rate limiting, either:
 
-1. **Set a GitHub token** (for Method 1):
+1. **Use the static method** (Method 1) to avoid API issues entirely - **RECOMMENDED**
+
+2. **Set a GitHub token** (for Method 2):
 
    ```bash
    export GITHUB_TOKEN=your_personal_access_token_here
@@ -101,8 +104,6 @@ If you encounter GitHub API rate limiting, either:
    1. Go to <https://github.com/settings/tokens>
    2. Generate a new token (classic) with minimal permissions
    3. Copy the token and export it as shown above
-
-2. **Use the static method** (Method 2) to avoid API issues entirely
 
 ## What Gets Installed
 
@@ -151,7 +152,7 @@ sudo -E ./setup-drivers.sh  # -E preserves environment variables
 curl https://github.com
 
 # Run full diagnostic
-./simple_test_driver_versions.sh
+./verify_connectivity.sh
 ```
 
 #### Permission Issues
@@ -163,7 +164,7 @@ sudo ./setup-drivers.sh
 
 ### Diagnostic Script Output
 
-The `simple_test_driver_versions.sh` script performs these checks:
+The `verify_connectivity.sh` script performs these checks:
 
 1. **HTTPS Connectivity**: Tests connection to github.com
 2. **GitHub API Access**: Verifies API accessibility and rate limits
@@ -219,41 +220,41 @@ Test completed!
 
 ```mermaid
 flowchart TD
-    A[Choose Installation Method] --> B{Have GitHub Token?}
-    B -->|Yes| C[Method 1: Direct Installation]
-    B -->|No| D[Method 2: Static Installation]
+    A[Choose Installation Method] --> B{Prefer Static Method?}
+    B -->|Yes - Recommended| C[Method 1: Static Installation]
+    B -->|No - Have GitHub Token| D[Method 2: Direct Installation]
     
-    C --> E[export GITHUB_TOKEN=token]
-    E --> F[sudo -E ./setup-drivers.sh]
+    C --> E[./build-static-installer.sh --build-static]
+    E --> F[sudo ./setup-static-drivers.sh]
     F --> G{Installation Successful?}
     G -->|Yes| H[✓ Drivers Installed]
-    G -->|No| I[Run diagnostics]
+    G -->|No| I[Check logs/permissions]
     
-    D --> J[./verify_latest_driver_names.sh --build-static]
-    J --> K[sudo ./setup-static-drivers.sh]
+    D --> J[export GITHUB_TOKEN=token]
+    J --> K[sudo -E ./setup-drivers.sh]
     K --> L{Installation Successful?}
     L -->|Yes| H
-    L -->|No| M[Check logs/permissions]
+    L -->|No| M[Run diagnostics]
     
-    I --> N[Fix GitHub API issues]
+    I --> N[Fix system issues]
     N --> F
-    M --> O[Fix system issues]
+    M --> O[Fix GitHub API issues]
     O --> K
 ```
 
 ## Comparison of Installation Methods
 
-| Feature | Method 1 (Direct) | Method 2 (Static) |
+| Feature | Method 1 (Static) ⭐ | Method 2 (Direct) |
 |---------|-------------------|-------------------|
-| **GitHub Token Required** | ✅ Yes | ❌ No |
+| **GitHub Token Required** | ❌ No | ✅ Yes |
 | **Internet During Install** | ✅ Required | ✅ Required |
-| **GitHub API Calls** | ✅ Many | ❌ None |
-| **Rate Limit Risk** | ⚠️ High | ❌ None |
-| **Installation Speed** | ⚠️ Slower | ✅ Faster |
-| **Reliability** | ⚠️ API dependent | ✅ Direct downloads |
-| **Setup Complexity** | ✅ Simple | ⚠️ Two-step |
+| **GitHub API Calls** | ❌ None | ✅ Many |
+| **Rate Limit Risk** | ❌ None | ⚠️ High |
+| **Installation Speed** | ✅ Faster | ⚠️ Slower |
+| **Reliability** | ✅ Direct downloads | ⚠️ API dependent |
+| **Setup Complexity** | ⚠️ Two-step | ✅ Simple |
 
-**Recommendation**: Use Method 2 (Static) for production deployments and Method 1 (Direct) for development/testing when you already have a GitHub token configured.
+**Recommendation**: Use Method 1 (Static) for production deployments and Method 2 (Direct) for development/testing when you already have a GitHub token configured.
 
 ## File Structure
 
@@ -262,8 +263,8 @@ training.developer.aipc/
 ├── README.md                           # This file
 ├── setup-drivers.sh                    # Main installation script (GitHub API method)
 ├── setup-static-drivers.sh             # Static installation script (generated)
-├── verify_connectivity_driver_versions.sh # Diagnostic tool
-├── verify_latest_driver_names.sh       # Asset inspection and static script generator
+├── verify_connectivity.sh              # Diagnostic tool
+├── build-static-installer.sh           # Static installer builder with compatibility checking
 ├── setup-software.sh                   # Software setup (separate)
 └── LICENSE                             # License information
 ```
@@ -272,14 +273,14 @@ training.developer.aipc/
 
 ### Generating Static Installers
 
-The `verify_latest_driver_names.sh` script can be used to generate static installers:
+The `build-static-installer.sh` script can be used to generate static installers:
 
 ```bash
 # Generate static installer with current latest versions
-./verify_latest_driver_names.sh --build-static
+./build-static-installer.sh --build-static
 
 # Just verify connectivity and assets (no generation)
-./verify_latest_driver_names.sh
+./build-static-installer.sh
 ```
 
 ### Updating Static Installers
@@ -288,7 +289,7 @@ To update to newer driver versions:
 
 ```bash
 # Regenerate with latest versions
-./verify_latest_driver_names.sh --build-static
+./build-static-installer.sh --build-static
 
 # The static installer will be updated with new URLs
 sudo ./setup-static-drivers.sh
@@ -305,7 +306,7 @@ sudo ./setup-static-drivers.sh
 The script automatically downloads the latest versions, but you can check what versions would be installed:
 
 ```bash
-./simple_test_driver_versions.sh
+./verify_connectivity.sh
 ```
 
 ## Contributing
