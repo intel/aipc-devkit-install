@@ -541,22 +541,34 @@ verify_compute_runtime(){
     cd /tmp/neo_temp
     
     # Download Intel Graphics Compiler packages
-    wget "$ASSET_URL_IGC_CORE"
-    wget "$ASSET_URL_IGC_OPENCL"
+    echo "Downloading IGC packages..."
+    wget "$ASSET_URL_IGC_CORE" || { echo "ERROR: Failed to download IGC core package"; exit 1; }
+    wget "$ASSET_URL_IGC_OPENCL" || { echo "ERROR: Failed to download IGC OpenCL package"; exit 1; }
     
     # Download Intel Compute Runtime packages
-    wget "$ASSET_URL_OCLOC"
-    wget "$ASSET_URL_OCLOC_DBGSYM"
-    wget "$ASSET_URL_ZE_GPU_DBGSYM"
-    wget "$ASSET_URL_ZE_GPU"
-    wget "$ASSET_URL_OPENCL_ICD_DBGSYM"
-    wget "$ASSET_URL_OPENCL_ICD"
-    wget "$ASSET_URL_IGDGMM"
+    echo "Downloading Compute Runtime packages..."
+    wget "$ASSET_URL_OCLOC" || { echo "ERROR: Failed to download OCLOC package"; exit 1; }
+    wget "$ASSET_URL_OCLOC_DBGSYM" || { echo "WARNING: Failed to download OCLOC debug symbols"; }
+    wget "$ASSET_URL_ZE_GPU_DBGSYM" || { echo "WARNING: Failed to download ZE GPU debug symbols"; }
+    wget "$ASSET_URL_ZE_GPU" || { echo "ERROR: Failed to download ZE GPU package"; exit 1; }
+    wget "$ASSET_URL_OPENCL_ICD_DBGSYM" || { echo "WARNING: Failed to download OpenCL ICD debug symbols"; }
+    wget "$ASSET_URL_OPENCL_ICD" || { echo "ERROR: Failed to download OpenCL ICD package"; exit 1; }
+    wget "$ASSET_URL_IGDGMM" || { echo "ERROR: Failed to download IGDGMM package"; exit 1; }
     
     echo -e "Verify sha256 sums for packages (if available)"
     if [ -n "$ASSET_URL_CHECKSUM" ]; then
-        wget "$ASSET_URL_CHECKSUM"
-        sha256sum -c *.sum || echo "Warning: Checksum verification failed or not available"
+        wget "$ASSET_URL_CHECKSUM" || { echo "WARNING: Failed to download checksum file"; }
+        if [ -f "*.sum" ]; then
+            # Only verify checksums for files that actually exist
+            for file in *.deb *.ddeb; do
+                if [ -f "$file" ] && grep -q "$file" *.sum 2>/dev/null; then
+                    echo "Verifying $file..."
+                    sha256sum -c *.sum --ignore-missing || echo "Warning: Checksum verification failed for $file"
+                fi
+            done
+        else
+            echo "No checksum file available"
+        fi
     else
         echo "No checksum file found, skipping verification"
     fi
@@ -564,11 +576,17 @@ verify_compute_runtime(){
     echo -e "\nInstalling compute runtime as root"
     # Remove conflicting packages before installation
     echo "Removing potentially conflicting packages..."
-    apt remove -y intel-ocloc libze-intel-gpu1 intel-level-zero-gpu || true
+    apt remove -y intel-ocloc libze-intel-gpu1 intel-level-zero-gpu intel-opencl-icd || true
+    dpkg --remove --force-remove-reinstreq intel-level-zero-gpu intel-ocloc libze-intel-gpu1 || true
+    apt --fix-broken install -y || true
     
-    # Use dpkg --force-conflicts to handle package conflicts
-    echo "Installing packages with conflict resolution..."
-    dpkg -i --force-conflicts ./*.deb ./*.ddeb
+    # Use dpkg with comprehensive conflict resolution
+    echo "Installing packages with comprehensive conflict resolution..."
+    dpkg -i --force-conflicts --force-depends --auto-deconfigure ./*.deb ./*.ddeb || {
+        echo "Installation failed, attempting recovery..."
+        apt --fix-broken install -y
+        dpkg -i --force-all ./*.deb ./*.ddeb
+    }
 
     cd ..
     echo -e "Cleaning up /tmp/neo_temp folder after installation"
