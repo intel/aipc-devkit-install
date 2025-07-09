@@ -26,6 +26,7 @@ temp/
 # Log files
 *.log
 logs/
+error.txt
 
 # Package files
 *.deb

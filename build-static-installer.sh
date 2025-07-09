@@ -130,6 +130,7 @@ show_current_patterns() {
     echo
     echo "Intel Compute Runtime patterns:"
     echo "  - intel-ocloc_.*amd64.deb"
+    echo "  - intel-ocloc-dbgsym.*amd64.ddeb"
     echo "  - libze-intel-gpu1-dbgsym.*amd64.ddeb"
     echo "  - libze-intel-gpu1_.*amd64.deb"
     echo "  - intel-opencl-icd-dbgsym.*amd64.ddeb"
@@ -228,6 +229,7 @@ collect_asset_urls() {
             ;;
         "intel/compute-runtime")
             ASSET_URLS["ocloc"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-ocloc_.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["ocloc-dbgsym"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-ocloc-dbgsym.*amd64\\.ddeb")) | .browser_download_url' | head -1)
             ASSET_URLS["ze-gpu-dbgsym"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libze-intel-gpu1-dbgsym.*amd64\\.ddeb")) | .browser_download_url' | head -1)
             ASSET_URLS["ze-gpu"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libze-intel-gpu1_.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["opencl-icd-dbgsym"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-opencl-icd-dbgsym.*amd64\\.ddeb")) | .browser_download_url' | head -1)
@@ -236,7 +238,7 @@ collect_asset_urls() {
             ASSET_URLS["checksum"]=$(echo "$response" | jq -r '.assets[] | select(.name | test(".*\\.sum")) | .browser_download_url' | head -1)
             
             # Validate required assets were found (checksum is optional)
-            local required_assets=("ocloc" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm")
+            local required_assets=("ocloc" "ocloc-dbgsym" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm")
             for asset in "${required_assets[@]}"; do
                 if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
                     echo "ERROR: Could not find required asset '$asset' for $repo $tag" >&2
@@ -285,7 +287,7 @@ generate_static_setup_script() {
     echo "Validating collected asset URLs..."
     local required_assets=(
         "igc-core" "igc-opencl"
-        "ocloc" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm"
+        "ocloc" "ocloc-dbgsym" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm"
         "npu-compiler" "npu-fw" "npu-level-zero"
         "level-zero"
     )
@@ -544,6 +546,7 @@ verify_compute_runtime(){
     
     # Download Intel Compute Runtime packages
     wget "$ASSET_URL_OCLOC"
+    wget "$ASSET_URL_OCLOC_DBGSYM"
     wget "$ASSET_URL_ZE_GPU_DBGSYM"
     wget "$ASSET_URL_ZE_GPU"
     wget "$ASSET_URL_OPENCL_ICD_DBGSYM"
@@ -559,8 +562,13 @@ verify_compute_runtime(){
     fi
 
     echo -e "\nInstalling compute runtime as root"
-    apt remove -y intel-ocloc libze-intel-gpu1 || true
-    dpkg -i ./*.deb ./*.ddeb
+    # Remove conflicting packages before installation
+    echo "Removing potentially conflicting packages..."
+    apt remove -y intel-ocloc libze-intel-gpu1 intel-level-zero-gpu || true
+    
+    # Use dpkg --force-conflicts to handle package conflicts
+    echo "Installing packages with conflict resolution..."
+    dpkg -i --force-conflicts ./*.deb ./*.ddeb
 
     cd ..
     echo -e "Cleaning up /tmp/neo_temp folder after installation"
@@ -861,6 +869,41 @@ check_version_compatibility() {
     return 0
 }
 
+# Function to check Level Zero compatibility with compute runtime
+check_level_zero_compatibility() {
+    local compute_runtime_tag="$1"
+    local level_zero_tag="$2"
+    
+    echo "  Checking Level Zero compatibility with compute runtime..." >&2
+    
+    # Get compute runtime package to check for Level Zero dependencies
+    local response
+    if [ -n "$GITHUB_TOKEN" ]; then
+        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
+    else
+        response=$(curl -s "https://api.github.com/repos/intel/compute-runtime/releases/tags/$compute_runtime_tag")
+    fi
+    
+    # Find libze-intel-gpu1 package (may conflict with older Level Zero)
+    local ze_gpu_url=$(echo "$response" | jq -r '.assets[] | select(.name | test("libze-intel-gpu1_.*amd64\\.deb$")) | .browser_download_url' | head -1)
+    
+    if [ -z "$ze_gpu_url" ] || [ "$ze_gpu_url" = "null" ]; then
+        echo "  No libze-intel-gpu1 package found in compute runtime release" >&2
+        return 0  # No conflict possible
+    fi
+    
+    # Extract version from filename
+    local ze_gpu_version=$(echo "$ze_gpu_url" | grep -o 'libze-intel-gpu1_[^_]*' | cut -d'_' -f2)
+    
+    if [ -n "$ze_gpu_version" ]; then
+        echo "  Found libze-intel-gpu1 version: $ze_gpu_version" >&2
+        echo "  This may conflict with older intel-level-zero-gpu packages" >&2
+        echo "  Recommendation: Remove intel-level-zero-gpu before installation" >&2
+    fi
+    
+    return 0
+}
+
 # Collect compatible driver versions
 collect_compatible_versions() {
     echo "=== Collecting Compatible Driver Versions ==="
@@ -914,6 +957,8 @@ collect_compatible_versions() {
     if [ "$COMPATIBILITY_WARNING" = "false" ]; then
         echo "🔍 Verifying compatibility..."
         if check_version_compatibility "$COMPATIBLE_IGC_TAG" "$COMPATIBLE_COMPUTE_RUNTIME_TAG"; then
+            # Also check Level Zero compatibility
+            check_level_zero_compatibility "$COMPATIBLE_COMPUTE_RUNTIME_TAG" "$COMPATIBLE_LEVEL_ZERO_TAG"
             echo "✅ All versions are compatible!"
             return 0
         else
