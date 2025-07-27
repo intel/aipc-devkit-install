@@ -1,0 +1,107 @@
+{
+    "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity --force",
+    "winget_applications": [
+        {
+            "name": "Microsoft.VisualStudioCode",
+            "override_flags": null,
+            "install_location": null,
+            "version": null,
+            "version_check": null,
+            "dependencies": null
+        },
+        {
+            "name": "Python.Python.3.11",
+            "override_flags": null,
+            "install_location": null,
+            "version": "3.11.9",
+            "version_check": null,
+            "dependencies": null
+        },
+        {
+            "name": "chrisant996.Clink",
+            "override_flags": null,
+            "install_location": null,
+            "version": null,
+            "version_check": null,
+            "dependencies": null
+ 
+        },
+        {
+            "name": "Google.Chrome.Canary",
+            "override_flags": null,
+            "install_location": null,
+            "version": "139.0.7208.0",
+            "version_check": null,
+            "dependencies": null
+        },
+        {
+            "name": "Git.Git",
+            "override_flags": null,
+            "install_location": null,
+            "version": null,
+            "version_check": null,
+            "dependencies": null
+        },
+        {
+            "name": "Kitware.CMake",
+            "override_flags": null,
+            "install_location": null,
+            "version": "4.0.2",
+            "version_check": "cmake --version",
+            "dependencies": [
+                {
+                    "name": "Git",
+                    "version": "2.49.0"
+                }
+            ]
+        },
+        {
+            "name": "astral-sh.uv",
+            "override_flags": null,
+            "install_location": null,
+            "version": "0.7.8",
+            "version_check": "uv --version",
+            "dependencies": null
+        },
+        {
+            "name": "Microsoft.VisualStudio.2022.Community",
+            "override_flags": "--add Microsoft.VisualStudio.Workload.ManagedDesktop;includeRecommended --add Microsoft.VisualStudio.Workload.NativeDesktop;includeRecommended --quiet --norestart --includeRecommended --wait",
+            "install_location": null,
+            "version": null,
+            "version_check": null
+
+        },
+        {
+            "name": "Ollama.Ollama",
+            "override_flags": null,
+            "install_location": null,
+            "version": null,
+            "version_check": null,
+            "dependencies": null
+        },
+        {
+            "name": "CondaForge.Miniforge3",
+            "override_flags": null,
+            "install_location": null,
+            "version": null,
+            "version_check": null,
+            "dependencies": null
+        }
+    ],
+    "external_applications": [
+        {
+            "name": "one_api_base_toolkit",
+            "source": "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ae29263e-38b9-4d43-86c3-376d6e0668e7/intel-oneapi-base-toolkit-2025.0.1.47_offline.exe",
+            "install_flags": "-a --silent --eula accept",
+            "download_location": ".\\One_API",
+            "uninstall_command": "C:\\Program Files (x86)\\Intel\\oneAPI\\Installer\\installer.exe -s --action remove --product-id intel.oneapi.win.basekit.product --product-ver 2025.0.1+44",
+            "dependencies": [
+                {
+                    "name": "Microsoft.VisualStudio.2022.Community",
+                    "version": "1.100.2"
+                }
+            ]
+        }
+    ]
+
+}
