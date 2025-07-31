@@ -661,6 +661,82 @@ verify_drivers(){
     fi
 }
 
+show_installation_summary(){
+    echo -e "\n=================================================="
+    echo "# Intel AI PC Driver Installation Summary"
+    echo "=================================================="
+    echo "Date: $(date)"
+    echo "Kernel: $(uname -r)"
+    echo "OS: $(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2 2>/dev/null || echo 'Unknown')"
+    echo
+    
+    echo "📦 DRIVER VERSIONS INSTALLED:"
+    echo "├─ Intel Graphics Compiler (IGC): $IGC_VERSION"
+    echo "├─ Intel Compute Runtime: $COMPUTE_RUNTIME_VERSION"
+    echo "├─ Intel NPU Driver: $NPU_DRIVER_VERSION"
+    echo "└─ Level Zero: $LEVEL_ZERO_VERSION"
+    echo
+    
+    echo "🔧 PACKAGES INSTALLED:"
+    echo "IGC Packages:"
+    echo "├─ intel-igc-core-2 (version: $(dpkg-query -W -f='${Version}' intel-igc-core-2 2>/dev/null || echo 'not installed'))"
+    echo "└─ intel-igc-opencl-2 (version: $(dpkg-query -W -f='${Version}' intel-igc-opencl-2 2>/dev/null || echo 'not installed'))"
+    echo
+    echo "Compute Runtime Packages:"
+    echo "├─ intel-ocloc (version: $(dpkg-query -W -f='${Version}' intel-ocloc 2>/dev/null || echo 'not installed'))"
+    echo "├─ libze-intel-gpu1 (version: $(dpkg-query -W -f='${Version}' libze-intel-gpu1 2>/dev/null || echo 'not installed'))"
+    echo "├─ intel-opencl-icd (version: $(dpkg-query -W -f='${Version}' intel-opencl-icd 2>/dev/null || echo 'not installed'))"
+    echo "└─ libigdgmm12 (version: $(dpkg-query -W -f='${Version}' libigdgmm12 2>/dev/null || echo 'not installed'))"
+    echo
+    echo "NPU Packages:"
+    echo "├─ intel-driver-compiler-npu (version: $(dpkg-query -W -f='${Version}' intel-driver-compiler-npu 2>/dev/null || echo 'not installed'))"
+    echo "├─ intel-fw-npu (version: $(dpkg-query -W -f='${Version}' intel-fw-npu 2>/dev/null || echo 'not installed'))"
+    echo "└─ intel-level-zero-npu (version: $(dpkg-query -W -f='${Version}' intel-level-zero-npu 2>/dev/null || echo 'not installed'))"
+    echo
+    echo "Level Zero Package:"
+    echo "└─ level-zero (version: $(dpkg-query -W -f='${Version}' level-zero 2>/dev/null || echo 'not installed'))"
+    echo
+    
+    echo "💻 HARDWARE STATUS:"
+    local gpu_info="$(lspci | grep VGA | grep Intel | head -1 | cut -d: -f3 | sed 's/^[ \t]*//' || echo 'No Intel GPU detected')"
+    echo "├─ GPU: $gpu_info"
+    local npu_info="$(lspci | grep -i 'neural\|npu\|vpu' | head -1 | cut -d: -f3 | sed 's/^[ \t]*//' || echo 'No NPU detected')"
+    echo "└─ NPU: $npu_info"
+    echo
+    
+    echo "📊 DRIVER STATUS:"
+    local gpu_driver_version="$(clinfo | grep 'Driver Version' | awk '{print $NF}' 2>/dev/null || echo 'Not detected')"
+    if [ "$gpu_driver_version" != "Not detected" ]; then
+        echo "├─ ✅ GPU Driver: $gpu_driver_version"
+    else
+        echo "├─ ⚠️  GPU Driver: Not detected (may need reboot)"
+    fi
+    
+    local npu_driver_info="$(dmesg | grep -i vpu | tail -1 | grep -o 'driver.*' 2>/dev/null || echo 'Not detected')"
+    if [ "$npu_driver_info" != "Not detected" ]; then
+        echo "└─ ✅ NPU Driver: Loaded"
+    else
+        echo "└─ ⚠️  NPU Driver: Not detected (may need reboot)"
+    fi
+    echo
+    
+    echo "🔗 VERIFICATION COMMANDS:"
+    echo "├─ GPU: clinfo | grep -E '(Device Name|Driver Version)'"
+    echo "├─ OpenCL: clinfo -l"
+    echo "├─ Level Zero: ls /sys/class/drm/renderD*"
+    echo "└─ NPU: dmesg | grep -i vpu"
+    echo
+    
+    echo "📝 NEXT STEPS:"
+    echo "1. Reboot the system if drivers are not detected"
+    echo "2. Add your user to 'video' and 'render' groups if not done:"
+    echo "   sudo usermod -aG video,render \$USER"
+    echo
+    echo "=================================================="
+    echo "$S_VALID Intel AI PC Driver Installation Complete!"
+    echo "=================================================="
+}
+
 setup(){
     echo "# Intel AI PC Linux Setup - Static Driver Installation"
     echo "# This script uses pre-determined asset URLs to avoid GitHub API rate limits"
@@ -676,6 +752,9 @@ setup(){
     
     echo -e "\n# Status"
     echo "$S_VALID Platform configured"
+    
+    # Show comprehensive installation summary
+    show_installation_summary
 }
 
 setup
