@@ -1,22 +1,23 @@
-# Intel AI PC Linux Setup
+# Intel AI PC Linux Driver Setup
 
-This repository contains scripts to set up Intel GPU and NPU drivers on Ubuntu 24.04 for AI PC platforms.
+This directory contains scripts to set up Intel GPU and NPU drivers on Ubuntu 24.04 for AI PC platforms.
 
 ## Overview
 
-The setup consists of several scripts to provide flexible driver installation options:
-- **`setup-drivers.sh`**: Main driver installation script (requires root privileges and GitHub API access)
-- **`setup-static-drivers.sh`**: Static driver installation script (generated file, no API dependencies)
-- **`verify_connectivity.sh`**: Diagnostic tool for troubleshooting GitHub API connectivity issues
-- **`build-static-installer.sh`**: Tool to build static driver installers with compatibility checking
+The setup provides **two installation methods** for flexible driver installation:
+
+- **`build-static-installer.sh`**: ⭐ **PREFERRED** - Static installer builder (no GitHub token required)
+- **`setup-static-drivers.sh`**: Generated static driver installation script (no API dependencies)
+- **`Dynamic/setup-drivers.sh`**: Dynamic driver installation script (requires GitHub token and API access)
+- **`Utilities/verify_connectivity.sh`**: Diagnostic tool for troubleshooting GitHub API connectivity issues
 
 ## Installation Methods
 
 You have **two options** for installing Intel GPU and NPU drivers:
 
-### Option 1: Two-Step Static Installation (⭐ **RECOMMENDED**)
+### Method 1: Static Installation (⭐ **PREFERRED**)
 
-The preferred method that avoids API rate limits and provides maximum reliability:
+**No GitHub token required** - The recommended method that avoids API rate limits and provides maximum reliability:
 
 ```bash
 # Step 1: Build static installer with compatibility checking
@@ -27,6 +28,7 @@ sudo ./setup-static-drivers.sh
 ```
 
 **Benefits of the static method:**
+
 - ✅ **No GitHub API rate limits**
 - ✅ **No need for GitHub token**
 - ✅ **Faster installation** (direct downloads)
@@ -34,23 +36,32 @@ sudo ./setup-static-drivers.sh
 - ✅ **Version compatibility verified**
 - ✅ **Can be run offline** after generation
 
-### Option 2: Direct Installation (Alternative if you have GITHUB_TOKEN)
+### Method 2: Dynamic Installation (⚠️ **Requires GitHub Token**)
 
-If you prefer the single-step method and have a GitHub token configured:
+**Located in `Dynamic/` folder** - Use only if the static method is not suitable:
 
 ```bash
+# Navigate to the Dynamic folder
+cd Dynamic/
+
 # Set your GitHub token (get one from https://github.com/settings/tokens)
 export GITHUB_TOKEN=your_personal_access_token_here
 
-# Run the installation
+# Run the dynamic installation
 sudo -E ./setup-drivers.sh
 ```
+
+**Requirements for dynamic method:**
+
+- 🔑 **GitHub Personal Access Token required**
+- 🌐 **Active internet connection for GitHub API**
+- ⚠️ **Subject to GitHub API rate limits**
 
 ## Quick Start
 
 Choose one of the two installation methods below:
 
-### Method 1: Two-Step Static Installation (⭐ **RECOMMENDED**)
+### Method 1: Static Installation (⭐ **RECOMMENDED**)
 
 ```bash
 # Step 1: Build static installer with compatibility checking
@@ -60,31 +71,34 @@ Choose one of the two installation methods below:
 sudo ./setup-static-drivers.sh
 ```
 
-### Method 2: Direct Installation (If you have GITHUB_TOKEN)
+### Method 2: Dynamic Installation (⚠️ **Requires GitHub Token**)
 
 ```bash
+# Navigate to Dynamic folder
+cd Dynamic/
+
 # Set your GitHub token (get one from https://github.com/settings/tokens)
 export GITHUB_TOKEN=your_personal_access_token_here
 
-# Run the installation
+# Run the dynamic installation
 sudo -E ./setup-drivers.sh
 ```
 
 ## Troubleshooting Installation Issues
 
-### If Method 2 (Direct) Fails Due to Download Issues
+### If Method 2 (Dynamic) Fails Due to Download Issues
 
-The script will display a troubleshooting message:
+The dynamic script will display a troubleshooting message:
 
-```
+```text
 Error: Failed to get latest release for intel/intel-graphics-compiler
-Troubleshooting: Run './verify_connectivity.sh' to diagnose GitHub API connectivity issues
+Troubleshooting: Run './Utilities/verify_connectivity.sh' to diagnose GitHub API connectivity issues
 ```
 
 ### Run the Diagnostic Tool
 
 ```bash
-./verify_connectivity.sh
+./Utilities/verify_connectivity.sh
 ```
 
 ### Fix Any Issues
@@ -175,7 +189,8 @@ The `verify_connectivity.sh` script performs these checks:
    - oneapi-src/level-zero
 
 #### Successful Output Example
-```
+
+```text
 === Simple Driver Version Test ===
 
 1. Testing HTTPS connectivity...
@@ -202,7 +217,8 @@ Test completed!
 ```
 
 #### Rate Limited Output Example
-```
+
+```text
 === Simple Driver Version Test ===
 
 1. Testing HTTPS connectivity...
@@ -222,7 +238,7 @@ Test completed!
 flowchart TD
     A[Choose Installation Method] --> B{Prefer Static Method?}
     B -->|Yes - Recommended| C[Method 1: Static Installation]
-    B -->|No - Have GitHub Token| D[Method 2: Direct Installation]
+    B -->|No - Have GitHub Token| D[Method 2: Dynamic Installation]
     
     C --> E[./build-static-installer.sh --build-static]
     E --> F[sudo ./setup-static-drivers.sh]
@@ -230,21 +246,22 @@ flowchart TD
     G -->|Yes| H[✓ Drivers Installed]
     G -->|No| I[Check logs/permissions]
     
-    D --> J[export GITHUB_TOKEN=token]
-    J --> K[sudo -E ./setup-drivers.sh]
-    K --> L{Installation Successful?}
-    L -->|Yes| H
-    L -->|No| M[Run diagnostics]
+    D --> J[cd Dynamic/]
+    J --> K[export GITHUB_TOKEN=token]
+    K --> L[sudo -E ./setup-drivers.sh]
+    L --> M{Installation Successful?}
+    M -->|Yes| H
+    M -->|No| N[Run diagnostics]
     
-    I --> N[Fix system issues]
-    N --> F
-    M --> O[Fix GitHub API issues]
-    O --> K
+    I --> O[Fix system issues]
+    O --> F
+    N --> P[Fix GitHub API issues]
+    P --> L
 ```
 
 ## Comparison of Installation Methods
 
-| Feature | Method 1 (Static) ⭐ | Method 2 (Direct) |
+| Feature | Method 1 (Static) ⭐ | Method 2 (Dynamic - in Dynamic/) |
 |---------|-------------------|-------------------|
 | **GitHub Token Required** | ❌ No | ✅ Yes |
 | **Internet During Install** | ✅ Required | ✅ Required |
@@ -253,20 +270,22 @@ flowchart TD
 | **Installation Speed** | ✅ Faster | ⚠️ Slower |
 | **Reliability** | ✅ Direct downloads | ⚠️ API dependent |
 | **Setup Complexity** | ⚠️ Two-step | ✅ Simple |
+| **Script Location** | Root directory | `Dynamic/` folder |
 
 **Recommendation**: Use Method 1 (Static) for production deployments and Method 2 (Direct) for development/testing when you already have a GitHub token configured.
 
 ## File Structure
 
-```
-training.developer.aipc/
+```text
+Linux_Driver_Setup/
 ├── README.md                           # This file
-├── setup-drivers.sh                    # Main installation script (GitHub API method)
-├── setup-static-drivers.sh             # Static installation script (generated)
-├── verify_connectivity.sh              # Diagnostic tool
-├── build-static-installer.sh           # Static installer builder with compatibility checking
-├── setup-software.sh                   # Software setup (separate)
-└── LICENSE                             # License information
+├── build-static-installer.sh           # ⭐ Static installer builder (PREFERRED METHOD)
+├── setup-static-drivers.sh             # Generated static installation script
+├── Dynamic/                            # Dynamic installation method (requires GitHub token)
+│   └── setup-drivers.sh               # Dynamic installation script (GitHub API method)
+├── Utilities/                          # Diagnostic and utility tools
+│   └── verify_connectivity.sh         # Diagnostic tool for GitHub API issues
+└── LICENSE                            # License file
 ```
 
 ## Advanced Usage
@@ -306,7 +325,7 @@ sudo ./setup-static-drivers.sh
 The script automatically downloads the latest versions, but you can check what versions would be installed:
 
 ```bash
-./verify_connectivity.sh
+./Utilities/verify_connectivity.sh
 ```
 
 ## Contributing
