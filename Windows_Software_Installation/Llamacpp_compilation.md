@@ -5,7 +5,7 @@ This guide provides four different methods to compile and install llama.cpp with
 ## 📋 Prerequisites
 
 ### Required Software
-- **Python 3.8+** with pip
+- **Python 3.12+** with pip
 - **Visual Studio 2019/2022** (Community, Professional, or Enterprise)
 - **CMake 3.16+**
 - **Ninja Build System** (for SYCL builds)
