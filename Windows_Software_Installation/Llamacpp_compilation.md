@@ -18,7 +18,7 @@ This guide provides four different methods to compile and install llama.cpp with
 
 #### For Vulkan (NVIDIA/AMD/Intel GPU)
 - **Vulkan SDK** (latest version)
-- [Vulkan SDK Download](https://vulkan.lunarg.com/sdk/home)
+  [Vulkan SDK Download](https://vulkan.lunarg.com/sdk/home)
 - **GPU drivers** with Vulkan support
 
 ## 🚀 Compilation Methods
