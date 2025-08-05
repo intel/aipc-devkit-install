@@ -156,16 +156,10 @@ After successful compilation:
 ## 🎯 Choosing the Right Method
 
 ### For Development
-- **C++ Projects:** Native builds (SYCL for Intel GPU, Vulkan for others)
-- **Python ML:** Python packages (matching your GPU type)
+- **C++ Projects:** Native builds for Intel GPUs
+- **Python ML:** Python packages for Intel GPUs
 
-### For Production
-- **Maximum Performance:** Native SYCL (Intel) or Native Vulkan (others)
-- **Ease of Deployment:** Python packages with appropriate GPU support
 
-### For Testing
-- **Quick Start:** Python Vulkan (widest compatibility)
-- **Intel GPU Optimization:** Python SYCL
 
 ## 📚 Additional Resources
 
