@@ -150,10 +150,6 @@ After successful compilation:
 ├── build/                  # Native builds output
 │   ├── bin/               # Executables (main, quantize, etc.)
 │   └── lib/               # Libraries
-├── venv_vulkan/           # Python Vulkan environment
-│   └── Scripts/python.exe
-├── venv_sycl/             # Python SYCL environment
-│   └── Scripts/python.exe
 └── models/                # Your GGUF model files
 ```
 
