@@ -664,14 +664,93 @@ if (Test-Path "AI-PC-Samples") {
     Write-Host "`nSetting up AI PC Samples environment..." -ForegroundColor Cyan
     $venvPath = New-PythonVenv -Path "$DevKitWorkingDir\AI-PC-Samples"
     if ($venvPath) {
-        $requirementsPath = Join-Path "$DevKitWorkingDir\AI-PC-Samples" "requirements.txt"
+        # Check for requirements.txt in AI-Travel-Agent subdirectory first
+        $requirementsPath = Join-Path "$DevKitWorkingDir\AI-PC-Samples\AI-Travel-Agent" "requirements.txt"
+        if (-not (Test-Path $requirementsPath)) {
+            # Fallback to root directory requirements.txt
+            $requirementsPath = Join-Path "$DevKitWorkingDir\AI-PC-Samples" "requirements.txt"
+        }
+        
         if (Test-Path $requirementsPath) {
             Write-Host "Installing AI PC Samples requirements..."
             $success = Install-PipPackages -VenvPath $venvPath -RequirementsFile $requirementsPath
             if ($success) {
                 Install-JupyterKernel -VenvPath $venvPath -KernelName "ai_pc_samples" -DisplayName "AI PC Samples"
+                
+                # Install LlamaCpp Python with Vulkan support
+                Write-Host "Installing LlamaCpp Python with Vulkan support..." -ForegroundColor Cyan
+                $pipExe = Join-Path $venvPath "Scripts\pip.exe"
+                try {
+                    # Set environment variables for Vulkan compilation
+                    $env:CMAKE_ARGS = "-DGGML_VULKAN=on"
+                    $env:FORCE_CMAKE = "1"
+                    
+                    Write-Host "Compiling llama-cpp-python with Vulkan support (this may take several minutes)..." -ForegroundColor Yellow
+                    & $pipExe install llama-cpp-python==0.3.8 -U --force --no-cache-dir --verbose
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "LlamaCpp Python with Vulkan compiled successfully!" -ForegroundColor Green
+                    } else {
+                        Write-Host "LlamaCpp Python compilation failed, continuing with standard installation..." -ForegroundColor Yellow
+                    }
+                }
+                catch {
+                    Write-Host "Exception during LlamaCpp Python compilation: $_" -ForegroundColor Yellow
+                }
+                finally {
+                    # Clean up environment variables
+                    Remove-Item env:CMAKE_ARGS -ErrorAction SilentlyContinue
+                    Remove-Item env:FORCE_CMAKE -ErrorAction SilentlyContinue
+                }
+                
+                # Clone and build native LlamaCpp with Vulkan
+                Write-Host "Setting up native LlamaCpp with Vulkan..." -ForegroundColor Cyan
+                $llamacppPath = Join-Path "$DevKitWorkingDir\AI-PC-Samples" "llama.cpp"
+                if (-not (Test-Path $llamacppPath)) {
+                    Set-Location "$DevKitWorkingDir\AI-PC-Samples"
+                    
+                    try {
+                        Write-Host "Cloning LlamaCpp repository..." -ForegroundColor Cyan
+                        & git clone https://github.com/ggml-org/llama.cpp.git
+                        
+                        if (Test-Path $llamacppPath) {
+                            Set-Location $llamacppPath
+                            
+                            if (Test-BuildEnvironment) {
+                                Write-Host "Building native LlamaCpp with Vulkan support..." -ForegroundColor Cyan
+                                
+                                # Configure with CMake
+                                & cmake -B build -DGGML_VULKAN=ON -DLLAMA_CURL=OFF
+                                
+                                if ($LASTEXITCODE -eq 0) {
+                                    Write-Host "CMake configuration successful, building..." -ForegroundColor Green
+                                    & cmake --build build --config Release -j
+                                    
+                                    if ($LASTEXITCODE -eq 0) {
+                                        Write-Host "Native LlamaCpp built successfully!" -ForegroundColor Green
+                                    } else {
+                                        Write-Host "Native LlamaCpp build completed with warnings" -ForegroundColor Yellow
+                                    }
+                                } else {
+                                    Write-Host "CMake configuration failed for native LlamaCpp" -ForegroundColor Yellow
+                                }
+                            } else {
+                                Write-Host "Build environment not available, skipping native LlamaCpp compilation" -ForegroundColor Yellow
+                                Write-Host "Requirements: Visual Studio Build Tools 2022 + CMake 3.5+" -ForegroundColor White
+                            }
+                        }
+                    }
+                    catch {
+                        Write-Host "Failed to clone or build native LlamaCpp: $_" -ForegroundColor Yellow
+                    }
+                    finally {
+                        Set-Location $DevKitWorkingDir
+                    }
+                } else {
+                    Write-Host "Native LlamaCpp already exists, skipping..." -ForegroundColor Yellow
+                }
             } else {
-                Write-Host "Manual command: cd `"$DevKitWorkingDir\AI-PC-Samples`"; .\venv\Scripts\activate; pip install -r requirements.txt" -ForegroundColor Yellow
+                Write-Host "Manual command: cd `"$DevKitWorkingDir\AI-PC-Samples`"; .\venv\Scripts\activate; pip install -r AI-Travel-Agent\requirements.txt" -ForegroundColor Yellow
             }
         } else {
             # If no requirements.txt, install basic packages for AI PC Samples
@@ -680,6 +759,32 @@ if (Test-Path "AI-PC-Samples") {
             $success = Install-PipPackages -VenvPath $venvPath -Packages $packages
             if ($success) {
                 Install-JupyterKernel -VenvPath $venvPath -KernelName "ai_pc_samples" -DisplayName "AI PC Samples"
+                
+                # Install LlamaCpp Python with Vulkan support (same as above)
+                Write-Host "Installing LlamaCpp Python with Vulkan support..." -ForegroundColor Cyan
+                $pipExe = Join-Path $venvPath "Scripts\pip.exe"
+                try {
+                    # Set environment variables for Vulkan compilation
+                    $env:CMAKE_ARGS = "-DGGML_VULKAN=on"
+                    $env:FORCE_CMAKE = "1"
+                    
+                    Write-Host "Compiling llama-cpp-python with Vulkan support (this may take several minutes)..." -ForegroundColor Yellow
+                    & $pipExe install llama-cpp-python==0.3.8 -U --force --no-cache-dir --verbose
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "LlamaCpp Python with Vulkan compiled successfully!" -ForegroundColor Green
+                    } else {
+                        Write-Host "LlamaCpp Python compilation failed, continuing..." -ForegroundColor Yellow
+                    }
+                }
+                catch {
+                    Write-Host "Exception during LlamaCpp Python compilation: $_" -ForegroundColor Yellow
+                }
+                finally {
+                    # Clean up environment variables
+                    Remove-Item env:CMAKE_ARGS -ErrorAction SilentlyContinue
+                    Remove-Item env:FORCE_CMAKE -ErrorAction SilentlyContinue
+                }
             }
         }
     }
@@ -734,7 +839,7 @@ Write-Host "- ai_pc_samples (AI PC Samples)" -ForegroundColor White
 Write-Host "- open_model_zoo (Open Model Zoo)" -ForegroundColor White
 
 Write-Host "`nTo use Jupyter kernels:" -ForegroundColor Yellow
-Write-Host "1. Start Jupyter: jupyter notebook or jupyter lab" -ForegroundColor White
+Write-Host "1. Start Jupyter: jupyter lab" -ForegroundColor White
 Write-Host "2. Select kernel from the dropdown menu when creating/opening notebooks" -ForegroundColor White
 
 Write-Host "`nTo activate virtual environments:" -ForegroundColor Yellow
