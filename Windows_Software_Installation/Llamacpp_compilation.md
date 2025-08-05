@@ -16,7 +16,7 @@ This guide provides four different methods to compile and install llama.cpp with
 - **Intel OneAPI Toolkit** (includes Intel C++ Compiler and SYCL runtime)
 - **Intel GPU drivers** (latest version)
 
-#### For Vulkan (NVIDIA/AMD/Intel GPU)
+#### For Vulkan (Intel GPU)
 - **Vulkan SDK** (latest version)
   [Vulkan SDK Download](https://vulkan.lunarg.com/sdk/home)
 - **GPU drivers** with Vulkan support
