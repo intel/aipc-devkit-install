@@ -105,9 +105,42 @@ function Check-PreReq() {
             return $true
         }
     } else {
-        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        Install-Module -Name Microsoft.WinGet.Client -Force
-        winget upgrade winget --silent --disable-interactivity --accept-source-agreements 
+        # Internal mode - install silently with error handling
+        try {
+            # Try to install NuGet package provider
+            $nugetInstalled = Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue
+            if (-not $nugetInstalled) {
+                Write-Host "Installing NuGet package provider..." -ForegroundColor Yellow
+                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction Stop
+            } else {
+                Write-Host "NuGet package provider already installed." -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "Warning: Could not install NuGet package provider. Continuing anyway..." -ForegroundColor Yellow
+            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+        }
+        
+        try {
+            # Try to install Microsoft.WinGet.Client module
+            if (-not (Get-InstalledModule -Name "Microsoft.WinGet.Client" -ErrorAction SilentlyContinue)) {
+                Write-Host "Installing Microsoft.WinGet.Client module..." -ForegroundColor Yellow
+                Install-Module -Name Microsoft.WinGet.Client -Force -Scope CurrentUser -ErrorAction Stop
+            } else {
+                Write-Host "Microsoft.WinGet.Client module already installed." -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "Warning: Could not install Microsoft.WinGet.Client module. Continuing anyway..." -ForegroundColor Yellow
+            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+        }
+        
+        try {
+            # Try to upgrade winget
+            Write-Host "Checking for winget updates..." -ForegroundColor Yellow
+            winget upgrade winget --silent --disable-interactivity --accept-source-agreements 2>$null
+        } catch {
+            Write-Host "Warning: Could not upgrade winget. Continuing anyway..." -ForegroundColor Yellow
+        }
+        
         return $true
     }
 }
