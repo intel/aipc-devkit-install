@@ -28,7 +28,7 @@ temp/
 logs/
 error.txt
 
-# Installer-specific generated files
+# Installer-specific generated files (winget_installer)
 SetupScript/EnvSetup/logs/
 SetupScript/EnvSetup/json/uninstall/
 **/install_log.txt
