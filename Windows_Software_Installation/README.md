@@ -1,8 +1,20 @@
-# AI Dev Kit Repository Downloader
+# Windows Software Installation for AI PC Development
 
-A PowerShell script that downloads and extracts AI/ML repositories for Intel AI Dev Kit setup with parallel downloads, retry logic, and progress tracking.
+Comprehensive tools for setting up AI PC development environments on Windows, including repository downloaders and GUI-based package management.
 
-## Features
+## Available Tools
+
+### 🎯 [Winget GUI Installer](WingetGUI_Installer/) 
+**Modern graphical package manager for AI development tools**
+- **Purpose**: User-friendly GUI for installing/uninstalling Windows packages
+- **Best For**: Setting up complete AI development environments
+- **Features**: Unified install/uninstall interface, progress tracking, error handling
+- **Quick Start**: `cd WingetGUI_Installer\EnvSetup && .\Env_Setup.ps1 gui`
+
+### 📦 Repository Downloader Scripts
+**Automated download and setup of AI/ML repositories**
+
+### Repository Downloader Features
 
 - ✅ **Parallel Downloads**: Downloads up to 5 repositories simultaneously
 - ✅ **Retry Logic**: Automatic retry with exponential backoff (2s, 4s, 8s delays)
