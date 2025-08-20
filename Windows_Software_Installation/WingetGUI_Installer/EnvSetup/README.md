@@ -107,7 +107,8 @@ The installer uses an enhanced JSON format in `applications.json` that includes 
       "name": "Git",
       "version": "2.40.0"
     }
-  ]
+  ],
+  "skip_install": "no"
 }
 ```
 
@@ -120,6 +121,7 @@ The installer uses an enhanced JSON format in `applications.json` that includes 
 - `version`: Specific version to install (optional)
 - `version_check`: Command to verify installation (optional)
 - `dependencies`: Required applications (optional)
+- `skip_install`: Controls whether the application should be installed in non-GUI mode (values: "yes" or "no", default is "no")
 
 #### External Applications (Enhanced Format)
 
@@ -137,7 +139,8 @@ The installer uses an enhanced JSON format in `applications.json` that includes 
       "name": "Microsoft.VisualStudio.2022.Community",
       "version": "1.100.2"
     }
-  ]
+  ],
+  "skip_install": "yes"
 }
 ```
 
@@ -150,6 +153,7 @@ The installer uses an enhanced JSON format in `applications.json` that includes 
 - `download_location`: Local download directory
 - `uninstall_command`: Command for removal
 - `dependencies`: Required applications
+- `skip_install`: Controls whether the application should be installed in non-GUI mode (values: "yes" or "no", default is "no")
 
 ### Installation Notes
 

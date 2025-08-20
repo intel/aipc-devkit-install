@@ -10,10 +10,35 @@
 # ./Env_Setup.ps1 uninstall -> Uninstalls software
 # ***************************************** #
 <#
-   Contact: 
-    Vijay (vijay.chandrashekar@intel.com) 
-    Ram (vaithi.s.ramadoss@intel.com)
-    Ben (benjamin.j.odom@intel.com)
+.SYNOPSIS
+    Setup script for development environment installation using winget.
+
+.DESCRIPTION
+    This script automates the installation of development tools and software
+    using the Windows Package Manager (winget). It supports both GUI and command-line
+    modes for installation and uninstallation.
+
+.PARAMETER command
+    Specifies the operation mode: 'install', 'gui', or 'uninstall'.
+    
+.EXAMPLE
+    .\Env_Setup.ps1 gui
+    Launches the graphical interface for interactive software selection.
+    
+.EXAMPLE
+    .\Env_Setup.ps1 install
+    Installs all software defined in the applications.json file.
+    
+.EXAMPLE
+    .\Env_Setup.ps1 uninstall
+    Uninstalls previously installed software tracked in uninstall.json.
+
+.NOTES
+    Requires Administrator privileges to run.
+    Authors: 
+    - Vijay (vijay.chandrashekar@intel.com)
+    - Ram (vaithi.s.ramadoss@intel.com)
+    - Ben (benjamin.j.odom@intel.com)
 #>
 param(
     [string]$command # Accepts a command parameter: install, gui, or uninstall
@@ -33,7 +58,12 @@ $task_name = "AIPCCloud ENV Setup" # Name of the scheduled task for environment 
 function Test-Administrator {
 # Check for at least 100GB free disk space before proceeding
 function Test-FreeDiskSpace {
-    $minGB = 100
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory=$false)]
+        [int]$minGB = 100
+    )
     $drive = (Get-Location).Path.Substring(0,1)
     $freeSpaceGB = [math]::Round((Get-PSDrive -Name $drive).Free/1GB,2)
     Write-Host "Disk space available on $($drive): $freeSpaceGB GB" -ForegroundColor Magenta
@@ -55,7 +85,11 @@ if ($command -eq 'install' -or $command -eq 'gui') {
 }
 
 function Request-AdminPrivileges {
-    param([string]$commandToRun = "")
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$commandToRun = ""
+    )
     
     if (-not (Test-Administrator)) {
         Add-Type -AssemblyName System.Windows.Forms
@@ -94,7 +128,13 @@ $json_dir = ".\json" # Directory for storing JSON files
 <#
     Initializes logs for installation
 #>
-function Initialize-Directory([string]$location) {
+function Initialize-Directory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$location
+    )
+    
     if (-not (Test-Path -Path $location)) {
         New-Item -Path $location -ItemType Directory | Out-Null # Creates a directory if it doesn't exist
     }
@@ -104,7 +144,13 @@ function Initialize-Directory([string]$location) {
 <#
     Creates a file at the given location
 #>
-function New-File([string]$location) {
+function New-File {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$location
+    )
+    
     if (-not (Test-Path -Path $location)) {
         New-Item -Path $location -ItemType File | Out-Null # Creates a file if it doesn't exist
     }
@@ -115,7 +161,11 @@ function New-File([string]$location) {
     Calls script for user to accept EULA agreements for ALL software this script installs
     Returns true if they accept, false otherwise
 #>
-function Confirm-Eula() {
+function Confirm-Eula {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    
     # Source Script
     $run_once = ".\Public\Run_Once_Eula.ps1" # Path to the EULA acceptance script
     & $run_once # Executes the EULA acceptance script
@@ -125,7 +175,13 @@ function Confirm-Eula() {
 <#
     Checks if winget installation was successful based on exit code
 #>
-function Test-InstallationSuccess([int]$exitCode) {
+function Test-InstallationSuccess {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory=$true)]
+        [int]$exitCode
+    )
     # Winget exit codes: 
     # 0 = success
     # -1978335212 = already installed (APPINSTALLER_CLI_ERROR_PACKAGE_ALREADY_INSTALLED)
@@ -148,7 +204,13 @@ function Test-InstallationSuccess([int]$exitCode) {
 <#
     Checks if winget uninstallation was successful based on exit code
 #>
-function Test-UninstallationSuccess([int]$exitCode) {
+function Test-UninstallationSuccess {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory=$true)]
+        [int]$exitCode
+    )
     # Winget uninstall exit codes:
     # 0 = successfully uninstalled
     # 1 = package not found (could mean already uninstalled or never installed)
@@ -321,23 +383,27 @@ function Show-PackageSelectionGUI {
     
     # Add winget applications
     foreach ($app in $applications.winget_applications) {
+        if ($null -eq $app) { continue }
+        
         $row = $dt.NewRow()
         $row.Check = $false
-        $row.Id = if ($app.id) { $app.id } else { $app.name }
-        $row.FriendlyName = if ($app.friendly_name) { $app.friendly_name } else { $app.name }
-        $row.Summary = if ($app.summary) { $app.summary } else { "No description available" }
-        $row.Version = if ($app.version) { $app.version } else { "Latest" }
+        $row.Id = if ($null -ne $app.id -and $app.id -ne '') { $app.id } else { $app.name }
+        $row.FriendlyName = if ($null -ne $app.friendly_name -and $app.friendly_name -ne '') { $app.friendly_name } else { $app.name }
+        $row.Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { "No description available" }
+        $row.Version = if ($null -ne $app.version -and $app.version -ne '') { $app.version } else { "Latest" }
         $row.Type = "Winget"
         $dt.Rows.Add($row)
     }
     
     # Add external applications
     foreach ($app in $applications.external_applications) {
+        if ($null -eq $app) { continue }
+        
         $row = $dt.NewRow()
         $row.Check = $false
         $row.Id = $app.name
-        $row.FriendlyName = if ($app.friendly_name) { $app.friendly_name } else { $app.name }
-        $row.Summary = if ($app.summary) { $app.summary } else { "External application" }
+        $row.FriendlyName = if ($null -ne $app.friendly_name -and $app.friendly_name -ne '') { $app.friendly_name } else { $app.name }
+        $row.Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { "External application" }
         $row.Version = "External"
         $row.Type = "External"
         $dt.Rows.Add($row)
@@ -747,7 +813,11 @@ function Uninstall-SelectedPackages {
 }
 
 function Uninstall-WingetApplication {
-    param($app)
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app
+    )
     
     # Construct arguments for winget uninstallation
     $arguments = @(
@@ -786,7 +856,11 @@ function Uninstall-WingetApplication {
 }
 
 function Uninstall-ExternalApplication {
-    param($app)
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app
+    )
     
     if ($app.uninstall_command) {
         $regex = "([a-zA-Z]:.*.exe)(.*)"
@@ -904,10 +978,18 @@ function Install-SelectedPackages {
 }
 
 function Install-WingetApplication {
+    [CmdletBinding()]
     param(
-        $app,
-        $applications,
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$applications,
+        
+        [Parameter(Mandatory=$true)]
         [string]$install_log_file,
+        
+        [Parameter(Mandatory=$true)]
         [string]$json_uninstall_file_path
     )
     
@@ -968,9 +1050,15 @@ function Install-WingetApplication {
 }
 
 function Install-ExternalApplication {
+    [CmdletBinding()]
     param(
-        $app,
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        
+        [Parameter(Mandatory=$true)]
         [string]$install_log_file,
+        
+        [Parameter(Mandatory=$true)]
         [string]$json_uninstall_file_path
     )
     
@@ -1108,8 +1196,8 @@ try {
         # Setup logging directories and files
         Initialize-Directory $install_logs_dir
         Initialize-Directory $error_logs_dir
-        Setup-File $install_log_file
-        Setup-File $error_log_file
+        New-File $install_log_file
+        New-File $error_log_file
 
         # Setup uninstall json file
         Initialize-Directory $json_uninstall_dir
@@ -1186,8 +1274,7 @@ try {
             if ($null -ne $app.dependencies) {
                 foreach ($dep in $app.dependencies) {
                     $depName = $dep.name
-                    $app_id = if ($app.id) { $app.id } else { $app.name }
-
+                    
                     # Check if dependency is already in the list of applications to install
                     $dependencyApp = $applications.winget_applications | Where-Object { 
                         ($_.id -match $depName) -or ($_.name -match $depName) -or ($_.friendly_name -match $depName)
@@ -1209,8 +1296,14 @@ try {
             }
         }
 
-        # Download each winget application
+        # Download each winget application, skipping those with skip_install = 'yes'
         foreach ($app in $applications.winget_applications) {
+            if ($null -eq $app) { continue }
+            
+            if ($app.skip_install -eq 'yes') {
+                Write-Host "Skipping $($app.friendly_name) ($($app.id)) due to skip_install flag." -ForegroundColor Yellow
+                continue
+            }
             $app_id = if ($app.id) { $app.id } else { $app.name }
             $global_install_flags = $applications.global_install_flags
 
@@ -1262,8 +1355,14 @@ try {
             }
         }
 
-        # Download external apps
+        # Download external apps, skipping those with skip_install = 'yes'
         foreach ($app in $applications.external_applications) {
+            if ($null -eq $app) { continue }
+            
+            if ($app.skip_install -eq 'yes') {
+                Write-Host "Skipping $($app.friendly_name) ($($app.name)) due to skip_install flag." -ForegroundColor Yellow
+                continue
+            }
             $file_name = $app.name + ".exe"
                 
             if (-not (Test-Path -Path $app.download_location)) {
@@ -1342,7 +1441,7 @@ try {
 
         # Setup uninstall logs
         Initialize-Directory $uninstall_logs_dir
-        Setup-File $uninstall_log_file
+        New-File $uninstall_log_file
 
         $applications = Get-Content -Path $json_uninstall_file_path -Raw | ConvertFrom-Json # Reads and parses the uninstall JSON file
 

@@ -9,7 +9,8 @@
             "install_location": null,
             "version": null,
             "version_check": null,
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         },
         {
             "id": "Python.Python.3.12",
@@ -19,7 +20,8 @@
             "install_location": null,
             "version": null,
             "version_check": null,
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         },
         {
             "id": "chrisant996.Clink",
@@ -29,7 +31,8 @@
             "install_location": null,
             "version": null,
             "version_check": null,
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         },
         {
             "id": "Google.Chrome.Canary",
@@ -39,7 +42,8 @@
             "install_location": null,
             "version": null,
             "version_check": null,
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         },
         {
             "id": "Git.Git",
@@ -49,7 +53,8 @@
             "install_location": null,
             "version": null,
             "version_check": null,
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         },
         {
             "id": "Kitware.CMake",
@@ -64,7 +69,8 @@
                     "name": "Git",
                     "version": "2.49.0"
                 }
-            ]
+            ],
+            "skip_install": "no"
         },
         {
             "id": "astral-sh.uv",
@@ -74,7 +80,8 @@
             "install_location": null,
             "version": null,
             "version_check": "uv --version",
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         },
         {
             "id": "Microsoft.VisualStudio.2022.Community",
@@ -84,7 +91,8 @@
             "install_location": null,
             "version": null,
             "version_check": null,
-            "dependencies": null
+            "dependencies": null,
+            "skip_install": "no"
         }
     ],
     "external_applications": [
@@ -101,7 +109,8 @@
                     "name": "Microsoft.VisualStudio.2022.Community",
                     "version": "1.100.2"
                 }
-            ]
+            ],
+            "skip_install": "yes"
         }
     ]
 }
