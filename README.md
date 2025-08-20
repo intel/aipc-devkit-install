@@ -22,47 +22,37 @@ For any assistance, please refer to the support documentation or contact our tec
 - **PowerShell Execution Policy**: Set to Unrestricted (the script will guide you)
 - **Winget**: Must be installed with version 1.10.X or higher
 
+
+
 ### Step 1: Set Execution Policy
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted LocalMachine
 ```
 
-### Step 2: Run the GUI (Recommended)
+### Step 2: Run the Environment Setup Script
+Navigate to the following directory and run the initial environment setup script:
 ```powershell
-cd SetupScript\EnvSetup
+cd Windows_Software_Installation\WingetGUI_Installer\EnvSetup
 .\Env_Setup.ps1 gui
 ```
+This opens the Windows Forms interface for interactive package selection and installation/uninstallation.
 
-This opens a Windows Forms interface where you can:
-- **Install Software**: Select packages from the available list
-- **Uninstall Software**: Remove previously installed packages
-- **View Package Details**: See friendly names and descriptions
+### Step 3: Reboot the Machine
+After completing the environment setup, reboot your machine to ensure all changes take effect and new environments are recognized.
 
-## Usage Options
-
-### GUI Mode (Recommended)
+### Step 4: Run the Main Setup Script
 ```powershell
-.\Env_Setup.ps1 gui
+cd Windows_Software_Installation
+.\setup_software.ps1
 ```
-- Unified interface for both installation and uninstallation
-- Interactive package selection with detailed information
-- Real-time progress feedback
-- Automatic administrator privilege handling
+This will pull a number of repositories and build the necessary environments to execute the samples.
 
-### Command Line Modes
-```powershell
-# Install all packages from configuration
-.\Env_Setup.ps1 install
-
-# Uninstall all tracked packages
-.\Env_Setup.ps1 uninstall
-```
 
 ## Documentation
 
 For detailed documentation, configuration guides, and troubleshooting:
-- **Full Documentation**: [SetupScript/EnvSetup/README.md](./SetupScript/EnvSetup/README.md)
-- **JSON Configuration**: [SetupScript/EnvSetup/JSON/install/applications.json](./SetupScript/EnvSetup/JSON/install/applications.json)
+- **Windows Installer Documentation**: [Windows_Software_Installation/README.md](./Windows_Software_Installation/README.md)
+- **JSON Configuration**: [Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json](./Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json)
 
 ## Key Features
 
@@ -81,8 +71,9 @@ For detailed documentation, configuration guides, and troubleshooting:
 - **Administrator Handling**: Automatic privilege detection and elevation
 - **Logging**: Comprehensive logging for troubleshooting
 
+
 ## Support
 
 For technical assistance, configuration help, or feature requests:
 - Contact: Ram (vaithi.s.ramadoss@intel.com) or Vijay (vijay.chandrashekar@intel.com)
-- Full documentation: [SetupScript/EnvSetup/README.md](./SetupScript/EnvSetup/README.md)
+- Full documentation: [Windows_Software_Installation/README.md](./Windows_Software_Installation/README.md)

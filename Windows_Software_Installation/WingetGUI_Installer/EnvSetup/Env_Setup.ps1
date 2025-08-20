@@ -13,6 +13,7 @@
    Contact: 
     Vijay (vijay.chandrashekar@intel.com) 
     Ram (vaithi.s.ramadoss@intel.com)
+    Ben (benjamin.j.odom@intel.com)
 #>
 param(
     [string]$command # Accepts a command parameter: install, gui, or uninstall
@@ -30,6 +31,24 @@ $task_name = "AIPCCloud ENV Setup" # Name of the scheduled task for environment 
     Administrator privilege checking
 #>
 function Test-Administrator {
+# Check for at least 100GB free disk space before proceeding
+function Test-FreeDiskSpace {
+    $minGB = 100
+    $drive = (Get-Location).Path.Substring(0,1)
+    $freeSpaceGB = [math]::Round((Get-PSDrive -Name $drive).Free/1GB,2)
+    Write-Host "Disk space available on $($drive): $freeSpaceGB GB" -ForegroundColor Magenta
+    if ($freeSpaceGB -lt $minGB) {
+        Write-Host "ERROR: At least $minGB GB of free disk space is required. Only $freeSpaceGB GB available." -ForegroundColor Red
+        exit 1
+    } else {
+        Write-Host "You have adequate disk space to continue installation." -ForegroundColor Green
+    }
+}
+
+# Run disk space check before any installation or GUI mode
+if ($command -eq 'install' -or $command -eq 'gui') {
+    Test-FreeDiskSpace
+}
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
