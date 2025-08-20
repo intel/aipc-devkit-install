@@ -94,7 +94,7 @@ $json_dir = ".\json" # Directory for storing JSON files
 <#
     Initializes logs for installation
 #>
-function Setup-Directory([string]$location) {
+function Initialize-Directory([string]$location) {
     if (-not (Test-Path -Path $location)) {
         New-Item -Path $location -ItemType Directory | Out-Null # Creates a directory if it doesn't exist
     }
@@ -104,7 +104,7 @@ function Setup-Directory([string]$location) {
 <#
     Creates a file at the given location
 #>
-function  Setup-File([string]$location) {
+function New-File([string]$location) {
     if (-not (Test-Path -Path $location)) {
         New-Item -Path $location -ItemType File | Out-Null # Creates a file if it doesn't exist
     }
@@ -115,7 +115,7 @@ function  Setup-File([string]$location) {
     Calls script for user to accept EULA agreements for ALL software this script installs
     Returns true if they accept, false otherwise
 #>
-function Accept-Eula() {
+function Confirm-Eula() {
     # Source Script
     $run_once = ".\Public\Run_Once_Eula.ps1" # Path to the EULA acceptance script
     & $run_once # Executes the EULA acceptance script
@@ -1054,15 +1054,15 @@ try {
         # GUI mode for interactive package selection
         
         # Setup logging directories and files for both install and uninstall operations
-        Setup-Directory $install_logs_dir
-        Setup-Directory $error_logs_dir
-        Setup-Directory $uninstall_logs_dir
-        Setup-File $install_log_file
-        Setup-File $error_log_file
-        Setup-File $uninstall_log_file
+        Initialize-Directory $install_logs_dir
+        Initialize-Directory $error_logs_dir
+        Initialize-Directory $uninstall_logs_dir
+        New-File $install_log_file
+        New-File $error_log_file
+        New-File $uninstall_log_file
 
         # Setup uninstall json file
-        Setup-Directory $json_uninstall_dir
+        Initialize-Directory $json_uninstall_dir
 
         # Check for pre-requisites
         $pre_req = Check-PreReq
@@ -1079,7 +1079,7 @@ try {
 
         # If running externally, have user agree to EULA pop-up
         if ($Global:external) {
-            if (-not (Accept-Eula)) {
+            if (-not (Confirm-Eula)) {
                 Add-Type -AssemblyName System.Windows.Forms
                 [System.Windows.Forms.MessageBox]::Show(
                     "EULA not accepted. Installation cancelled.",
@@ -1106,13 +1106,13 @@ try {
     elseif ($command -eq "install") {
 
         # Setup logging directories and files
-        Setup-Directory $install_logs_dir
-        Setup-Directory $error_logs_dir
+        Initialize-Directory $install_logs_dir
+        Initialize-Directory $error_logs_dir
         Setup-File $install_log_file
         Setup-File $error_log_file
 
         # Setup uninstall json file
-        Setup-Directory $json_uninstall_dir
+        Initialize-Directory $json_uninstall_dir
 
 
         # Check for pre-requsites
@@ -1129,7 +1129,7 @@ try {
         # If running externally, have user agree to EULA pop-up
         if ($Global:external) {
           
-            if (-not (Accept-Eula)) {
+            if (-not (Confirm-Eula)) {
                 Write-Host "Eula not accepted. Exiting." -ForegroundColor Red
                 Write-ToLog -message "Eula not accepted. Exiting." -log_file $install_log_file
                 exit 1 # Exits the script if EULA is not accepted
@@ -1186,7 +1186,6 @@ try {
             if ($null -ne $app.dependencies) {
                 foreach ($dep in $app.dependencies) {
                     $depName = $dep.name
-                    $depVersion = $dep.version
                     $app_id = if ($app.id) { $app.id } else { $app.name }
 
                     # Check if dependency is already in the list of applications to install
@@ -1342,7 +1341,7 @@ try {
         }
 
         # Setup uninstall logs
-        Setup-Directory $uninstall_logs_dir
+        Initialize-Directory $uninstall_logs_dir
         Setup-File $uninstall_log_file
 
         $applications = Get-Content -Path $json_uninstall_file_path -Raw | ConvertFrom-Json # Reads and parses the uninstall JSON file
