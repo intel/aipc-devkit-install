@@ -196,7 +196,8 @@ function Show-PackageSelectionGUI {
         if ($null -eq $app) { continue }
         
         $row = $dt.NewRow()
-        $row.Check = $false
+        # Check if skip_install is defined and not set to "yes"
+        $row.Check = if ($null -ne $app.skip_install) { $app.skip_install -ne "yes" } else { $true }
         $row.Id = if ($null -ne $app.id -and $app.id -ne '') { $app.id } else { $app.name }
         $row.FriendlyName = if ($null -ne $app.friendly_name -and $app.friendly_name -ne '') { $app.friendly_name } else { $app.name }
         $row.Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { "No description available" }
@@ -210,7 +211,8 @@ function Show-PackageSelectionGUI {
         if ($null -eq $app) { continue }
         
         $row = $dt.NewRow()
-        $row.Check = $false
+        # Check if skip_install is defined and not set to "yes"
+        $row.Check = if ($null -ne $app.skip_install) { $app.skip_install -ne "yes" } else { $true }
         $row.Id = $app.name
         $row.FriendlyName = if ($null -ne $app.friendly_name -and $app.friendly_name -ne '') { $app.friendly_name } else { $app.name }
         $row.Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { "External application" }
