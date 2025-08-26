@@ -325,9 +325,10 @@ function Show-PackageSelectionGUI {
             return
         }
         
-        $cnt = $selectedRows.Count
+        $cnt = @($selectedRows).Count
+        $pkgWord = if ($cnt -eq 1) { 'package' } else { 'packages' }
         $confirm = [System.Windows.Forms.MessageBox]::Show(
-            "You are about to install $cnt package(s). Continue?",
+            "You are about to install $cnt $pkgWord. Continue?",
             'Environment Setup - Confirm Installation',
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
