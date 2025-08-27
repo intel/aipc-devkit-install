@@ -16,68 +16,128 @@ function Append-ToJson {
         [PSCustomObject]$newObject
     )
     
-    # Check if the JSON file exists
-    if (-not (Test-Path -Path $jsonFilePath)) {
-        # Create the directory if it doesn't exist
-        $jsonDir = Split-Path -Parent $jsonFilePath
-        if (-not (Test-Path $jsonDir)) {
-            New-Item -Path $jsonDir -ItemType Directory -Force | Out-Null
-        }
-        
-        # Create a new JSON file with empty arrays
-        $baseJson = @{
-            "winget_applications" = @()
-            "external_applications" = @()
-        }
-        $baseJson | ConvertTo-Json -Depth 5 | Set-Content -Path $jsonFilePath
-    }
+    # Simple retry mechanism with exponential backoff
+    $maxRetries = 5
+    $retryCount = 0
+    $success = $false
     
-    # Read the existing JSON
-    $jsonContent = Get-Content -Path $jsonFilePath -Raw | ConvertFrom-Json
-    
-    # Ensure the section exists - safely add it if missing or handle existing property
-    if (-not ($jsonContent.PSObject.Properties.Name -contains $section)) {
-        # Section property doesn't exist at all, so add it
-        $jsonContent | Add-Member -MemberType NoteProperty -Name $section -Value @()
-    } elseif ($null -eq $jsonContent.$section) {
-        # Section exists but is null, replace with empty array
-        $jsonContent.$section = @()
-    }
-    
-    # Check if object already exists by name
-    $exists = $jsonContent.$section | Where-Object { $_.name -eq $newObject.name }
-    
-    # Add the object if it doesn't exist, otherwise update it
-    if (-not $exists) {
-        # Make sure the section is an array
-        if ($null -eq $jsonContent.$section) {
-            $jsonContent.$section = @()
-        }
-        
-        # Add new object to the array
-        $sectionArray = @($jsonContent.$section)
-        $sectionArray += $newObject
-        $jsonContent.$section = $sectionArray
-    } else {
-        # Replace the existing object with the new one
-        $index = 0
-        $foundIndex = -1
-        
-        foreach ($item in $jsonContent.$section) {
-            if ($item.name -eq $newObject.name) {
-                $foundIndex = $index
-                break
+    while ($retryCount -lt $maxRetries -and -not $success) {
+        try {
+            # Check if the JSON file exists
+            if (-not (Test-Path -Path $jsonFilePath)) {
+                # Create the directory if it doesn't exist
+                $jsonDir = Split-Path -Parent $jsonFilePath
+                if (-not (Test-Path $jsonDir)) {
+                    New-Item -Path $jsonDir -ItemType Directory -Force | Out-Null
+                }
+                
+                # Create a new JSON file with empty arrays
+                $baseJson = @{
+                    "winget_applications" = @()
+                    "external_applications" = @()
+                }
+                $baseJson | ConvertTo-Json -Depth 5 | Set-Content -Path $jsonFilePath -Encoding UTF8
             }
-            $index++
+            
+            # Read the existing JSON with error handling
+            $jsonContent = $null
+            try {
+                $jsonText = Get-Content -Path $jsonFilePath -Raw -Encoding UTF8
+                if ([string]::IsNullOrWhiteSpace($jsonText)) {
+                    # Empty file, create default structure
+                    $jsonContent = @{
+                        "winget_applications" = @()
+                        "external_applications" = @()
+                    }
+                } else {
+                    $jsonContent = $jsonText | ConvertFrom-Json
+                }
+            }
+            catch {
+                Write-Warning "JSON file appears to be corrupted. Creating new file."
+                # Create a new JSON file with empty arrays
+                $jsonContent = @{
+                    "winget_applications" = @()
+                    "external_applications" = @()
+                }
+            }
+            
+            # Ensure the section exists
+            if (-not ($jsonContent.PSObject.Properties.Name -contains $section)) {
+                $jsonContent | Add-Member -MemberType NoteProperty -Name $section -Value @()
+            } elseif ($null -eq $jsonContent.$section) {
+                $jsonContent.$section = @()
+            }
+            
+            # Force array format even if there's only one item
+            $sectionArray = @($jsonContent.$section)
+            
+            # Check if object already exists by name or id
+            $exists = $false
+            $foundIndex = -1
+            
+            for ($i = 0; $i -lt $sectionArray.Count; $i++) {
+                $item = $sectionArray[$i]
+                # Check for match by id first (more reliable), then by name
+                if (($newObject.PSObject.Properties.Name -contains "id" -and 
+                     $item.PSObject.Properties.Name -contains "id" -and 
+                     $item.id -eq $newObject.id) -or 
+                    ($item.name -eq $newObject.name)) {
+                    $exists = $true
+                    $foundIndex = $i
+                    break
+                }
+            }
+            
+            # Add the object if it doesn't exist, otherwise update it
+            if (-not $exists) {
+                # Add new object to the array
+                $sectionArray += $newObject
+                $jsonContent.$section = $sectionArray
+                
+                # Log the addition for debugging
+                Write-Host "Added new application to ${section}: $($newObject.name)" -ForegroundColor Green
+            } else {
+                # Update existing object
+                if ($foundIndex -ge 0) {
+                    # Create a combined object
+                    $combinedObject = $sectionArray[$foundIndex].PSObject.Copy()
+                    
+                    # Update properties from the new object
+                    foreach ($property in $newObject.PSObject.Properties) {
+                        if ($combinedObject.PSObject.Properties.Name -contains $property.Name) {
+                            $combinedObject.$($property.Name) = $property.Value
+                        } else {
+                            $combinedObject | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+                        }
+                    }
+                    
+                    # Update the array
+                    $sectionArray[$foundIndex] = $combinedObject
+                    $jsonContent.$section = $sectionArray
+                    
+                    # Log the update for debugging
+                    Write-Host "Updated existing application in ${section}: $($newObject.name)" -ForegroundColor Cyan
+                }
+            }
+            
+            # Save the updated JSON with proper encoding
+            $jsonString = $jsonContent | ConvertTo-Json -Depth 5
+            Set-Content -Path $jsonFilePath -Value $jsonString -Encoding UTF8
+            
+            $success = $true
         }
-        
-        if ($foundIndex -ge 0) {
-            $jsonContent.$section[$foundIndex] = $newObject
+        catch {
+            $retryCount++
+            if ($retryCount -lt $maxRetries) {
+                # Exponential backoff: wait longer each time
+                $waitTime = [Math]::Min(1000, 50 * [Math]::Pow(2, $retryCount))
+                Start-Sleep -Milliseconds $waitTime
+            } else {
+                throw "Failed to update JSON file after $maxRetries attempts: $_"
+            }
         }
     }
-    
-    # Save the updated JSON
-    $jsonContent | ConvertTo-Json -Depth 5 | Set-Content -Path $jsonFilePath
 }
 
 # Maintain compatibility with older code that uses this function name
@@ -111,10 +171,46 @@ function AppendToJson {
         # Append winget_applications if not already present
         if ($data.ContainsKey('winget_applications')) {
             foreach ($new_app in $data.winget_applications) {
-                # Check if application already exists (by name)
-                $exists = $merged_data.winget_applications | Where-Object { $_.name -eq $new_app.name }
+                # Check if application already exists (by id first, then by name)
+                $exists = $false
+                $foundIndex = -1
+                $index = 0
+                
+                foreach ($existing_app in $merged_data.winget_applications) {
+                    # Check for match by id first (more reliable), then by name
+                    if (($new_app.PSObject.Properties.Name -contains "id" -and 
+                         $existing_app.PSObject.Properties.Name -contains "id" -and 
+                         $existing_app.id -eq $new_app.id) -or 
+                        ($existing_app.name -eq $new_app.name)) {
+                        $exists = $true
+                        $foundIndex = $index
+                        break
+                    }
+                    $index++
+                }
+                
                 if (-not $exists) {
+                    # Add new application
                     $merged_data.winget_applications += $new_app
+                    Write-Host "Added new winget application: $($new_app.name)" -ForegroundColor Green
+                } else {
+                    # Update existing application with combined properties
+                    $combinedApp = $merged_data.winget_applications[$foundIndex].PSObject.Copy()
+                    
+                    # Update properties from the new object
+                    foreach ($property in $new_app.PSObject.Properties) {
+                        if ($combinedApp.PSObject.Properties.Name -contains $property.Name) {
+                            # Update existing property
+                            $combinedApp.$($property.Name) = $property.Value
+                        } else {
+                            # Add new property
+                            $combinedApp | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+                        }
+                    }
+                    
+                    # Update in array
+                    $merged_data.winget_applications[$foundIndex] = $combinedApp
+                    Write-Host "Updated existing winget application: $($new_app.name)" -ForegroundColor Cyan
                 }
             }
         }
@@ -126,9 +222,41 @@ function AppendToJson {
         if ($data.ContainsKey('external_applications')) {
             foreach ($new_app in $data.external_applications) {
                 # Check if application already exists (by name)
-                $exists = $merged_data.external_applications | Where-Object { $_.name -eq $new_app.name }
+                $exists = $false
+                $foundIndex = -1
+                $index = 0
+                
+                foreach ($existing_app in $merged_data.external_applications) {
+                    if ($existing_app.name -eq $new_app.name) {
+                        $exists = $true
+                        $foundIndex = $index
+                        break
+                    }
+                    $index++
+                }
+                
                 if (-not $exists) {
+                    # Add new application
                     $merged_data.external_applications += $new_app
+                    Write-Host "Added new external application: $($new_app.name)" -ForegroundColor Green
+                } else {
+                    # Update existing application with combined properties
+                    $combinedApp = $merged_data.external_applications[$foundIndex].PSObject.Copy()
+                    
+                    # Update properties from the new object
+                    foreach ($property in $new_app.PSObject.Properties) {
+                        if ($combinedApp.PSObject.Properties.Name -contains $property.Name) {
+                            # Update existing property
+                            $combinedApp.$($property.Name) = $property.Value
+                        } else {
+                            # Add new property
+                            $combinedApp | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+                        }
+                    }
+                    
+                    # Update in array
+                    $merged_data.external_applications[$foundIndex] = $combinedApp
+                    Write-Host "Updated existing external application: $($new_app.name)" -ForegroundColor Cyan
                 }
             }
         }

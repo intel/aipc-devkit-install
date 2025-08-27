@@ -409,8 +409,10 @@ function Show-UninstallGUI {
         foreach ($app in $uninstallData.winget_applications) {
             $row = $dt.NewRow()
             $row.Check = $false
-            $row.Id = $app.name
-            $row.FriendlyName = $app.name  # Use name as friendly name for installed apps
+            # For winget apps, use 'id' field (e.g., "Microsoft.VisualStudioCode")
+            $row.Id = if ($app.id) { $app.id } else { $app.name }
+            # Use friendly_name if available, otherwise fall back to id or name
+            $row.FriendlyName = if ($app.friendly_name) { $app.friendly_name } elseif ($app.id) { $app.id } else { $app.name }
             $row.Version = if ($app.version) { $app.version } else { "Latest" }
             $row.Type = "Winget"
             $dt.Rows.Add($row)
@@ -422,8 +424,10 @@ function Show-UninstallGUI {
         foreach ($app in $uninstallData.external_applications) {
             $row = $dt.NewRow()
             $row.Check = $false
+            # For external apps, use 'name' field
             $row.Id = $app.name
-            $row.FriendlyName = $app.name
+            # Use friendly_name if available, otherwise fall back to name
+            $row.FriendlyName = if ($app.friendly_name) { $app.friendly_name } else { $app.name }
             $row.Version = "External"
             $row.Type = "External"
             $dt.Rows.Add($row)

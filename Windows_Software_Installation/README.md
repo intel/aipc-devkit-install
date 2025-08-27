@@ -1,194 +1,294 @@
 # Windows Software Installation for AI PC Development
 
-Comprehensive tools for setting up AI PC development environments on Windows, including repository downloaders and GUI-based package management.
+Comprehensive tools for setting up AI PC development applications and environments. **Launch GUI**:
+   ```powershell
+   cd "WingetGUI_Installer\EnvSetup"
+   .\Env_Setup.ps1 gui
+   ```
 
-## Available Tools
+3. **Install Software**:
+   - Click "Install Software"
+   - Select desired packages from the list
+   - Click "Install Selected"
+   - Monitor real-time progress
 
-### 🎯 [Winget GUI Installer](WingetGUI_Installer/) 
+4. **Uninstall Software**:
+   - Click "Uninstall Software" 
+   - Select packages to remove
+   - Confirm uninstallation
+   - Tracking file automatically updatedon Windows, including GUI-based package management and automated repository downloaders.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Windows 11 with PowerShell 5.1 or PowerShell Core
+- Internet connection
+- Administrative privileges (required--will attempt to auto-elevate)
+
+### Step 1: GUI Package Manager (Recommended)
+**Best for setting up complete AI development environments**
+```powershell
+# Navigate to the installer directory
+cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
+
+# Launch the unified GUI
+.\Env_Setup.ps1 gui
+```
+
+### Step 2: Download AI Repositories and create environments
+**Best for getting AI/ML code repositories**
+```powershell
+# Run with default settings (downloads to C:\Intel)
+.\setup_software.ps1
+
+# Or specify custom directory
+.\setup_software.ps1 -DevKitWorkingDir "C:\MyAIProjects"
+```
+
+### Option 3: Command Line Package Installation
+**Best for automated/scripted environments**
+```powershell
+cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
+.\Env_Setup.ps1 install
+
+# Or uninstall
+.\Env_Setup.ps1 uninstall
+```
+
+---
+
+## 🛠️ Available Tools
+
+### 🎯 Winget GUI Installer
 **Modern graphical package manager for AI development tools**
-- **Purpose**: User-friendly GUI for installing/uninstalling Windows packages
-- **Best For**: Setting up complete AI development environments
-- **Features**: Unified install/uninstall interface, progress tracking, error handling
-- **Quick Start**: `cd WingetGUI_Installer\EnvSetup && .\Env_Setup.ps1 gui`
 
-### 📦 Repository Downloader Scripts
+**Features:**
+- ✅ **Unified Interface**: Single GUI for install/uninstall operations
+- ✅ **AI Development Focus**: Curated package collections for AI/ML development
+- ✅ **Progress Tracking**: Real-time installation progress with detailed logging
+- ✅ **Smart Tracking**: Maintains history of installed packages for easy removal
+- ✅ **Bidirectional Compatibility**: Install via GUI or command line, uninstall via either method
+- ✅ **Error Handling**: Robust error reporting and retry mechanisms
+
+**Usage:**
+```powershell
+# GUI Mode (Interactive)
+.\Env_Setup.ps1 gui
+
+# Command Line Mode (Silent)
+.\Env_Setup.ps1 install
+
+# Uninstall Mode
+.\Env_Setup.ps1 uninstall
+```
+
+### 📦 Repository Downloader
 **Automated download and setup of AI/ML repositories**
 
-### Repository Downloader Features
-
-- ✅ **Parallel Downloads**: Downloads up to 5 repositories simultaneously
+**Features:**
+- ✅ **Parallel Downloads**: Downloads up to 5 repositories simultaneously  
 - ✅ **Retry Logic**: Automatic retry with exponential backoff (2s, 4s, 8s delays)
 - ✅ **Progress Tracking**: Real-time download progress and completion status
 - ✅ **Smart Skipping**: Skips existing directories and downloaded files
 - ✅ **Automatic Extraction**: Extracts ZIP files and organizes into proper directories
-- ✅ **Error Handling**: Comprehensive error handling and status reporting
 - ✅ **Resume Capability**: Can be run multiple times safely
 
-## Quick Start
-
-### Prerequisites
-- Windows PowerShell 5.1 or PowerShell Core
-- Internet connection
-- Administrative privileges (recommended)
-
-### Basic Usage
-
-1. **Run with default settings** (downloads to `C:\Intel`):
-   ```powershell
-   .\get_repos.ps1
-   ```
-
-2. **Specify custom directory**:
-   ```powershell
-   .\get_repos.ps1 -DevKitWorkingDir "D:\MyAIProjects"
-   ```
-
-3. **Change retry attempts**:
-   ```powershell
-   .\get_repos.ps1 -MaxRetries 5
-   ```
-
-### Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `DevKitWorkingDir` | String | `C:\Intel` | Target directory for downloads |
-| `MaxRetries` | Integer | `3` | Maximum retry attempts per download |
-
-## Current Repositories
-
-The script downloads the following AI/ML repositories:
-
+**Current AI Repositories:**
 1. **OpenVINO Notebooks** - Jupyter notebooks for OpenVINO toolkit
-2. **OpenVINO Build & Deploy** - Build and deployment examples
+2. **OpenVINO Build & Deploy** - Build and deployment examples  
 3. **Ollama IPEX-LLM** - Ollama with Intel Extension for PyTorch
 4. **OpenVINO GenAI** - Generative AI examples and tools
 5. **WebNN Workshop** - Web Neural Network API workshop materials
 6. **Open Model Zoo** - Pre-trained models collection
 
-## Directory Structure
+---
 
-After successful execution, you'll have:
+## 📋 Detailed Usage Guide
 
+### Winget GUI Installer
+
+#### System Requirements
+- **Windows 10/11**: Windows PowerShell 5.1 or PowerShell 7+
+- **Winget**: Windows Package Manager (installed by default on Windows 11)
+- **Internet Connection**: Required for package downloads
+- **Administrator Rights**: May be required for some package installations
+
+#### Step-by-Step Usage
+
+1. **Verify Winget Installation**:
+   ```powershell
+   winget --version
+   ```
+   Should show version 1.10.X or higher
+
+2. **Launch GUI**:
+   ```powershell
+   cd "WingetGUI_Installer\EnvSetup"
+   .\Env_Setup.ps1 gui
+   ```
+
+4. **Install Software**:
+   - Click "Install Software"
+   - Select desired packages from the list
+   - Click "Install Selected"
+   - Monitor real-time progress
+
+5. **Uninstall Software**:
+   - Click "Uninstall Software" 
+   - Select packages to remove
+   - Confirm uninstallation
+   - Tracking file automatically updated
+
+#### Package Categories
+- **Development Tools**: Git, Visual Studio Code, Visual Studio Community
+- **AI/ML Frameworks**: Python, CMake, Vulkan SDK, Intel oneAPI
+- **System Utilities**: Windows Terminal, PowerToys, Clink
+- **Developer Productivity**: Chrome, Firefox, various IDEs
+
+### Repository Downloader
+
+#### Parameters
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `DevKitWorkingDir` | String | `C:\Intel` | Target directory for downloads |
+| `MaxRetries` | Integer | `3` | Maximum retry attempts per download |
+
+#### Directory Structure After Download
 ```
 C:\Intel\
 ├── openvino_notebooks\
-├── openvino_build_deploy\
+├── openvino_build_deploy\  
 ├── ollama-ipex-llm\
 ├── openvino_genai\
 ├── webnn_workshop\
 └── open_model_zoo\
 ```
 
-## Adding New Repositories
+#### Adding New Repositories
 
-### Step 1: Add to Repository Array
+1. **Open `get_repos.ps1`** and locate the `$repos` array (around line 74)
+2. **Add your repository**:
+   ```powershell
+   $repos = @(
+       # ... existing repos ...
+       @{ Name = "your_repo_name"; Uri = "https://github.com/owner/repo/archive/refs/heads/main.zip"; File = "repo.zip" }
+   )
+   ```
 
-Open `get_repos.ps1` and locate the `$repos` array (around line 74). Add your new repository:
+3. **Common URL Patterns**:
+   - **Main Branch**: `https://github.com/owner/repo/archive/refs/heads/main.zip`
+   - **Specific Branch**: `https://github.com/owner/repo/archive/refs/heads/branch-name.zip`
+   - **Tagged Release**: `https://github.com/owner/repo/archive/refs/tags/v1.0.0.zip`
+   - **Release Asset**: `https://github.com/owner/repo/releases/download/v1.0.0/filename.zip`
 
-```powershell
-$repos = @(
-    # ... existing repos ...
-    @{ Name = "your_repo_name"; Uri = "https://github.com/owner/repo/archive/refs/heads/main.zip"; File = "repo.zip" }
-)
-```
+---
 
-### Step 2: Repository Entry Format
+## 🔧 Advanced Configuration
 
-Each repository entry requires three properties:
+### Winget Package Configuration
 
-```powershell
-@{ 
-    Name = "final_directory_name";           # Directory name after extraction
-    Uri = "https://download.url/file.zip";   # Download URL
-    File = "downloaded_filename.zip"         # Local filename for download
+The GUI installer uses JSON configuration files for package management:
+
+#### Adding Winget Applications
+```json
+{
+  "id": "Microsoft.VisualStudioCode",
+  "friendly_name": "Visual Studio Code", 
+  "summary": "Code editor",
+  "override_flags": null,
+  "install_location": null,
+  "version": null,
+  "version_check": "code --version",
+  "dependencies": null,
+  "skip_install": "no"
 }
 ```
 
-### Step 3: Common URL Patterns
-
-**GitHub Repository Downloads:**
-- **Main/Master Branch**: `https://github.com/owner/repo/archive/refs/heads/main.zip`
-- **Specific Branch**: `https://github.com/owner/repo/archive/refs/heads/branch-name.zip`
-- **Tagged Release**: `https://github.com/owner/repo/archive/refs/tags/v1.0.0.zip`
-- **Release Asset**: `https://github.com/owner/repo/releases/download/v1.0.0/filename.zip`
-
-### Step 4: Handle Special Extraction (If Needed)
-
-If your repository extracts to a different directory name than expected, add a case to the extraction switch statement (around line 235):
-
-```powershell
-switch ($name) {
-    # ... existing cases ...
-    "your_repo_name" { 
-        if (Test-Path "extracted-directory-name") {
-            Rename-Item "extracted-directory-name" $name 
-        }
-    }
+#### Adding External Applications  
+```json
+{
+  "name": "custom_app",
+  "friendly_name": "Custom Application",
+  "summary": "Custom application description",
+  "source": "https://download.url/installer.exe",
+  "install_flags": "--silent --accept-eula",
+  "download_location": ".\\Downloads\\CustomApp",
+  "uninstall_command": "C:\\Path\\To\\uninstaller.exe --silent",
+  "dependencies": [],
+  "skip_install": "no"
 }
 ```
 
-## Troubleshooting
+### File Structure
+```
+Windows_Software_Installation/
+├── README.md                              # This file
+├── get_repos.ps1                          # Repository downloader
+└── WingetGUI_Installer/
+    ├── README.md                          # GUI installer documentation  
+    └── EnvSetup/
+        ├── Env_Setup.ps1                 # Main installer script
+        ├── JSON/
+        │   ├── install/
+        │   │   └── applications.json     # Package definitions
+        │   └── uninstall/
+        │       └── uninstall.json        # Installed package tracking
+        ├── logs/                          # Installation logs
+        └── Public/                        # Core functionality modules
+            ├── GUI.ps1                    # GUI interface
+            ├── Install.ps1                # Installation functions
+            ├── Uninstall.ps1              # Uninstallation functions
+            ├── Append-ToJson.ps1          # JSON management
+            └── Write_ToLog.ps1            # Logging utilities
+```
+
+---
+
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
-**1. Download Failures**
-- Check internet connection
-- Verify URLs are accessible
-- Some repositories may require authentication
+#### Repository Downloader
+- **Download Failures**: Check internet connection and verify URLs are accessible
+- **Extraction Errors**: Ensure sufficient disk space and file permissions
+- **Permission Errors**: Run PowerShell as Administrator
 
-**2. Extraction Errors**
-- Ensure sufficient disk space
-- Check file permissions
-- Verify ZIP file integrity
+#### Winget GUI Installer
+- **"Package not found" during uninstall**: Package was already uninstalled by another method (system will recognize this as success)
+- **GUI doesn't show packages for uninstall**: No packages installed through this system yet
+- **Script hangs on startup**: Check for UAC dialog waiting for user response
+- **Installation shows as failed but package is installed**: Check logs for specific exit codes
 
-**3. Permission Errors**
-- Run PowerShell as Administrator
-- Check write permissions to target directory
+### Exit Code Reference
 
-### Script Behavior
+#### Installation Exit Codes
+- **0**: Successful installation
+- **-1978335212**: Already installed (treated as success)
+- **-1978335209**: Version not found (treated as failure)  
+- **-1978335210**: Package not found (treated as failure)
 
-**Re-running the Script:**
-- Skips existing directories automatically
-- Skips already downloaded ZIP files
-- Only downloads/extracts missing items
-- Safe to run multiple times
+#### Uninstall Exit Codes
+- **0**: Successfully uninstalled
+- **1**: Package not found (treated as success - goal achieved)
+- **-1978335212**: Package not in installed list (treated as success)
+- **-1978335210**: Package not found (treated as success - goal achieved)
 
-**Progress Display:**
-- Shows download completion count (e.g., "Downloads completed: 3/6")
-- Individual download progress every 5MB
-- Color-coded status messages
-
-## Output Examples
-
-### Successful Run
-```
-Waiting for 6 downloads to complete... (0 skipped)
-Downloads completed: 0/6
-Downloads completed: 1/6
-Downloads completed: 6/6
-
-Extracting 2025.2.zip -> openvino_notebooks...
-SUCCESS: openvino_notebooks ready.
-...
-Script completed successfully!
-```
-
-### Subsequent Run (Skipping Existing)
-```
-SKIP: openvino_notebooks directory already exists, skipping download.
-SKIP: openvino_build_deploy directory already exists, skipping download.
-...
-No downloads needed - all repositories already exist or are downloaded.
-```
-
-## Performance Notes
-
-- **Parallel Downloads**: Up to 5 simultaneous downloads
+### Performance Notes
+- **Parallel Downloads**: Up to 5 simultaneous downloads for repositories
 - **Memory Usage**: ~1MB buffer per download stream
 - **Retry Strategy**: Exponential backoff (2s, 4s, 8s delays)
-- **Progress Checking**: Every 500ms for completion status
+- **Bidirectional Compatibility**: Install via any method, uninstall via any method
 
-## License
+---
 
-This script is provided as-is for Intel AI Dev Kit setup. Individual repositories have their own licenses.
+## 📞 Support
+
+For technical assistance or feature requests:
+
+- **Repository Issues**: Check individual repository documentation
+- **GUI Installer Issues**: Check logs in `WingetGUI_Installer\EnvSetup\logs\`
+- **Feature Requests**: Contact development team
+
+## 📄 License
+
+This script collection is provided as-is for Intel AI Dev Kit setup. Individual repositories and packages have their own licenses.

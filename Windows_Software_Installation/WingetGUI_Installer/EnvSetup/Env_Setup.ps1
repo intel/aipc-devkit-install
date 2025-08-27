@@ -41,8 +41,17 @@
     - Ben (benjamin.j.odom@intel.com)
 #>
 param(
+    [Parameter(Position=0)]
     [string]$command # Accepts a command parameter: install, gui, or uninstall
 )
+
+# Process command parameters - handle both dash and no-dash formats
+if ($command -match "^-{1,2}(\w+)$") {
+    $command = $matches[1]  # Extract the command name without dashes
+}
+
+Write-Host "Running in mode: $command" -ForegroundColor Cyan
+
 <#
     Global variables
 #>
@@ -300,18 +309,59 @@ try {
             }
         }
 
-        # Print out which items are going to be downloaded
-        $applications = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json # Reads and parses the JSON file
-        Write-Host "Preparing to install the following applications:" -ForegroundColor Yellow
-        foreach ($app in $applications.winget_applications) {
-            $app_id = if ($app.id) { $app.id } else { $app.name }
-            $friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $app_id }
-            Write-Host "- $friendly_name ($app_id) - Source: Winget" -ForegroundColor Green
-            if ($null -ne $app.dependencies) {
-                Write-Host "  Dependencies:" -ForegroundColor Blue
-                foreach ($dep in $app.dependencies) {
-                    Write-Host "    - $($dep.name) v$($dep.version)" -ForegroundColor Blue
+        # Debug JSON file path
+        Write-Host "Debug: Loading JSON from path: $json_install_file_path" -ForegroundColor Magenta
+        if (Test-Path -Path $json_install_file_path) {
+            Write-Host "Debug: JSON file exists" -ForegroundColor Magenta
+            try {
+                $applications = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json # Reads and parses the JSON file
+                Write-Host "Debug: JSON file loaded successfully" -ForegroundColor Magenta
+                
+                # Print out which items are going to be downloaded
+                Write-Host "Preparing to install the following applications:" -ForegroundColor Yellow
+                foreach ($app in $applications.winget_applications) {
+                    $app_id = if ($app.id) { $app.id } else { $app.name }
+                    $friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $app_id }
+                    Write-Host "- $friendly_name ($app_id) - Source: Winget" -ForegroundColor Green
+                    if ($null -ne $app.dependencies) {
+                        Write-Host "  Dependencies:" -ForegroundColor Blue
+                        foreach ($dep in $app.dependencies) {
+                            Write-Host "    - $($dep.name) v$($dep.version)" -ForegroundColor Blue
+                        }
+                    }
                 }
+            } catch {
+                Write-Host "Debug: Error loading JSON file: $_" -ForegroundColor Red
+                Write-Host "Current directory: $(Get-Location)" -ForegroundColor Magenta
+                Write-Host "JSON file path: $json_install_file_path" -ForegroundColor Magenta
+                exit 1
+            }
+        } else {
+            Write-Host "Debug: JSON file does not exist at path: $json_install_file_path" -ForegroundColor Red
+            Write-Host "Current directory: $(Get-Location)" -ForegroundColor Magenta
+            Write-Host "Checking parent directories..." -ForegroundColor Magenta
+            $alternativePath = "$PSScriptRoot\..\JSON\install\applications.json"
+            if (Test-Path -Path $alternativePath) {
+                Write-Host "Found JSON at alternative path: $alternativePath" -ForegroundColor Green
+                $json_install_file_path = $alternativePath
+                $applications = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json
+                
+                # Print out which items are going to be downloaded
+                Write-Host "Preparing to install the following applications:" -ForegroundColor Yellow
+                foreach ($app in $applications.winget_applications) {
+                    $app_id = if ($app.id) { $app.id } else { $app.name }
+                    $friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $app_id }
+                    Write-Host "- $friendly_name ($app_id) - Source: Winget" -ForegroundColor Green
+                    if ($null -ne $app.dependencies) {
+                        Write-Host "  Dependencies:" -ForegroundColor Blue
+                        foreach ($dep in $app.dependencies) {
+                            Write-Host "    - $($dep.name) v$($dep.version)" -ForegroundColor Blue
+                        }
+                    }
+                }
+            } else {
+                Write-Host "Alternative path also not found. Exiting." -ForegroundColor Red
+                exit 1
             }
         }
 
@@ -396,27 +446,78 @@ try {
         }
     }
     elseif ($command -eq "uninstall") {
-        if (-not (Test-Path -Path $json_uninstall_file_path)) {
-            Write-Host "No Uninstall file specified. Please run installer first" -ForegroundColor Red
-            exit # Exits if the uninstall JSON file does not exist
-        }
-
+        Write-Host "Running in mode: uninstall" -ForegroundColor Yellow
+        
         # Setup uninstall logs
         Initialize-Directory $uninstall_logs_dir
         New-File $uninstall_log_file
-
+        Write-ToLog -message "Starting uninstall process" -log_file $uninstall_log_file
+        
+        if (-not (Test-Path -Path $json_uninstall_file_path)) {
+            $errorMessage = "No uninstall file found at: $json_uninstall_file_path. Please run installer first to create tracking file."
+            Write-Host $errorMessage -ForegroundColor Red
+            Write-ToLog -message $errorMessage -log_file $uninstall_log_file
+            Write-Host "Would you like to create an empty uninstall file to proceed? (y/n)" -ForegroundColor Yellow
+            $choice = Read-Host
+            
+            if ($choice -eq "y") {
+                try {
+                    # Create directory if it doesn't exist
+                    $uninstallDir = Split-Path -Path $json_uninstall_file_path -Parent
+                    if (-not (Test-Path -Path $uninstallDir)) {
+                        New-Item -Path $uninstallDir -ItemType Directory -Force | Out-Null
+                        Write-Host "Created directory: $uninstallDir" -ForegroundColor Green
+                    }
+                    
+                    # Create empty uninstall JSON file
+                    $emptyJson = @{
+                        "winget_applications" = @()
+                        "external_applications" = @()
+                    }
+                    $emptyJson | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Force
+                    Write-Host "Created empty uninstall file at: $json_uninstall_file_path" -ForegroundColor Green
+                    Write-ToLog -message "Created empty uninstall file" -log_file $uninstall_log_file
+                }
+                catch {
+                    Write-Host "Failed to create uninstall file: $_" -ForegroundColor Red
+                    Write-ToLog -message "Failed to create uninstall file: $_" -log_file $uninstall_log_file
+                    exit 1
+                }
+            }
+            else {
+                Write-Host "Uninstall operation cancelled" -ForegroundColor Yellow
+                exit 0
+            }
+        }
+        
         # Invoke the batch uninstallation process
         Invoke-BatchUninstall -json_uninstall_file_path $json_uninstall_file_path -uninstall_log_file $uninstall_log_file
+        
+        Write-Host "Uninstallation process completed. Check $uninstall_log_file for details." -ForegroundColor Green
     }
     else {
         $help_str = 
         @"
             Usage:
-                - gui
+                .\Env_Setup.ps1 gui
+                  or
+                .\Env_Setup.ps1 -gui
+                  or
+                .\Env_Setup.ps1 --gui
                     Shows a Windows Forms interface for interactive package selection and installation/uninstallation
-                - install
+                
+                .\Env_Setup.ps1 install
+                  or
+                .\Env_Setup.ps1 -install
+                  or
+                .\Env_Setup.ps1 --install
                     Installs all software specified in applications.json, checking for dependencies
-                - uninstall
+                
+                .\Env_Setup.ps1 uninstall
+                  or
+                .\Env_Setup.ps1 -uninstall
+                  or
+                .\Env_Setup.ps1 --uninstall
                     Uninstalls all software specified in uninstall.json
 "@
         Write-Host $help_str -ForegroundColor Red # Displays usage instructions if the command is invalid
