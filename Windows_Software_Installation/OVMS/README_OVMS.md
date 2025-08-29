@@ -37,7 +37,6 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 ### Image Generation
 - **GPU**: `OpenVINO/FLUX.1-schnell-int4-ov`
 - **CPU**: `OpenVINO/stable-diffusion-v1-5-int8-ov`
-- **NPU**: `OpenVINO/FLUX.1-schnell-int8-ov`
 
 ## Parameters
 
