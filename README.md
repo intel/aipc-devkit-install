@@ -87,30 +87,23 @@ Internal Mode
 External Mode
 -Silent Operation but with User Interaction: In external mode, users must manually accept pop-up agreements before utilizing the application.
 
-## How to run script
+## Pre-requisites to run script
 
-Pre-requisites
+
 Administrator Privileges: Ensure the "powershell" terminal is running in admin mode.
 
-- Step1 : `Set-ExecutionPolicy -ExecutionPolicy Unrestricted LocalMachine`
+- Example `Set-ExecutionPolicy -ExecutionPolicy Unrestricted LocalMachine`
 
-- Step2: `winget` must be installed on computer with latest version 1.10.X or higher
+- `winget` must be installed on computer with latest version 1.10.X or higher
   Winget Installation version verification use command: `winget --version`
   If not installed, execute
   Install-Module -Name Microsoft.WinGet.Client
   Repair-WinGetPackageManager -Force -Latest
 - Ensure you have the latest version `1.10.X`
 
-### Install
+- For every application installed a corresponding entry is created in `JSON\uninstall\uninstall.json`, once you have winget installed execute the script using `.\Env_Setup.ps1 install`
 
-- Once you have winget installed execute the script using `.\Env_Setup.ps1 install`
-- For every application installed a corresponding entry is created in `JSON\uninstall\uninstall.json`.
 
-### Uninstall
-
-- Execute `.\Env_Setup.ps1 uninstall`
-
-## JSON Structure
 
 #### Global Install Flags
 
@@ -121,17 +114,20 @@ Administrator Privileges: Ensure the "powershell" terminal is running in admin m
     - `--disable-interactivity` Another fallback to remove UAC agreements
     - `--force` Final check to ensure things resolve and install
 
-### Applications
+### Applications JSON Structure
 
 Winget Applications
 Applications installed via the Windows package manager, with automatic dependency resolution:
 {
-"name": "Application name",
-"override_flags": "optional",
-"install_location": "--location C:\\Optional\\install\\location",
-"version": "1.100.2",
-"version_check": "application --version",
-"dependencies": null
+"id": "Microsoft.VisualStudioCode",
+            "friendly_name": "Visual Studio Code",
+            "summary": "Code editor",
+            "override_flags": null,
+            "install_location": null,
+            "version": null,
+            "version_check": null,
+            "dependencies": null,
+            "skip_install": "no"
 }
 
 External Applications
@@ -160,6 +156,8 @@ Notes:-
 Installation Order: The installation process executes from top to bottom. It is recommended to place external applications and items with dependencies last to ensure required software is installed first.
 OneAPI Base Toolkit: This toolkit requires specific dependencies, including Visual Studio Community and .NET and C++ frameworks. For easy uninstallation, include the uninstall command, typically formatted as:
 C:\Program Files (x86)\Intel\oneAPI\Installer\installer.exe -s --action remove --product-id intel.oneapi.win.basekit.product --product-ver 2025.0.1+44
+
+"skip_install": "no" --indicates this is a mandatory install even if application is part of JSON, please set this to "yes" if you dont want this application to be installed by default.
 
 To find the specific product version, execute:
 .\installer.exe --list-products
