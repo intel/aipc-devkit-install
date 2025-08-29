@@ -45,6 +45,14 @@ param(
     [string]$command # Accepts a command parameter: install, gui, or uninstall
 )
 
+
+# ===================== GENERIC IMPORTANT INSTALLATION WARNING =====================
+Write-Host "=============================================================" -ForegroundColor Yellow
+Write-Host "*** IMPORTANT ACTION REQUIRED: If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory. ***" -ForegroundColor White -BackgroundColor DarkRed
+Write-Host "=============================================================" -ForegroundColor Yellow
+Write-Host "Waiting 5 seconds for you to review this warning..." -ForegroundColor Yellow
+Start-Sleep -Seconds 5
+
 # Process command parameters - handle both dash and no-dash formats
 if ($command -match "^-{1,2}(\w+)$") {
     $command = $matches[1]  # Extract the command name without dashes
@@ -71,7 +79,7 @@ function Test-FreeDiskSpace {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory=$false)]
-        [int]$minGB = 1000
+        [int]$minGB = 100
     )
     $drive = (Get-Location).Path.Substring(0,1)
     $freeSpaceGB = [math]::Round((Get-PSDrive -Name $drive).Free/1GB,2)
@@ -80,13 +88,13 @@ function Test-FreeDiskSpace {
     if ($freeSpaceGB -lt $minGB) {
         Write-Host "!!! RECOMMENDED: At least $minGB GB of free disk space for smooth installation !!!" -ForegroundColor Red -BackgroundColor Yellow
         Write-Host "Only $freeSpaceGB GB available. You may proceed, but issues may occur if space runs out." -ForegroundColor Yellow
-        Write-Host "*** IMPORTANT ACTION REQUIRED: If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory. ***" -ForegroundColor White -BackgroundColor DarkRed
         Write-Host "Waiting 5 seconds for you to review this warning..." -ForegroundColor Yellow
         Start-Sleep -Seconds 5
     } else {
         Write-Host "You have adequate disk space to continue installation." -ForegroundColor Green
     }
     Write-Host "=============================================================" -ForegroundColor Yellow
+
 }
 
 # Run disk space check before any installation or GUI mode
