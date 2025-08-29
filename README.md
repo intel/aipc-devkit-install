@@ -7,9 +7,11 @@ Welcome to the AIPC Application Installer. This application is specifically desi
 **Note**:-  If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory.
 
 **New in v2.0:**
--**Interactive GUI Mode**: Windows Forms interface
-    -**Integrated Install **: Visual interface for for visual package selection and installation
-    -**Integrated Uninstall **: Visual interface for visual package uninstall of previously installed packages
+
+- **Interactive GUI Mode**: Windows Forms interface
+  
+      Integrated Install: Visual interface for for visual package selection and installation
+      Integrated Uninstall: Visual interface for visual package uninstall of previously installed packages
 - **Enhanced JSON Structure**: Improved package descriptions with friendly names and summaries
 - **Advanced Exit Code Handling**: Robust error detection and handling for both install and uninstall operations
 - **Automatic Administrator Privileges**: Smart detection and elevation requests for all operations
@@ -70,13 +72,6 @@ cd Windows_Software_Installation
 ```
 This will pull a number of repositories and build the necessary environments to execute the samples.
 
-
-## Documentation
-
-For detailed documentation, configuration guides, and troubleshooting:
-- **Windows Installer Documentation**: [Windows_Software_Installation/README.md](./Windows_Software_Installation/README.md)
-- **JSON Configuration**: [Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json](./Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json)
-
 ## Options Internal vs External
 
 Internal Mode
@@ -115,7 +110,8 @@ Administrator Privileges: Ensure the "powershell" terminal is running in admin m
     - `--force` Final check to ensure things resolve and install
 
 ### Applications JSON Structure
-
+- **JSON Configuration**: [Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json](./Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json)
+  
 Winget Applications
 Applications installed via the Windows package manager, with automatic dependency resolution:
 {
@@ -226,6 +222,11 @@ This script runs a basic command line version check with the specified tool
 
 - Uninstall of Clink and Microsoft Visual Studio Installer does not have a silent and suppress window method, user interaction is required. There is no available solution with winget and will be resolved when the software vendor releases a patch.This is not a blocker and functionality of this installer is not hampered in anyway.
 - If python is installed please make sure Python is added to the system's PATH environment variable. This step is manual and not part of installation
+
+## Documentation
+
+For detailed documentation, configuration guides, and troubleshooting:
+- **Windows Installer Documentation**: [Windows_Software_Installation/README.md](./Windows_Software_Installation/README.md)
 
 ## Support
 
