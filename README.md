@@ -114,8 +114,11 @@ Administrator Privileges: Ensure the "powershell" terminal is running in admin m
   
 Winget Applications
 Applications installed via the Windows package manager, with automatic dependency resolution:
-{
-"id": "Microsoft.VisualStudioCode",
+
+  {
+   
+  
+            "id": "Microsoft.VisualStudioCode",
             "friendly_name": "Visual Studio Code",
             "summary": "Code editor",
             "override_flags": null,
@@ -124,29 +127,29 @@ Applications installed via the Windows package manager, with automatic dependenc
             "version_check": null,
             "dependencies": null,
             "skip_install": "no"
-}
+   }
 
 External Applications
 Applications not installed via the Windows package manager, requiring a URL for download via curl
 
-{
-"name": "one_api_base_toolkit",
-"source": "https://install_url/application.exe",
-"install_flags": "--some --exes --want --install --flags",
-"download_location": "C:\\Required\\download\\location",
-"uninstall_command": "C:\\Required\\download\\location\\uninstaller.exe",
-"dependencies": [
-{
-"name": "Optional Dependency"
-},
-{
-"name": "Visual Studio Code"
-},
-{
-"name": "C++ Redistribution"
-}
-]
-}
+    {
+    "name": "one_api_base_toolkit",
+    "source": "https://install_url/application.exe",
+    "install_flags": "--some --exes --want --install --flags",
+    "download_location": "C:\\Required\\download\\location",
+    "uninstall_command": "C:\\Required\\download\\location\\uninstaller.exe",
+    "dependencies": [
+    {
+    "name": "Optional Dependency"
+    },
+    {
+    "name": "Visual Studio Code"
+    },
+    {
+    "name": "C++ Redistribution"
+    }
+    ]
+    }
 
 Notes:-
 Installation Order: The installation process executes from top to bottom. It is recommended to place external applications and items with dependencies last to ensure required software is installed first.
