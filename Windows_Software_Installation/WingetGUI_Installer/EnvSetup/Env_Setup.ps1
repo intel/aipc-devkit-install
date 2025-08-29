@@ -71,7 +71,7 @@ function Test-FreeDiskSpace {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory=$false)]
-        [int]$minGB = 1000
+        [int]$minGB = 100
     )
     $drive = (Get-Location).Path.Substring(0,1)
     $freeSpaceGB = [math]::Round((Get-PSDrive -Name $drive).Free/1GB,2)
