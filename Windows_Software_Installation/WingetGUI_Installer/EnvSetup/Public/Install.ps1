@@ -81,25 +81,37 @@ function Install-SelectedPackages {
         FailedPackages = @()
     }
 
+    # Load the full applications.json for reference
+    $applications = Get-Content -Path (Join-Path $PSScriptRoot "..\JSON\install\applications.json") -Raw | ConvertFrom-Json
+
     foreach ($package in $selectedPackages) {
-        # Create app object from the package information in the datatable
-        $app = [PSCustomObject]@{
-            name = $package.Id
-            friendly_name = $package.FriendlyName
-            version = if ($package.Version -eq "Latest") { $null } else { $package.Version }
-            silent = $true
-            force = $true
-        }
-        
-        # For external applications
+        # Try to find the full app object from JSON (winget or external)
+        $app = $null
         if ($package.Type -eq "External") {
-            # Need to look up the original application details to get URL and other info
-            $applications = Get-Content -Path (Join-Path $PSScriptRoot "..\JSON\install\applications.json") -Raw | ConvertFrom-Json
-            $originalApp = $applications.external_applications | Where-Object { $_.name -eq $app.name } | Select-Object -First 1
-            
-            if ($originalApp) {
-                $app = $originalApp
+            $app = $applications.external_applications | Where-Object { $_.name -eq $package.Id } | Select-Object -First 1
+        } else {
+            $app = $applications.winget_applications | Where-Object { ($_.id -eq $package.Id) -or ($_.name -eq $package.Id) } | Select-Object -First 1
+        }
+        # If not found, fallback to datatable info
+        if (-not $app) {
+            $app = [PSCustomObject]@{
+                name = $package.Id
+                friendly_name = $package.FriendlyName
+                version = if ($package.Version -eq "Latest") { $null } else { $package.Version }
+                silent = $true
+                force = $true
             }
+        }
+        # Always ensure silent/force for GUI, even if property doesn't exist
+        if ($app.PSObject.Properties.Name -contains 'silent') {
+            $app.silent = $true
+        } else {
+            $app | Add-Member -MemberType NoteProperty -Name 'silent' -Value $true -Force
+        }
+        if ($app.PSObject.Properties.Name -contains 'force') {
+            $app.force = $true
+        } else {
+            $app | Add-Member -MemberType NoteProperty -Name 'force' -Value $true -Force
         }
         
         $success = $false
@@ -179,12 +191,12 @@ function Install-WingetApplication {
         # Handle special case for Visual Studio
         if ($appIdentifier -like "*VisualStudio*") {
             Write-ToLog -message "Using Visual Studio custom override flags for $($appDisplayName): $($app.override_flags)" -log_file $log_file
-            $arguments += @("--override", $app.override_flags)
+            $arguments += @("--override", "`"$($app.override_flags)`"")
         }
         # For other applications
         else {
             Write-ToLog -message "Using custom override flags for $($appDisplayName): $($app.override_flags)" -log_file $log_file
-            $arguments += @("--override", $app.override_flags)
+            $arguments += @("--override", "`"$($app.override_flags)`"")
         }
     }
     
