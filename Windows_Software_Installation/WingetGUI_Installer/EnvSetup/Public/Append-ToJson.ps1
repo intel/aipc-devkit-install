@@ -339,8 +339,10 @@ function Remove-FromJsonById {
         if ($item.PSObject.Properties.Name -contains "id") {
             $itemId = ($item.id | Out-String).Trim()
         }
-        Write-Host "Comparing item.id '$itemId' with target id '$($id.Trim())'" -ForegroundColor DarkYellow
-        if (-not ($itemId -ieq $id.Trim())) {
+        if ($itemId -ieq $id.Trim()) {
+            Write-Host "Match found: Removing item.id '$itemId' (target id: '$($id.Trim())')" -ForegroundColor DarkYellow
+            # Do not add to filteredArray, i.e., remove it
+        } else {
             $filteredArray += $item
         }
     }

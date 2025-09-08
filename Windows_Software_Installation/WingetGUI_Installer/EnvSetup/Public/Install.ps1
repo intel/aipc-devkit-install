@@ -37,30 +37,19 @@ function Install-SelectedPackages {
         }
         $appType = if ($app.PSObject.Properties["id"]) { "winget" } elseif ($app.PSObject.Properties["source"]) { "external" } else { "unknown" }
         $appName = if ($app.friendly_name) { $app.friendly_name } elseif ($app.name) { $app.name } elseif ($app.id) { $app.id } else { "UnknownApp" }
-        $skipInstallMsg = if ($app.PSObject.Properties["skip_install"]) { "skip_install=" + $app.skip_install } else { "skip_install not set" }
-        # Debug: Show the raw app object and all property names for troubleshooting (now inside loop)
-        Write-Host ("[DEBUG] Raw app object for " + $appName + ": " + ($app | Out-String)) -ForegroundColor Cyan
-        $propertyNames = $app.PSObject.Properties | ForEach-Object { $_.Name }
-        Write-Host ("[DEBUG] Property names for " + $appName + ": " + ($propertyNames -join ", ")) -ForegroundColor Cyan
         $overrideFlags = $null
         if ($app.PSObject.Properties["override_flags"]) {
             $overrideFlags = $app.override_flags
             if ($null -ne $app.override_flags) {
-                Write-Host ("[DEBUG] app.override_flags property type for " + $appName + ": " + ($app.override_flags.GetType().FullName)) -ForegroundColor Cyan
             } else {
-                Write-Host ("[DEBUG] app.override_flags is null for " + $appName) -ForegroundColor Cyan
             }
         } elseif ($app.PSObject.Properties["OverrideFlags"]) {
             $overrideFlags = $app.OverrideFlags
             if ($null -ne $app.OverrideFlags) {
-                Write-Host ("[DEBUG] app.OverrideFlags property type for " + $appName + ": " + ($app.OverrideFlags.GetType().FullName)) -ForegroundColor Cyan
             } else {
-                Write-Host ("[DEBUG] app.OverrideFlags is null for " + $appName) -ForegroundColor Cyan
             }
         } else {
-            Write-Host ("[DEBUG] app.override_flags/OverrideFlags property not found for " + $appName) -ForegroundColor Red
         }
-        Write-Host ("[INFO] Processing app: $appName ($appType) - $skipInstallMsg") -ForegroundColor Cyan
         $result = @{ name = $appName; type = $appType; status = "skipped"; message = "" }
 
         if ($appType -eq "winget") {
@@ -68,7 +57,6 @@ function Install-SelectedPackages {
                 Write-ToLog -message "Installing winget app: $appName" -log_file $log_file
                 $wingetArgs = @("install", "--id", $app.id, "--accept-source-agreements", "--accept-package-agreements", "-h")
                 if ($overrideFlags) {
-                    Write-Host ("[DEBUG] override_flags/OverrideFlags for " + $appName + ": " + $overrideFlags) -ForegroundColor Yellow
                     Write-ToLog -message ("override_flags/OverrideFlags for " + $appName + ": " + $overrideFlags) -log_file $log_file
                     $wingetArgs += "--override"
                     $wingetArgs += "`"$overrideFlags`""
@@ -76,7 +64,6 @@ function Install-SelectedPackages {
                     $wingetArgs += $app.install_args
                 }
                 $wingetArgsString = $wingetArgs -join ' '
-                Write-Host ("[INFO] Winget install arguments for " + $appName + ": " + $wingetArgsString) -ForegroundColor Magenta
                 $process = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -PassThru -Wait -NoNewWindow
                 $exit_code = $process.ExitCode
                 $success = Test-InstallationSuccess -exit_code $exit_code -app_name $appName -log_file $log_file
@@ -91,7 +78,6 @@ function Install-SelectedPackages {
                         installed_on = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
                         last_updated = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
                     }
-                    Write-Host "[DEBUG] Adding to uninstall (winget): id=$($trackingApp.id), name=$($trackingApp.name), friendly_name=$($trackingApp.friendly_name)" -ForegroundColor Yellow
                     Append-ToJson -jsonFilePath $uninstall_json_file -section "winget_applications" -newObject $trackingApp
                     $result.status = "success"
                     $result.message = "Installed and tracked."
@@ -276,7 +262,6 @@ function Install-ExternalApplication {
                 Write-ToLog -message "$appDisplayName appears to be already installed. Adding to tracking file anyway." -log_file $log_file
                 $success = $true
             }
-            Write-Host "[DEBUG] Adding to uninstall (external): name=$($trackingApp.name), friendly_name=$($trackingApp.friendly_name), uninstall_command=$($trackingApp.uninstall_command)" -ForegroundColor Yellow
             # Handle tracking based on mode
             if (-not [string]::IsNullOrWhiteSpace($uninstall_json_file)) {
                 # GUI mode: append to JSON file immediately
