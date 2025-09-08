@@ -330,9 +330,10 @@ try {
                 $applications = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json # Reads and parses the JSON file
                 Write-Host "Debug: JSON file loaded successfully" -ForegroundColor Magenta
                 
-                # Print out which items are going to be downloaded
+                # Print out which items are going to be downloaded (skip_install != yes)
+                $toInstall = $applications.winget_applications | Where-Object { -not $_.skip_install -or $_.skip_install.ToString().ToLower() -ne 'yes' }
                 Write-Host "Preparing to install the following applications:" -ForegroundColor Yellow
-                foreach ($app in $applications.winget_applications) {
+                foreach ($app in $toInstall) {
                     $app_id = if ($app.id) { $app.id } else { $app.name }
                     $friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $app_id }
                     Write-Host "- $friendly_name ($app_id) - Source: Winget" -ForegroundColor Green
@@ -378,8 +379,9 @@ try {
             }
         }
 
+        $toInstallExternal = $applications.external_applications | Where-Object { -not $_.skip_install -or $_.skip_install.ToString().ToLower() -ne 'yes' }
         Write-Host "Additional external applications" -ForegroundColor Yellow
-        foreach ($app in $applications.external_applications) {
+        foreach ($app in $toInstallExternal) {
             $friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $app.name }
             Write-Host "- $friendly_name ($($app.name)) - Source: External" -ForegroundColor Green
             if ($null -ne $app.dependencies) {
@@ -423,8 +425,22 @@ try {
             }
         }
 
-        # Invoke the batch installation process
-        Invoke-BatchInstall -json_install_file_path $json_install_file_path -install_log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+    # Invoke the installation process (per-app tracking, pass loaded app arrays)
+    # Install winget applications
+    if ($applications.winget_applications) {
+        $wingetToInstall = $applications.winget_applications | Where-Object { -not $_.skip_install -or $_.skip_install.ToString().ToLower() -ne 'yes' }
+        if ($wingetToInstall.Count -gt 0) {
+            Install-SelectedPackages -selectedPackages $wingetToInstall -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+        }
+    }
+
+    # Install external applications
+    if ($applications.external_applications) {
+        $externalToInstall = $applications.external_applications | Where-Object { -not $_.skip_install -or $_.skip_install.ToString().ToLower() -ne 'yes' }
+        if ($externalToInstall.Count -gt 0) {
+            Install-SelectedPackages -selectedPackages $externalToInstall -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+        }
+    }
 
         # Copy install logs to desktop
         $username = [Environment]::UserName

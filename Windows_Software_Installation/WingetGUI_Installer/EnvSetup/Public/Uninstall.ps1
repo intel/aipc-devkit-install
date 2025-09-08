@@ -152,7 +152,7 @@ function Uninstall-WingetApplication {
     # Add the application ID
     $arguments += @("--id", $appIdentifier)
     
-    if ($app.version) {
+    if ($app.version -and $app.version -ne "Latest" -and $app.version -ne "" -and $app.version -ne $null) {
         $arguments += @("-v", $app.version)
     }
     
