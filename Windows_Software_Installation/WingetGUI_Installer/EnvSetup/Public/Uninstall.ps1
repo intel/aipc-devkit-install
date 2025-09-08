@@ -63,29 +63,28 @@ function Uninstall-SelectedPackages {
 
     foreach ($package in $selectedPackages) {
         # Create app object from the package information in the datatable
-        # Handle different field structures for winget vs external applications
         if ($package.Type -eq "Winget") {
-            # For winget applications, $package.Id contains the winget ID
             $app = [PSCustomObject]@{
-                id = $package.Id  # Use 'id' field for winget applications
+                id = $package.Id
                 friendly_name = $package.FriendlyName
                 version = if ($package.Version -eq "Latest") { $null } else { $package.Version }
             }
+            $section = "winget_applications"
+            $id = $package.Id
         } else {
-            # For external applications and fallback cases
             $app = [PSCustomObject]@{
-                name = $package.Id  # Use 'name' field for external applications
+                name = $package.Id
                 friendly_name = $package.FriendlyName
                 version = if ($package.Version -eq "Latest") { $null } else { $package.Version }
             }
+            $section = "external_applications"
+            $id = $package.Id
         }
         
-        # For external applications, we need to look up the full details including uninstall_command
+        # For external applications, look up the full details including uninstall_command
         if ($package.Type -eq "External") {
-            # Need to look up the original application details to get uninstall command
             $uninstallJson = Get-Content -Path $json_uninstall_file_path -Raw | ConvertFrom-Json
             $originalApp = $uninstallJson.external_applications | Where-Object { $_.name -eq $app.name } | Select-Object -First 1
-            
             if ($originalApp) {
                 $app = $originalApp
             }
@@ -93,15 +92,15 @@ function Uninstall-SelectedPackages {
         
         try {
             if ($app.PSObject.Properties.Name -contains "uninstall_command") {
-                # This is an external application
                 $success = Uninstall-ExternalApplication -app $app -log_file $log_file
             } else {
-                # This is a winget application
                 $success = Uninstall-WingetApplication -app $app -log_file $log_file
             }
             
             if ($success) {
                 $results.SuccessfulUninstalls++
+                # Remove from uninstall.json after successful uninstall
+                Remove-FromJsonById -jsonFilePath $json_uninstall_file_path -section $section -id $id
             } else {
                 $results.FailedUninstalls++
                 $appName = if ($app.friendly_name) { $app.friendly_name } else { if ($app.id) { $app.id } else { $app.name } }
@@ -301,14 +300,19 @@ function Invoke-BatchUninstall {
     $failedWingetUninstalls = 0
     $successfulExternalUninstalls = 0
     $failedExternalUninstalls = 0
+
+    # Import Remove-FromJsonById from Append-ToJson.ps1 if not already available
+    if (-not (Get-Command Remove-FromJsonById -ErrorAction SilentlyContinue)) {
+        $appendToJsonPath = Join-Path -Path (Split-Path $PSScriptRoot -Parent) -ChildPath "Public\Append-ToJson.ps1"
+        if (Test-Path $appendToJsonPath) {
+            . $appendToJsonPath
+        }
+    }
     
     # Uninstall winget applications
     if ($applications.winget_applications -and $applications.winget_applications.Count -gt 0) {
         Write-Host "Uninstalling $($applications.winget_applications.Count) winget applications..." -ForegroundColor Cyan
         Write-ToLog -message "Uninstalling $($applications.winget_applications.Count) winget applications" -log_file $uninstall_log_file
-        
-        # Create a temporary array to hold applications that were successfully uninstalled
-        $successfullyUninstalled = @()
         
         foreach ($app in $applications.winget_applications) {
             $appName = if ($app.friendly_name) { $app.friendly_name } else { if ($app.id) { $app.id } else { $app.name } }
@@ -317,25 +321,13 @@ function Invoke-BatchUninstall {
             $success = Uninstall-WingetApplication -app $app -log_file $uninstall_log_file
             if ($success) {
                 $successfulWingetUninstalls++
-                $successfullyUninstalled += $app
-                Write-Host "Successfully uninstalled: $appName" -ForegroundColor Green
+                # Remove from uninstall.json immediately after uninstall
+                Remove-FromJsonById -jsonFilePath $json_uninstall_file_path -section "winget_applications" -id $app.id
+                Write-Host "Successfully uninstalled and removed from tracking: $appName" -ForegroundColor Green
             } else {
                 $failedWingetUninstalls++
                 Write-Host "Failed to uninstall: $appName" -ForegroundColor Red
             }
-        }
-        
-        # Remove successfully uninstalled applications from the uninstall.json file
-        if ($successfullyUninstalled.Count -gt 0) {
-            $updatedWingetApps = $applications.winget_applications | Where-Object { 
-                $current = $_
-                -not ($successfullyUninstalled | Where-Object { 
-                    ($_.id -eq $current.id -or $_.name -eq $current.name) 
-                })
-            }
-            $applications.winget_applications = $updatedWingetApps
-            Write-Host "Removed $($successfullyUninstalled.Count) applications from tracking file" -ForegroundColor Green
-            Write-ToLog -message "Removed $($successfullyUninstalled.Count) applications from tracking file" -log_file $uninstall_log_file
         }
     } else {
         Write-Host "No winget applications found to uninstall" -ForegroundColor Yellow
@@ -347,9 +339,6 @@ function Invoke-BatchUninstall {
         Write-Host "Uninstalling $($applications.external_applications.Count) external applications..." -ForegroundColor Cyan
         Write-ToLog -message "Uninstalling $($applications.external_applications.Count) external applications" -log_file $uninstall_log_file
         
-        # Create a temporary array to hold applications that were successfully uninstalled
-        $successfullyUninstalled = @()
-        
         foreach ($app in $applications.external_applications) {
             $appName = if ($app.friendly_name) { $app.friendly_name } else { $app.name }
             Write-Host "Uninstalling external application: $appName" -ForegroundColor Cyan
@@ -357,55 +346,35 @@ function Invoke-BatchUninstall {
             $success = Uninstall-ExternalApplication -app $app -log_file $uninstall_log_file
             if ($success) {
                 $successfulExternalUninstalls++
-                $successfullyUninstalled += $app
-                Write-Host "Successfully uninstalled: $appName" -ForegroundColor Green
+                # Remove from uninstall.json immediately after uninstall
+                Remove-FromJsonById -jsonFilePath $json_uninstall_file_path -section "external_applications" -id $app.name
+                Write-Host "Successfully uninstalled and removed from tracking: $appName" -ForegroundColor Green
             } else {
                 $failedExternalUninstalls++
                 Write-Host "Failed to uninstall: $appName" -ForegroundColor Red
             }
         }
-        
-        # Remove successfully uninstalled applications from the uninstall.json file
-        if ($successfullyUninstalled.Count -gt 0) {
-            $updatedExternalApps = $applications.external_applications | Where-Object { 
-                $current = $_
-                -not ($successfullyUninstalled | Where-Object { $_.name -eq $current.name })
-            }
-            $applications.external_applications = $updatedExternalApps
-            Write-Host "Removed $($successfullyUninstalled.Count) external applications from tracking file" -ForegroundColor Green
-            Write-ToLog -message "Removed $($successfullyUninstalled.Count) external applications from tracking file" -log_file $uninstall_log_file
-        }
     } else {
         Write-Host "No external applications found to uninstall" -ForegroundColor Yellow
         Write-ToLog -message "No external applications found to uninstall" -log_file $uninstall_log_file
     }
-    
-    # Save the updated uninstall.json file
-    try {
-        $applications | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Force
-        Write-Host "Updated uninstall tracking file" -ForegroundColor Green
-        Write-ToLog -message "Updated uninstall tracking file" -log_file $uninstall_log_file
-        
-        # If everything was successfully uninstalled, automatically remove the tracking file
-        if (($null -eq $applications.winget_applications -or $applications.winget_applications.Count -eq 0) -and 
-            ($null -eq $applications.external_applications -or $applications.external_applications.Count -eq 0)) {
-            Write-Host "All applications were successfully uninstalled." -ForegroundColor Green
-            Write-Host "Automatically removing the uninstall tracking file..." -ForegroundColor Yellow
-            
-            try {
-                Remove-Item -Path $json_uninstall_file_path -Force
-                Write-Host "Uninstall tracking file removed." -ForegroundColor Green
-                Write-ToLog -message "Uninstall tracking file automatically removed after successful uninstallation of all applications." -log_file $uninstall_log_file
-            }
-            catch {
-                Write-Host "Warning: Could not remove uninstall tracking file: $_" -ForegroundColor Yellow
-                Write-ToLog -message "Warning: Could not remove uninstall tracking file: $_" -log_file $uninstall_log_file
-            }
+
+    # At this point, Remove-FromJsonById will have deleted uninstall.json if all apps are removed.
+    # If the file still exists, update it (for any failed uninstalls)
+    if (Test-Path $json_uninstall_file_path) {
+        try {
+            $applications = Get-Content -Path $json_uninstall_file_path -Raw | ConvertFrom-Json
+            $applications | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Force
+            Write-Host "Updated uninstall tracking file" -ForegroundColor Green
+            Write-ToLog -message "Updated uninstall tracking file" -log_file $uninstall_log_file
         }
-    }
-    catch {
-        Write-Host "Error updating uninstall tracking file: $_" -ForegroundColor Red
-        Write-ToLog -message "Error updating uninstall tracking file: $_" -log_file $uninstall_log_file
+        catch {
+            Write-Host "Error updating uninstall tracking file: $_" -ForegroundColor Red
+            Write-ToLog -message "Error updating uninstall tracking file: $_" -log_file $uninstall_log_file
+        }
+    } else {
+        Write-Host "Uninstall tracking file removed (all apps uninstalled)." -ForegroundColor Green
+        Write-ToLog -message "Uninstall tracking file removed (all apps uninstalled)." -log_file $uninstall_log_file
     }
     
     # Summarize results
