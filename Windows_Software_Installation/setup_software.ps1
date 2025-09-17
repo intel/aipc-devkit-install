@@ -267,10 +267,10 @@ $jobs = @()
 
 # Define Repos
 $repos = @(
-    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/2025.2.zip"; File = "2025.2.zip" },
+    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/2025.3.zip"; File = "2025.3.zip" },
     @{ Name = "openvino_build_deploy"; Uri = "https://github.com/openvinotoolkit/openvino_build_deploy/archive/refs/heads/master.zip"; File = "master-build_deploy.zip" },
     @{ Name = "ollama-ipex-llm"; Uri = "https://github.com/ipex-llm/ipex-llm/releases/download/v2.3.0-nightly/ollama-ipex-llm-2.3.0b20250725-win.zip"; File = "ollama-ipex-llm.zip" },
-    @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/windows/openvino_genai_windows_2025.2.0.0_x86_64.zip"; File = "openvino_genai.zip" },
+    @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/windows/openvino_genai_windows_2025.3.0.0_x86_64.zip"; File = "openvino_genai.zip" },
     @{ Name = "AI-PC-Samples"; Uri = "https://github.com/intel/AI-PC-Samples/archive/refs/heads/main.zip"; File = "ai-pc-samples.zip" },
     @{ Name = "open_model_zoo"; Uri = "https://github.com/openvinotoolkit/open_model_zoo/archive/refs/tags/2024.4.0.zip"; File = "2024.4.0.zip" }
 )

@@ -2,6 +2,17 @@
   "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity --force",
   "winget_applications": [
     {
+      "id": "Microsoft.NuGet",
+      "friendly_name": "NuGet Package Manager",
+      "summary": "Package manager for .NET",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
       "id": "Microsoft.VisualStudioCode",
       "friendly_name": "Visual Studio Code",
       "summary": "Code editor",
