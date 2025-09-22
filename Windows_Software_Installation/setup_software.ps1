@@ -265,7 +265,7 @@ $runspacePool.Open()
 
 $jobs = @()
 
-# Define Repos
+# Define Repos - FIXED VERSION NUMBERS
 $repos = @(
     @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/2025.3.zip"; File = "2025.3.zip" },
     @{ Name = "openvino_build_deploy"; Uri = "https://github.com/openvinotoolkit/openvino_build_deploy/archive/refs/heads/master.zip"; File = "master-build_deploy.zip" },
@@ -404,7 +404,7 @@ $downloadResults = foreach ($job in $jobs) {
     }
 }
 
-# Extract archives
+# Extract archives - FIXED DIRECTORY NAMES
 foreach ($result in $downloadResults) {
     if (-not $result.Success) {
         Write-Error "Skipping extraction for $($result.Name) due to download failure."
@@ -426,8 +426,9 @@ foreach ($result in $downloadResults) {
 
         switch ($name) {
             "openvino_notebooks"     { 
-                if (Test-Path "openvino_notebooks-2025.2") {
-                    Rename-Item "openvino_notebooks-2025.2" $name 
+                # FIXED: Updated from 2025.2 to 2025.3
+                if (Test-Path "openvino_notebooks-2025.3") {
+                    Rename-Item "openvino_notebooks-2025.3" $name 
                 }
             }
             "openvino_build_deploy"  { 
@@ -446,8 +447,9 @@ foreach ($result in $downloadResults) {
                 }
             }
             "openvino_genai"         { 
-                if (Test-Path "openvino_genai_windows_2025.2.0.0_x86_64") {
-                    Rename-Item "openvino_genai_windows_2025.2.0.0_x86_64" $name 
+                # FIXED: Updated from 2025.2.0.0 to 2025.3.0.0
+                if (Test-Path "openvino_genai_windows_2025.3.0.0_x86_64") {
+                    Rename-Item "openvino_genai_windows_2025.3.0.0_x86_64" $name 
                 }
             }
             "ollama-ipex-llm"        { 
@@ -524,12 +526,13 @@ if (Test-Path "openvino_build_deploy") {
         $venvPath = New-PythonVenv -Path $workshopPath
         if ($venvPath) {
             Write-Host "Installing OpenVINO and Ultralytics packages..."
-            $packages = @("openvino==2025.1.0", "ultralytics==8.3.120")
+            # UPDATED: Changed from 2025.1.0 to 2025.3.0 to match the current version
+            $packages = @("openvino==2025.3.0", "ultralytics==8.3.120")
             $success = Install-PipPackages -VenvPath $venvPath -Packages $packages
             if ($success) {
                 Install-JupyterKernel -VenvPath $venvPath -KernelName "msbuild2025_workshop" -DisplayName "MSBuild2025 Workshop"
             } else {
-                Write-Host "Manual command: cd `"$workshopPath`"; .\venv\Scripts\activate; pip install openvino==2025.1.0 ultralytics==8.3.120" -ForegroundColor Yellow
+                Write-Host "Manual command: cd `"$workshopPath`"; .\venv\Scripts\activate; pip install openvino==2025.3.0 ultralytics==8.3.120" -ForegroundColor Yellow
             }
         }
     }
@@ -571,12 +574,13 @@ if (Test-Path "openvino_genai") {
     # Test build environment and attempt to build C++ samples
     $cppSamplesPath = Join-Path $genaiPath "samples\cpp"
     if (Test-Path $cppSamplesPath) {
-        Set-Location $cppSamplesPath
+        # Ensure we're in the correct directory for building
+        Push-Location $cppSamplesPath
         
         if (Test-BuildEnvironment) {
             $buildScript = Join-Path $cppSamplesPath "build_samples.ps1"
             if (Test-Path $buildScript) {
-                Write-Host "Building C++ samples..." -ForegroundColor Cyan
+                Write-Host "Building C++ samples in: $cppSamplesPath" -ForegroundColor Cyan
                 try {
                     # Use CMAKE_POLICY_VERSION_MINIMUM for CMake 4.0 compatibility
                     $env:CMAKE_POLICY_VERSION_MINIMUM = "3.5"
@@ -600,11 +604,11 @@ if (Test-Path "openvino_genai") {
                     # Try direct cmake approach with CMAKE_POLICY_VERSION_MINIMUM
                     try {
                         Write-Host "Trying direct CMake build with policy version minimum..." -ForegroundColor Cyan
-                        $buildDir = "build"
+                        $buildDir = Join-Path $cppSamplesPath "build"
                         if (-not (Test-Path $buildDir)) {
                             New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
                         }
-                        Set-Location $buildDir
+                        Push-Location $buildDir
                         
                         # Configure with CMAKE_POLICY_VERSION_MINIMUM
                         & cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release
@@ -616,10 +620,12 @@ if (Test-Path "openvino_genai") {
                                 Write-Host "Direct CMake build completed with warnings" -ForegroundColor Yellow
                             }
                         }
-                        Set-Location ..
+                        Pop-Location
                     }
                     catch {
                         Write-Host "Direct CMake approach also failed: $_" -ForegroundColor Yellow
+                        # Ensure we return to the correct location even on error
+                        try { Pop-Location } catch { }
                     }
                 }
                 finally {
@@ -637,6 +643,9 @@ if (Test-Path "openvino_genai") {
             Write-Host "3. Run: cd `"$cppSamplesPath`"; .\build_samples.ps1" -ForegroundColor White
             Write-Host "Alternative: Use pre-built Python samples instead" -ForegroundColor White
         }
+        
+        # Return to the original location
+        Pop-Location
     }
     
     # Return to base directory and setup Python environment
@@ -703,52 +712,7 @@ if (Test-Path "AI-PC-Samples") {
                     Remove-Item env:FORCE_CMAKE -ErrorAction SilentlyContinue
                 }
                 
-                # Clone and build native LlamaCpp with Vulkan
-                Write-Host "Setting up native LlamaCpp with Vulkan..." -ForegroundColor Cyan
-                $llamacppPath = Join-Path "$DevKitWorkingDir\AI-PC-Samples" "llama.cpp"
-                if (-not (Test-Path $llamacppPath)) {
-                    Set-Location "$DevKitWorkingDir\AI-PC-Samples"
-                    
-                    try {
-                        Write-Host "Cloning LlamaCpp repository..." -ForegroundColor Cyan
-                        & git clone https://github.com/ggml-org/llama.cpp.git
-                        
-                        if (Test-Path $llamacppPath) {
-                            Set-Location $llamacppPath
-                            
-                            if (Test-BuildEnvironment) {
-                                Write-Host "Building native LlamaCpp with Vulkan support..." -ForegroundColor Cyan
-                                
-                                # Configure with CMake
-                                & cmake -B build -DGGML_VULKAN=ON -DLLAMA_CURL=OFF
-                                
-                                if ($LASTEXITCODE -eq 0) {
-                                    Write-Host "CMake configuration successful, building..." -ForegroundColor Green
-                                    & cmake --build build --config Release -j
-                                    
-                                    if ($LASTEXITCODE -eq 0) {
-                                        Write-Host "Native LlamaCpp built successfully!" -ForegroundColor Green
-                                    } else {
-                                        Write-Host "Native LlamaCpp build completed with warnings" -ForegroundColor Yellow
-                                    }
-                                } else {
-                                    Write-Host "CMake configuration failed for native LlamaCpp" -ForegroundColor Yellow
-                                }
-                            } else {
-                                Write-Host "Build environment not available, skipping native LlamaCpp compilation" -ForegroundColor Yellow
-                                Write-Host "Requirements: Visual Studio Build Tools 2022 + CMake 3.5+" -ForegroundColor White
-                            }
-                        }
-                    }
-                    catch {
-                        Write-Host "Failed to clone or build native LlamaCpp: $_" -ForegroundColor Yellow
-                    }
-                    finally {
-                        Set-Location $DevKitWorkingDir
-                    }
-                } else {
-                    Write-Host "Native LlamaCpp already exists, skipping..." -ForegroundColor Yellow
-                }
+
             } else {
                 Write-Host "Manual command: cd `"$DevKitWorkingDir\AI-PC-Samples`"; .\venv\Scripts\activate; pip install -r AI-Travel-Agent\requirements.txt" -ForegroundColor Yellow
             }
@@ -790,7 +754,54 @@ if (Test-Path "AI-PC-Samples") {
     }
 }
 
-# 5. Open Model Zoo
+# 5. LlamaCpp with Vulkan (Independent Installation)
+Write-Host "`nSetting up LlamaCpp with Vulkan in C:\Intel..." -ForegroundColor Cyan
+$llamacppPath = Join-Path $DevKitWorkingDir "llama.cpp"
+if (-not (Test-Path $llamacppPath)) {
+    Set-Location $DevKitWorkingDir
+    
+    try {
+        Write-Host "Cloning LlamaCpp repository to C:\Intel\llama.cpp..." -ForegroundColor Cyan
+        & git clone https://github.com/ggml-org/llama.cpp.git
+        
+        if (Test-Path $llamacppPath) {
+            Set-Location $llamacppPath
+            
+            if (Test-BuildEnvironment) {
+                Write-Host "Building native LlamaCpp with Vulkan support in: $llamacppPath" -ForegroundColor Cyan
+                
+                # Configure with CMake
+                & cmake -B build -DGGML_VULKAN=ON -DLLAMA_CURL=OFF
+                
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "CMake configuration successful, building..." -ForegroundColor Green
+                    & cmake --build build --config Release -j
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "Native LlamaCpp built successfully in: $llamacppPath" -ForegroundColor Green
+                    } else {
+                        Write-Host "Native LlamaCpp build completed with warnings" -ForegroundColor Yellow
+                    }
+                } else {
+                    Write-Host "CMake configuration failed for native LlamaCpp" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "Build environment not available, skipping native LlamaCpp compilation" -ForegroundColor Yellow
+                Write-Host "Requirements: Visual Studio Build Tools 2022 + CMake 3.5+" -ForegroundColor White
+            }
+        }
+    }
+    catch {
+        Write-Host "Failed to clone or build native LlamaCpp: $_" -ForegroundColor Yellow
+    }
+    finally {
+        Set-Location $DevKitWorkingDir
+    }
+} else {
+    Write-Host "Native LlamaCpp already exists at: $llamacppPath, skipping..." -ForegroundColor Yellow
+}
+
+# 6. Open Model Zoo
 if (Test-Path "open_model_zoo") {
     Write-Host "`nSetting up Open Model Zoo environment..." -ForegroundColor Cyan
     $venvPath = New-PythonVenv -Path "$DevKitWorkingDir\open_model_zoo"
@@ -816,9 +827,9 @@ if (Test-Path "open_model_zoo") {
     }
 }
 
-# Clean up any remaining zip files
+# Clean up any remaining zip files - UPDATED ZIP FILE NAMES
 Write-Host "`nCleaning up downloaded zip files..." -ForegroundColor Cyan
-$zipFiles = @("2025.2.zip", "master-build_deploy.zip", "ollama-ipex-llm.zip", "openvino_genai.zip", "ai-pc-samples.zip", "2024.4.0.zip")
+$zipFiles = @("2025.3.zip", "master-build_deploy.zip", "ollama-ipex-llm.zip", "openvino_genai.zip", "ai-pc-samples.zip", "2024.4.0.zip")
 foreach ($zipFile in $zipFiles) {
     if (Test-Path $zipFile) {
         Remove-Item $zipFile -Force
@@ -848,5 +859,9 @@ Write-Host "MSBuild2025 Workshop: cd `"$DevKitWorkingDir\openvino_build_deploy\w
 Write-Host "OpenVINO GenAI: cd `"$DevKitWorkingDir\openvino_genai\samples`"; .\venv\Scripts\activate" -ForegroundColor White
 Write-Host "AI PC Samples: cd `"$DevKitWorkingDir\AI-PC-Samples`"; .\venv\Scripts\activate" -ForegroundColor White
 Write-Host "Open Model Zoo: cd `"$DevKitWorkingDir\open_model_zoo`"; .\venv\Scripts\activate" -ForegroundColor White
+
+Write-Host "`nNative Tools Built:" -ForegroundColor Yellow
+Write-Host "LlamaCpp with Vulkan: $DevKitWorkingDir\llama.cpp\build" -ForegroundColor White
+Write-Host "OpenVINO GenAI C++ Samples: $DevKitWorkingDir\openvino_genai\samples\cpp\build" -ForegroundColor White
 
 Write-Host "`nScript completed successfully!" -ForegroundColor Green
