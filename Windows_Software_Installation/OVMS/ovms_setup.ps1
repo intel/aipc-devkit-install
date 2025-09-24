@@ -104,8 +104,8 @@ function Initialize-OVMS {
         return $ovmsExe
     }
     
-    Write-Info "Downloading OVMS v2025.2.1..."
-    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2025.2.1/ovms_windows_python_on.zip"
+    Write-Info "Downloading OVMS v2025.3...."
+    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2025.3/ovms_windows_python_on.zip"
     $ovmsZip = "ovms.zip"
     
     try {
