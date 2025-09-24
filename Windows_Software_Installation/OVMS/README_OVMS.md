@@ -6,19 +6,19 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 
 ```powershell
 # Start text model on GPU (default)
-.\start_ovms_simple.ps1
+.\ovms_setup.ps1
 
 # Start text model on CPU
-.\start_ovms_simple.ps1 -Target CPU
+.\ovms_setup.ps1 -Target CPU
 
 # Start text model on NPU (Intel AI PC)
-.\start_ovms_simple.ps1 -Target NPU
+.\ovms_setup.ps1 -Target NPU
 
 # Start image generation on GPU
-.\start_ovms_simple.ps1 -Model image
+.\ovms_setup.ps1 -Model image
 
 # Start custom model
-.\start_ovms_simple.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target NPU
+.\ovms_setup.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target NPU
 ```
 
 ## Features
@@ -51,30 +51,30 @@ The script includes comprehensive help options:
 
 ```powershell
 # Show built-in help with examples
-.\start_ovms_simple.ps1 -Help
+.\ovms_setup.ps1 -Help
 
 # PowerShell native help
-Get-Help .\start_ovms_simple.ps1
-Get-Help .\start_ovms_simple.ps1 -Examples
-Get-Help .\start_ovms_simple.ps1 -Detailed
+Get-Help .\ovms_setup.ps1
+Get-Help .\ovms_setup.ps1 -Examples
+Get-Help .\ovms_setup.ps1 -Detailed
 ```
 
 ## Examples
 
 ```powershell
 # Basic usage
-.\start_ovms_simple.ps1                                    # Phi-3 on GPU
-.\start_ovms_simple.ps1 -Target CPU                        # Phi-3 on CPU
-.\start_ovms_simple.ps1 -Target NPU                        # Phi-3 on NPU
-.\start_ovms_simple.ps1 -Model image                       # FLUX on GPU
+.\ovms_setup.ps1                                    # Phi-3 on GPU
+.\ovms_setup.ps1 -Target CPU                        # Phi-3 on CPU
+.\ovms_setup.ps1 -Target NPU                        # Phi-3 on NPU
+.\ovms_setup.ps1 -Model image                       # FLUX on GPU
 
 # Custom models
-.\start_ovms_simple.ps1 -Model "OpenVINO/gpt-j-6b-int4-cw-ov" -Target NPU
-.\start_ovms_simple.ps1 -Model "OpenVINO/stable-diffusion-v1-5-fp16-ov" -Target GPU
-.\start_ovms_simple.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
+.\ovms_setup.ps1 -Model "OpenVINO/gpt-j-6b-int4-cw-ov" -Target NPU
+.\ovms_setup.ps1 -Model "OpenVINO/stable-diffusion-v1-5-fp16-ov" -Target GPU
+.\ovms_setup.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
 
 # Custom port
-.\start_ovms_simple.ps1 -Port 9000
+.\ovms_setup.ps1 -Port 9000
 ```
 
 ## API Access
