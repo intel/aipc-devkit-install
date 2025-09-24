@@ -1,11 +1,11 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-    Simple One-Command OVMS Script - Download and Start Models
+    Simple One-Command OVMS Script - Download and Start Models (v2025.3 Compatible)
     
 .DESCRIPTION
-    Downloads OVMS, downloads models, and starts the server in one command.
-    Supports GPU/CPU/NPU devices with automatic model selection.
+    Downloads OVMS v2025.3, downloads models, and starts the server in one command.
+    Supports GPU/CPU/NPU devices with automatic model selection and required task parameters.
     
 .PARAMETER Model
     Model type: "text" (default), "image", or full OpenVINO model name
@@ -17,19 +17,19 @@
     REST API port (default: 8000)
     
 .EXAMPLE
-    .\start_ovms_simple.ps1
+    .\start_ovms_simple_v2025.3.ps1
     # Starts Phi-3 text model on GPU
     
 .EXAMPLE
-    .\start_ovms_simple.ps1 -Target NPU
+    .\start_ovms_simple_v2025.3.ps1 -Target NPU
     # Starts NPU-optimized Phi-3 on NPU
     
 .EXAMPLE
-    .\start_ovms_simple.ps1 -Model image
+    .\start_ovms_simple_v2025.3.ps1 -Model image
     # Starts FLUX image generation on GPU
     
 .EXAMPLE
-    .\start_ovms_simple.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
+    .\start_ovms_simple_v2025.3.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
     # Starts custom model on CPU
 #>
 
@@ -73,6 +73,32 @@ function Get-SourceModel {
     
     # If it's already a full model name, return as-is
     return $ModelInput
+}
+
+function Get-ModelTask {
+    param([string]$SourceModel)
+    
+    # Determine task type based on model name patterns
+    $imageModelPatterns = @(
+        "*FLUX*",
+        "*flux*",
+        "*diffusion*",
+        "*Dreamshaper*",
+        "*SDXL*",
+        "*stable-diffusion*",
+        "*controlnet*",
+        "*text-to-image*",
+        "*image-generation*"
+    )
+    
+    foreach ($pattern in $imageModelPatterns) {
+        if ($SourceModel -like $pattern) {
+            return "image_generation"
+        }
+    }
+    
+    # Default to text generation for all other models
+    return "text_generation"
 }
 
 function Initialize-OVMS {
@@ -159,20 +185,21 @@ function Start-OVMSServer {
         New-Item -ItemType Directory -Path "models" -Force | Out-Null
     }
     
-    # Determine if this is an image generation model
-    $isImageModel = ($SourceModel -like "*FLUX*" -or $SourceModel -like "*diffusion*" -or $SourceModel -like "*Dreamshaper*")
+    # Determine the task type for the model
+    $taskType = Get-ModelTask -SourceModel $SourceModel
     
+    Write-Info "Detected task type: $taskType"
     Write-Info "Starting server (model will download automatically if not cached)..."
     Write-Warning "Press Ctrl+C to stop the server"
     Write-Info ""
     
     try {
-        if ($isImageModel) {
-            Write-Info "Using image generation mode..."
+        if ($taskType -eq "image_generation") {
+            Write-Info "Using image generation mode with --task image_generation..."
             & ".\ovms\ovms.exe" --rest_port $RestPort --model_repository_path "models" --task image_generation --source_model $SourceModel --target_device $TargetDevice --log_level INFO
         } else {
-            Write-Info "Using text generation mode..."
-            & ".\ovms\ovms.exe" --source_model $SourceModel --model_repository_path "models" --rest_port $RestPort --target_device $TargetDevice --cache_size 4 --log_level INFO
+            Write-Info "Using text generation mode with --task text_generation..."
+            & ".\ovms\ovms.exe" --source_model $SourceModel --model_repository_path "models" --rest_port $RestPort --target_device $TargetDevice --task text_generation --cache_size 4 --log_level INFO
         }
     }
     catch {
@@ -182,17 +209,17 @@ function Start-OVMSServer {
 }
 
 # Main execution
-Write-Info "Simple OVMS Launcher"
-Write-Info "===================="
+Write-Info "Simple OVMS Launcher (v2025.3 Compatible)"
+Write-Info "=========================================="
 
 # Show help if requested
 if ($Help) {
     Write-Host ""
-    Write-Host "Simple OVMS Launcher - One Command Setup" -ForegroundColor Yellow
-    Write-Host "=======================================" -ForegroundColor Yellow
+    Write-Host "Simple OVMS Launcher - One Command Setup (v2025.3 Compatible)" -ForegroundColor Yellow
+    Write-Host "=============================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Green
-    Write-Host "  .\start_ovms_simple.ps1 [-Model <text|image|model_name>] [-Target <GPU|CPU|NPU>] [-Port <port>]" -ForegroundColor White
+    Write-Host "  .\start_ovms_simple_v2025.3.ps1 [-Model <text|image|model_name>] [-Target <GPU|CPU|NPU>] [-Port <port>]" -ForegroundColor White
     Write-Host ""
     Write-Host "PARAMETERS:" -ForegroundColor Green
     Write-Host "  -Model   : 'text' (default), 'image', or full OpenVINO model name" -ForegroundColor White
@@ -200,21 +227,26 @@ if ($Help) {
     Write-Host "  -Port    : REST API port (default: 8000)" -ForegroundColor White
     Write-Host "  -Help    : Show this help message" -ForegroundColor White
     Write-Host ""
+    Write-Host "NEW IN v2025.3:" -ForegroundColor Green
+    Write-Host "  • Automatic task detection (--task text_generation or --task image_generation)" -ForegroundColor White
+    Write-Host "  • Enhanced model pattern recognition for task assignment" -ForegroundColor White
+    Write-Host "  • Required task parameters for all model types" -ForegroundColor White
+    Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Green
-    Write-Host "  .\start_ovms_simple.ps1" -ForegroundColor Cyan
-    Write-Host "    # Start Phi-3 text model on GPU (default)" -ForegroundColor Gray
+    Write-Host "  .\start_ovms_simple_v2025.3.ps1" -ForegroundColor Cyan
+    Write-Host "    # Start Phi-3 text model on GPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple.ps1 -Target CPU" -ForegroundColor Cyan
-    Write-Host "    # Start Phi-3 text model on CPU" -ForegroundColor Gray
+    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Target CPU" -ForegroundColor Cyan
+    Write-Host "    # Start Phi-3 text model on CPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple.ps1 -Target NPU" -ForegroundColor Cyan
-    Write-Host "    # Start NPU-optimized Phi-3 on NPU (Intel AI PC)" -ForegroundColor Gray
+    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Target NPU" -ForegroundColor Cyan
+    Write-Host "    # Start NPU-optimized Phi-3 on NPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple.ps1 -Model image" -ForegroundColor Cyan
-    Write-Host "    # Start FLUX image generation on GPU" -ForegroundColor Gray
+    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Model image" -ForegroundColor Cyan
+    Write-Host "    # Start FLUX image generation on GPU with --task image_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple.ps1 -Model 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov' -Target NPU" -ForegroundColor Cyan
-    Write-Host "    # Start custom Mistral model on NPU" -ForegroundColor Gray
+    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Model 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov' -Target NPU" -ForegroundColor Cyan
+    Write-Host "    # Start custom Mistral model on NPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
     Write-Host "DEFAULT MODELS:" -ForegroundColor Green
     Write-Host "  Text (GPU/CPU): OpenVINO/Phi-3.5-mini-instruct-int4-ov" -ForegroundColor White
@@ -223,10 +255,14 @@ if ($Help) {
     Write-Host "  Image (CPU):    OpenVINO/stable-diffusion-v1-5-int8-ov" -ForegroundColor White
     Write-Host "  Image (NPU):    OpenVINO/FLUX.1-schnell-int8-ov" -ForegroundColor White
     Write-Host ""
+    Write-Host "TASK AUTO-DETECTION:" -ForegroundColor Green
+    Write-Host "  Image models (--task image_generation): *FLUX*, *diffusion*, *SDXL*, etc." -ForegroundColor White
+    Write-Host "  Text models (--task text_generation): All other models (Phi-3, Mistral, etc.)" -ForegroundColor White
+    Write-Host ""
     Write-Host "BUILT-IN HELP:" -ForegroundColor Green
-    Write-Host "  Get-Help .\start_ovms_simple.ps1" -ForegroundColor Cyan
-    Write-Host "  Get-Help .\start_ovms_simple.ps1 -Examples" -ForegroundColor Cyan
-    Write-Host "  Get-Help .\start_ovms_simple.ps1 -Detailed" -ForegroundColor Cyan
+    Write-Host "  Get-Help .\start_ovms_simple_v2025.3.ps1" -ForegroundColor Cyan
+    Write-Host "  Get-Help .\start_ovms_simple_v2025.3.ps1 -Examples" -ForegroundColor Cyan
+    Write-Host "  Get-Help .\start_ovms_simple_v2025.3.ps1 -Detailed" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "API ACCESS:" -ForegroundColor Green
     Write-Host "  Once started, API available at: http://localhost:<port>/v3" -ForegroundColor White
