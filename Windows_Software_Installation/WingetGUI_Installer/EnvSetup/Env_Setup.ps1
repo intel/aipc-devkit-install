@@ -49,6 +49,7 @@ param(
 # ===================== GENERIC IMPORTANT INSTALLATION WARNING =====================
 Write-Host "=============================================================" -ForegroundColor Yellow
 Write-Host "*** IMPORTANT ACTION REQUIRED: If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory. ***" -ForegroundColor White -BackgroundColor DarkRed
+Write-Host "*** Recommended System Requirements:  This SDK will work best on systems that contain  Intel Core Ultra processors and Intel Arc GPUs, it will work on other products but YMMV. ***" -ForegroundColor White -BackgroundColor DarkRed
 Write-Host "=============================================================" -ForegroundColor Yellow
 Write-Host "Waiting 5 seconds for you to review this warning..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
