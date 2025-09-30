@@ -4,7 +4,10 @@
 # **********************************************#
 # IMPORTANT: This script must be run from an elevated PowerShell prompt.
 # Usage:
-# Set-ExecutionPolicy -ExecutionPolicy Unrestricted LocalMachine
+# If execution policy prevents scripts from running, use:
+# powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
+# powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" gui
+# Or set policy first: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 # ./Env_Setup.ps1 install -> Installs software (command line mode)
 # ./Env_Setup.ps1 gui -> Shows GUI for interactive package selection and installation/uninstallation
 # ./Env_Setup.ps1 uninstall -> Uninstalls software
@@ -53,6 +56,18 @@ Write-Host "*** Recommended System Requirements:  This SDK will work best on sys
 Write-Host "=============================================================" -ForegroundColor Yellow
 Write-Host "Waiting 5 seconds for you to review this warning..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
+
+# Ensure execution policy allows script execution (do this first)
+try {
+    $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
+    if ($currentPolicy -eq "Restricted" -or $currentPolicy -eq "AllSigned") {
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        Write-Host "Updated execution policy from $currentPolicy to RemoteSigned for CurrentUser" -ForegroundColor Yellow
+    }
+}
+catch {
+    Write-Host "Warning: Could not set execution policy: $_" -ForegroundColor Yellow
+}
 
 # Process command parameters - handle both dash and no-dash formats
 if ($command -match "^-{1,2}(\w+)$") {
@@ -130,7 +145,7 @@ function Request-AdminPrivileges {
                 $scriptPath = $MyInvocation.MyCommand.Path
             }
             
-            $argumentList = if ($commandToRun) { "-ExecutionPolicy Bypass -File `"$scriptPath`" $commandToRun" } else { "-ExecutionPolicy Bypass -File `"$scriptPath`"" }
+            $argumentList = if ($commandToRun) { "-ExecutionPolicy RemoteSigned -File `"$scriptPath`" $commandToRun" } else { "-ExecutionPolicy RemoteSigned -File `"$scriptPath`"" }
             Start-Process -FilePath "powershell.exe" -ArgumentList $argumentList -Verb RunAs
         }
         

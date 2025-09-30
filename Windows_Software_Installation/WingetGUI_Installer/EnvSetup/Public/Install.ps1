@@ -9,6 +9,20 @@ function Install-SelectedPackages {
         [string]$uninstall_json_file
     )
 
+    # Ensure execution policy allows script execution
+    try {
+        $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
+        if ($currentPolicy -eq "Restricted" -or $currentPolicy -eq "AllSigned") {
+            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+            Write-Host "Updated execution policy from $currentPolicy to RemoteSigned for CurrentUser" -ForegroundColor Yellow
+            Write-ToLog -message "Updated execution policy from $currentPolicy to RemoteSigned for CurrentUser" -log_file $log_file
+        }
+    }
+    catch {
+        Write-Host "Warning: Could not set execution policy: $_" -ForegroundColor Yellow
+        Write-ToLog -message "Warning: Could not set execution policy: $_" -log_file $log_file
+    }
+
     $results = @()
     $installedCount = 0
     $failedCount = 0
