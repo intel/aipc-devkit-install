@@ -50,10 +50,19 @@ param(
 
 
 # ===================== GENERIC IMPORTANT INSTALLATION WARNING =====================
-Write-Host "=============================================================" -ForegroundColor Yellow
-Write-Host "*** IMPORTANT ACTION REQUIRED: If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory. ***" -ForegroundColor White -BackgroundColor DarkRed
-Write-Host "*** Recommended System Requirements:  This SDK will work best on systems that contain  Intel Core Ultra processors and Intel Arc GPUs, it will work on other products but YMMV. ***" -ForegroundColor White -BackgroundColor DarkRed
-Write-Host "=============================================================" -ForegroundColor Yellow
+Write-Host "=======================================================================================" -ForegroundColor Yellow
+Write-Host "*** IMPORTANT ACTION REQUIRED: If you have any existing applications already installed," -ForegroundColor White -BackgroundColor DarkRed
+Write-Host "please uninstall them first and then use this utility to install. Installing the same " -ForegroundColor White -BackgroundColor DarkRed
+Write-Host "application in two different ways may cause conflicts and the application may not work as" -ForegroundColor White -BackgroundColor DarkRed
+Write-Host "expected. User discretion is mandatory. ***" -ForegroundColor White -BackgroundColor DarkRed
+Write-Host ""
+Write-Host ""
+Write-Host "*** Recommended System Requirements:  This SDK will work best on systems that contain  " -ForegroundColor White -BackgroundColor Blue
+Write-Host ""Intel`u{00AE} Core`u{2122} Ultra processors and Intel Arc`u{2122}" GPUs, it will work on other products but " -ForegroundColor White -BackgroundColor Blue
+Write-Host "not all features will be supported. ***" -ForegroundColor White -BackgroundColor Blue
+Write-Host "=======================================================================================" -ForegroundColor Yellow
+Write-Host ""
+Write-Host ""
 Write-Host "Waiting 5 seconds for you to review this warning..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 
