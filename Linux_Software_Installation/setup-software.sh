@@ -33,13 +33,37 @@ install_packages(){
     fi
 }
 
+install_vulkan_sdk(){
+    echo -e "\n# Installing Vulkan SDK"
+    # Add Vulkan repository key
+    wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+    
+    # Add Vulkan repository for Ubuntu 24.04 (Noble)
+    sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+    
+    # Update package list and install Vulkan SDK
+    sudo apt update
+    sudo apt install -y vulkan-sdk
+    
+    echo "$S_VALID Vulkan SDK installed"
+}
+
 verify_dependencies(){
     echo -e "\n# Verifying dependencies"
     DEPENDENCIES_PACKAGES=(
         python3-pip
         python3-venv
+        cmake
+        build-essential
+        pkg-config
+        vulkan-utils
+        libvulkan-dev
+        git
+        curl
+        wget
     )
     install_packages "${DEPENDENCIES_PACKAGES[@]}"
+    install_vulkan_sdk
     echo "$S_VALID Dependencies installed"
 }
 
@@ -70,6 +94,10 @@ install_openvino_notebook(){
         python3 -m venv venv
         source venv/bin/activate
         pip install -r requirements.txt
+        # Create ipykernel for this environment
+        pip install ipykernel
+        python -m ipykernel install --user --name=openvino_notebooks --display-name="OpenVINO Notebooks"
+        deactivate
     else
         echo "./openvino_notebooks already exists"
     fi
@@ -85,7 +113,11 @@ install_openvino_notebook2(){
         cd openvino_build_deploy/workshops/MSBuild2025 
         python3 -m venv venv
         source venv/bin/activate
-        pip install openvino==2025.1.0 ultralytics==8.3.120
+        pip install openvino==2025.3.0 ultralytics==8.3.120
+        # Create ipykernel for this environment
+        pip install ipykernel
+        python -m ipykernel install --user --name=openvino_build_deploy --display-name="OpenVINO Build Deploy"
+        deactivate
     else
         echo "./openvino_build_deploy already exists"
     fi
@@ -95,10 +127,10 @@ install_openvino_notebook2(){
 install_openvino_genai(){
 
     echo -e "\n# OpenVINO™ GenAI"
-    if [ ! -d "./openvino_genai_ubuntu24_2025.2.0.0_x86_64" ]; then
+    if [ ! -d "./openvino_genai_ubuntu24_2025.3.0.0_x86_64" ]; then
         cd ~/intel
-        curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/openvino_genai_ubuntu24_2025.2.0.0_x86_64.tar.gz --output openvino_genai_2025.2.0.0.tgz
-        tar -xf openvino_genai_2025.2.0.0.tgz
+        curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz --output openvino_genai_2025.3.0.0.tgz
+        tar -xf openvino_genai_2025.3.0.0.tgz
 
         cd openvino_genai_u*
         sudo -E ./install_dependencies/install_openvino_dependencies.sh
@@ -106,21 +138,71 @@ install_openvino_genai(){
         cd samples/cpp
         ./build_samples.sh
     else
-        echo "./openvino_genai_ubuntu24_2025.2.0.0_x86_64 already exists"
+        echo "./openvino_genai_ubuntu24_2025.3.0.0_x86_64 already exists"
     fi
     echo -e "\n# Build OpenVINO™ GenAI complete"
 }
 
+install_llamacpp(){
+    echo -e "\n# Install llama.cpp with Vulkan support"
+    
+    cd ~/intel
+    if [ ! -d "./llama.cpp" ]; then
+        # Check Vulkan support
+        echo "Checking Vulkan support..."
+        vulkaninfo
+        
+        # Clone and build llama.cpp with Vulkan support
+        git clone https://github.com/ggerganov/llama.cpp.git
+        cd llama.cpp
+        
+        # Build with Vulkan support
+        cmake -B build -DGGML_VULKAN=1
+        cmake --build build --config Release
+        
+        echo "$S_VALID llama.cpp native built with Vulkan support"
+    else
+        echo "llama.cpp already exists"
+    fi
+    
+    # Install llama-cpp-python with Vulkan support
+    echo -e "\n# Installing llama-cpp-python with Vulkan support"
+    if [ ! -d "./llamacpp_python_env" ]; then
+        cd ~/intel
+        python3 -m venv llamacpp_python_env
+        source llamacpp_python_env/bin/activate
+        
+        # Set environment variable for Vulkan support
+        export CMAKE_ARGS="-DGGML_VULKAN=on"
+        pip install llama-cpp-python
+        
+        # Create ipykernel for this environment
+        pip install ipykernel
+        python -m ipykernel install --user --name=llamacpp_python --display-name="LlamaCPP Python (Vulkan)"
+        deactivate
+        echo "$S_VALID llama-cpp-python installed with Vulkan support"
+    else
+        echo "llamacpp_python_env already exists"
+    fi
+    
+    echo -e "\n# llama.cpp installation complete"
+}
+
 install_ollama(){
 
-    echo -e "\n# Install Ollama"
+    echo -e "\n# Install Ollama (regular version)"
     cd ~/intel
-    wget https://github.com/ipex-llm/ipex-llm/releases/download/v2.3.0-nightly/ollama-ipex-llm-2.3.0b20250630-ubuntu.tgz
-    tar -zxvf ollama-ipex-llm-2.3.0b20250630-ubuntu.tgz
-    cd ollama-ipex-llm-2.3.0b20250630-ubuntu
-    ./start-ollama.sh &
+    
+    # Install regular Ollama using the official installer
+    curl -fsSL https://ollama.com/install.sh | sh
+    
+    # Start Ollama service
+    ollama serve &
     sleep 5
-    ./ollama pull llama3.2:1b
+    
+    # Pull a model for testing
+    ollama pull llama3.2:1b
+    
     echo -e "\n# Ollama install complete"
 }
 
@@ -136,12 +218,24 @@ install_chrome(){
 install_other_notebooks(){
 
     echo -e "\n# Git clone Other notebooks "
-    if [ ! -d "./webnn_workshop" ]; then
+    if [ ! -d "./AI-PC-Samples" ]; then
         cd ~/intel
-        git clone https://github.com/IntelSoftware/webnn_workshop
         git clone https://github.com/intel/AI-PC-Samples.git
+        
+        # Create virtual environment for AI-PC-Samples if it has requirements
+        if [ -f "./AI-PC-Samples/AI-Travel-Agent/requirements.txt" ]; then
+            cd AI-PC-Samples
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install -r AI-Travel-Agent/requirements.txt
+            # Create ipykernel for this environment
+            pip install ipykernel
+            python -m ipykernel install --user --name=ai_pc_samples --display-name="AI PC Samples"
+            deactivate
+            cd ..
+        fi
     else
-        echo "./webnn-workshop already exists"
+        echo "./AI-PC-Samples already exists"
     fi
     echo -e "\n# Clone other notebooks complete"
 }
@@ -158,8 +252,8 @@ install_vs_code(){
 }
 
 setup() {
-    if [ ! -d "/home/optane/intel" ]; then
-        echo -d "~/intel"
+    if [ ! -d "/home/$(whoami)/intel" ]; then
+        echo "Creating ~/intel directory"
         mkdir ~/intel
     else
         echo "~/intel already exists"
@@ -170,6 +264,7 @@ setup() {
     install_openvino_notebook
     install_openvino_notebook2
     install_openvino_genai
+    install_llamacpp
     install_ollama
     install_chrome
     install_other_notebooks
@@ -177,6 +272,34 @@ setup() {
 
     echo -e "\n# Status"
     echo "$S_VALID AI PC DevKit Installed"
+    echo -e "\nInstalled Jupyter kernels:"
+    echo "- OpenVINO Notebooks"
+    echo "- OpenVINO Build Deploy"  
+    echo "- LlamaCPP Python (Vulkan)"
+    echo "- AI PC Samples (if AI-Travel-Agent/requirements.txt exists)"
+    echo -e "\nTo list all available kernels, run: jupyter kernelspec list"
+    
+    echo -e "\n# Virtual Environment Activation Commands"
+    echo "To activate each virtual environment, use the following commands:"
+    echo ""
+    echo "1. OpenVINO Notebooks:"
+    echo "   cd ~/intel/openvino_notebooks && source venv/bin/activate"
+    echo ""
+    echo "2. OpenVINO Build Deploy:"
+    echo "   cd ~/intel/openvino_build_deploy/workshops/MSBuild2025 && source venv/bin/activate"
+    echo ""
+    echo "3. LlamaCPP Python (Vulkan):"
+    echo "   cd ~/intel && source llamacpp_python_env/bin/activate"
+    echo ""
+    if [ -d "./AI-PC-Samples" ] && [ -f "./AI-PC-Samples/AI-Travel-Agent/requirements.txt" ]; then
+        echo "4. AI PC Samples:"
+        echo "   cd ~/intel/AI-PC-Samples && source venv/bin/activate"
+        echo ""
+    fi
+    echo "5. OpenVINO GenAI (setup environment variables):"
+    echo "   cd ~/intel/openvino_genai_u* && source setupvars.sh"
+    echo ""
+    echo "Note: To deactivate any virtual environment, simply run: deactivate"
 }
 
 setup
