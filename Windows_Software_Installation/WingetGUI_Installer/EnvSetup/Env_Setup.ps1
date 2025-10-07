@@ -164,8 +164,14 @@ function Request-AdminPrivileges {
 }
 
 Set-Location -Path $PSScriptRoot # Sets the current directory to the script's location
-$logs_dir = ".\logs" # Directory for storing log files
+$logs_dir = "C:\temp\logs" # Directory for storing log files
 $json_dir = ".\json" # Directory for storing JSON files
+
+# Ensure C:\temp directory exists
+if (-not (Test-Path -Path "C:\temp")) {
+    New-Item -Path "C:\temp" -ItemType Directory -Force | Out-Null
+    Write-Host "Created C:\temp directory for logs" -ForegroundColor Yellow
+}
 
 # Source helper scripts
 . ".\Public\Write_ToLog.ps1" # Sources a script for logging messages
