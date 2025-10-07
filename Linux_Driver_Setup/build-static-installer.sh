@@ -139,9 +139,7 @@ show_current_patterns() {
     echo "  - .*\.sum (checksum file)"
     echo
     echo "Intel NPU Driver patterns:"
-    echo "  - intel-driver-compiler-npu.*ubuntu24.04.*amd64.deb"
-    echo "  - intel-fw-npu.*ubuntu24.04.*amd64.deb"
-    echo "  - intel-level-zero-npu.*ubuntu24.04.*amd64.deb"
+    echo "  - linux-npu-driver.*ubuntu2404.tar.gz (contains individual .deb packages)"
     echo
     echo "Level Zero patterns:"
     echo "  - level-zero_.*u24.04.*amd64.deb"
@@ -247,18 +245,14 @@ collect_asset_urls() {
             done
             ;;
         "intel/linux-npu-driver")
-            ASSET_URLS["npu-compiler"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-driver-compiler-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
-            ASSET_URLS["npu-fw"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-fw-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
-            ASSET_URLS["npu-level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-level-zero-npu.*ubuntu24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            # NPU drivers are now packaged as tar.gz files, find the Ubuntu 24.04 version
+            ASSET_URLS["npu-tarball"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("linux-npu-driver.*ubuntu2404\\.tar\\.gz")) | .browser_download_url' | head -1)
             
-            # Validate required assets were found
-            local required_npu_assets=("npu-compiler" "npu-fw" "npu-level-zero")
-            for asset in "${required_npu_assets[@]}"; do
-                if [ -z "${ASSET_URLS[$asset]}" ] || [ "${ASSET_URLS[$asset]}" = "null" ]; then
-                    echo "ERROR: Could not find required NPU asset '$asset' for $repo $tag" >&2
-                    return 1
-                fi
-            done
+            # Validate required asset was found
+            if [ -z "${ASSET_URLS[npu-tarball]}" ] || [ "${ASSET_URLS[npu-tarball]}" = "null" ]; then
+                echo "ERROR: Could not find required NPU tarball asset for $repo $tag" >&2
+                return 1
+            fi
             ;;
         "oneapi-src/level-zero")
             ASSET_URLS["level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("level-zero_.*u24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
@@ -288,7 +282,7 @@ generate_static_setup_script() {
     local required_assets=(
         "igc-core" "igc-opencl"
         "ocloc" "ocloc-dbgsym" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm"
-        "npu-compiler" "npu-fw" "npu-level-zero"
+        "npu-tarball"
         "level-zero"
     )
     
@@ -617,22 +611,34 @@ verify_npu_driver(){
         mkdir /tmp/npu_temp
         cd /tmp/npu_temp
 
-        # Download NPU driver packages
-        wget "$ASSET_URL_NPU_COMPILER"
-        wget "$ASSET_URL_NPU_FW"
-        wget "$ASSET_URL_NPU_LEVEL_ZERO"
+        # Download NPU driver tarball
+        echo "Downloading NPU driver tarball..."
+        wget "$ASSET_URL_NPU_TARBALL" -O npu-driver.tar.gz
+        
+        # Extract the tarball to get individual .deb packages
+        echo "Extracting NPU driver packages..."
+        tar -xzf npu-driver.tar.gz
         
         # Download Level Zero package
+        echo "Downloading Level Zero package..."
         wget "$ASSET_URL_LEVEL_ZERO"
         
-        dpkg -i ./*.deb ./*.ddeb 2>/dev/null || dpkg -i ./*.deb
+        # Install NPU packages (the .deb files are now extracted)
+        echo "Installing NPU packages..."
+        dpkg -i intel-driver-compiler-npu_*.deb intel-fw-npu_*.deb intel-level-zero-npu_*.deb level-zero_*.deb 2>/dev/null || {
+            echo "Installation failed, attempting with --force-depends..."
+            dpkg -i --force-depends intel-driver-compiler-npu_*.deb intel-fw-npu_*.deb intel-level-zero-npu_*.deb level-zero_*.deb
+        }
                                                                                                                                                                                              
         cd ..
         rm -rf npu_temp
         cd "$CURRENT_DIR"
         
-        chown root:render /dev/accel/accel0
-        chmod g+rw /dev/accel/accel0
+        # Set up device permissions for NPU
+        if [ -e /dev/accel/accel0 ]; then
+            chown root:render /dev/accel/accel0
+            chmod g+rw /dev/accel/accel0
+        fi
         bash -c "echo 'SUBSYSTEM==\"accel\", KERNEL==\"accel*\", GROUP=\"render\", MODE=\"0660\"' > /etc/udev/rules.d/10-intel-vpu.rules"
         udevadm control --reload-rules
         udevadm trigger --subsystem-match=accel
@@ -1209,9 +1215,7 @@ else
         # Test patterns for NPU driver
         if [ "$repo" = "intel/linux-npu-driver" ]; then
             echo "=== Testing NPU Driver Patterns Against Actual Assets ==="
-            test_pattern_matching "$repo" "$tag" "intel-driver-compiler-npu.*ubuntu24.04.*amd64\.deb"
-            test_pattern_matching "$repo" "$tag" "intel-fw-npu.*ubuntu24.04.*amd64\.deb"
-            test_pattern_matching "$repo" "$tag" "intel-level-zero-npu.*ubuntu24.04.*amd64\.deb"
+            test_pattern_matching "$repo" "$tag" "linux-npu-driver.*ubuntu2404\.tar\.gz"
         fi
         
         # Test patterns for Level Zero
@@ -1284,5 +1288,5 @@ echo "3. Compare with patterns used in setup-drivers.sh"
 echo "4. Identify any mismatched patterns that need updating"
 if [ "$BUILD_STATIC" = "true" ] && [ "$STATIC_GENERATION_FAILED" = "false" ]; then
     echo "5. ✓ Generated setup-static-drivers.sh with exact asset URLs"
-    echo "   Run: sudo ./setup-static-drivers.sh"
+    echo -e "   \033[1;32m Run: sudo ./setup-static-drivers.sh \033[0m"
 fi
