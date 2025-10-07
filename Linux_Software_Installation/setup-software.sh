@@ -56,8 +56,6 @@ verify_dependencies(){
         cmake
         build-essential
         pkg-config
-        vulkan-utils
-        libvulkan-dev
         git
         curl
         wget
@@ -173,7 +171,7 @@ install_llamacpp(){
         source llamacpp_python_env/bin/activate
         
         # Set environment variable for Vulkan support
-        export CMAKE_ARGS="-DGGML_VULKAN=on"
+        export CMAKE_ARGS="-DGGML_VULKAN=ON -DLLAMA_CURL=OFF"
         pip install llama-cpp-python
         
         # Create ipykernel for this environment
