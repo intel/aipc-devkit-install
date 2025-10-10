@@ -30,7 +30,7 @@ sudo ./setup-static-drivers.sh
 **Solution**: Set GITHUB_TOKEN environment variable
 ```bash
 export GITHUB_TOKEN=your_token_here
-sudo -E ./setup-drivers.sh  # -E preserves environment variables
+sudo -E ./setup-static-drivers.sh  # -E preserves environment variables
 ```
 
 #### Network Connectivity
@@ -48,7 +48,7 @@ curl https://github.com
 **Problem**: Script fails due to insufficient privileges
 **Solution**: Run with sudo
 ```bash
-sudo ./setup-drivers.sh
+sudo ./setup-static-drivers.sh
 ```
 
 ### Diagnostic Script Output
