@@ -1,5 +1,5 @@
 # AI PC Dev Kit Complete Installation Script for Windows
-# Combines fast parallel downloads with comprehensive environment setup
+
 param(
     [string]$DevKitWorkingDir = "C:\Intel",
     [int]$MaxRetries = 3
@@ -265,7 +265,7 @@ $runspacePool.Open()
 
 $jobs = @()
 
-# Define Repos - FIXED VERSION NUMBERS
+# Define Repos
 $repos = @(
     @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/2025.3.zip"; File = "2025.3.zip" },
     @{ Name = "openvino_build_deploy"; Uri = "https://github.com/openvinotoolkit/openvino_build_deploy/archive/refs/heads/master.zip"; File = "master-build_deploy.zip" },

@@ -5,12 +5,12 @@
 # IMPORTANT: This script must be run from an elevated PowerShell prompt.
 # Usage:
 # If execution policy prevents scripts from running, use:
-# powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
-# powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" gui
+# powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
+# powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
 # Or set policy first: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-# ./Env_Setup.ps1 install -> Installs software (command line mode)
-# ./Env_Setup.ps1 gui -> Shows GUI for interactive package selection and installation/uninstallation
-# ./Env_Setup.ps1 uninstall -> Uninstalls software
+# ./Setup_1.ps1 install -> Installs software (command line mode)
+# ./Setup_1.ps1 gui -> Shows GUI for interactive package selection and installation/uninstallation
+# ./Setup_1.ps1 uninstall -> Uninstalls software
 # ***************************************** #
 <#
 .SYNOPSIS
@@ -25,15 +25,15 @@
     Specifies the operation mode: 'install', 'gui', or 'uninstall'.
     
 .EXAMPLE
-    .\Env_Setup.ps1 gui
+    .\Setup_1.ps1 gui
     Launches the graphical interface for interactive software selection.
     
 .EXAMPLE
-    .\Env_Setup.ps1 install
+    .\Setup_1.ps1 install
     Installs all software defined in the applications.json file.
     
 .EXAMPLE
-    .\Env_Setup.ps1 uninstall
+    .\Setup_1.ps1 uninstall
     Uninstalls previously installed software tracked in uninstall.json.
 
 .NOTES
@@ -559,25 +559,25 @@ try {
         $help_str = 
         @"
             Usage:
-                .\Env_Setup.ps1 gui
+                .\Setup_1.ps1 gui
                   or
-                .\Env_Setup.ps1 -gui
+                .\Setup_1.ps1 -gui
                   or
-                .\Env_Setup.ps1 --gui
+                .\Setup_1.ps1 --gui
                     Shows a Windows Forms interface for interactive package selection and installation/uninstallation
                 
-                .\Env_Setup.ps1 install
+                .\Setup_1.ps1 install
                   or
-                .\Env_Setup.ps1 -install
+                .\Setup_1.ps1 -install
                   or
-                .\Env_Setup.ps1 --install
+                .\Setup_1.ps1 --install
                     Installs all software specified in applications.json, checking for dependencies
                 
-                .\Env_Setup.ps1 uninstall
+                .\Setup_1.ps1 uninstall
                   or
-                .\Env_Setup.ps1 -uninstall
+                .\Setup_1.ps1 -uninstall
                   or
-                .\Env_Setup.ps1 --uninstall
+                .\Setup_1.ps1 --uninstall
                     Uninstalls all software specified in uninstall.json
 "@
         Write-Host $help_str -ForegroundColor Red # Displays usage instructions if the command is invalid

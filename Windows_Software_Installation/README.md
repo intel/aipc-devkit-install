@@ -3,7 +3,7 @@
 Comprehensive tools for setting up AI PC development applications and environments. **Launch GUI**:
    ```powershell
    cd "WingetGUI_Installer\EnvSetup"
-   .\Env_Setup.ps1 gui
+   .\Setup_1.ps1 gui
    ```
 
 3. **Install Software**:
@@ -33,10 +33,10 @@ If you encounter execution policy errors preventing scripts from running, use on
 **Method 1 - Run with execution policy parameter (Recommended):**
 ```powershell
 # For GUI mode
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" gui
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
 
 # For command line install
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 ```
 
 ### Step 1: GUI Package Manager (Recommended)
@@ -46,17 +46,20 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
 cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
 
 # Launch the unified GUI
-.\Env_Setup.ps1 gui
+.\Setup_1.ps1 gui
 ```
 
 ### Step 2: Download AI Repositories and create environments
 **Best for getting AI/ML code repositories**
 ```powershell
+# Navigate to the installer directory
+cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
+
 # Run with default settings (downloads to C:\Intel)
-.\setup_software.ps1
+.\Setup_2.ps1
 
 # Or specify custom directory
-.\setup_software.ps1 -DevKitWorkingDir "C:\MyAIProjects"
+.\Setup_2.ps1 -DevKitWorkingDir "C:\MyAIProjects"
 ```
 
 ### Option 3: Command Line Package Installation
@@ -65,13 +68,13 @@ cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
 cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
 
 # If execution policy allows scripts:
-.\Env_Setup.ps1 install
+.\Setup_1.ps1 install
 
 # If execution policy blocks scripts:
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 
 # Or uninstall
-.\Env_Setup.ps1 uninstall
+.\Setup_1.ps1 uninstall
 ```
 
 ---
@@ -92,15 +95,15 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
 **Usage:**
 ```powershell
 # GUI Mode (Interactive)
-.\Env_Setup.ps1 gui
-# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" gui
+.\Setup_1.ps1 gui
+# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
 
 # Command Line Mode (Silent)
-.\Env_Setup.ps1 install
-# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
+.\Setup_1.ps1 install
+# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 
 # Uninstall Mode
-.\Env_Setup.ps1 uninstall
+.\Setup_1.ps1 uninstall
 ```
 
 ### 📦 Repository Downloader
@@ -147,10 +150,10 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" install
    cd "WingetGUI_Installer\EnvSetup"
    
    # If execution policy allows scripts:
-   .\Env_Setup.ps1 gui
+   .\Setup_1.ps1 gui
    
    # If execution policy blocks scripts:
-   powershell.exe -ExecutionPolicy RemoteSigned -File ".\Env_Setup.ps1" gui
+   powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
    ```
 
 4. **Install Software**:
@@ -249,11 +252,11 @@ The GUI installer uses JSON configuration files for package management:
 ```
 Windows_Software_Installation/
 ├── README.md                              # This file
-├── get_repos.ps1                          # Repository downloader
 └── WingetGUI_Installer/
     ├── README.md                          # GUI installer documentation  
     └── EnvSetup/
-        ├── Env_Setup.ps1                 # Main installer script
+        ├── Setup_1.ps1                   # Main installer script (GUI/CLI package manager)
+        ├── Setup_2.ps1                   # Repository downloader script
         ├── JSON/
         │   ├── install/
         │   │   └── applications.json     # Package definitions
