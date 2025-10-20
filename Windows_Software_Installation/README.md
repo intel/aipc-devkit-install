@@ -1,22 +1,6 @@
 # Windows Software Installation for AI PC Development
 
-Comprehensive tools for setting up AI PC development applications and environments. **Launch GUI**:
-   ```powershell
-   cd "WingetGUI_Installer\EnvSetup"
-   .\Setup_1.ps1 gui
-   ```
-
-3. **Install Software**:
-   - Click "Install Software"
-   - Select desired packages from the list
-   - Click "Install Selected"
-   - Monitor real-time progress
-
-4. **Uninstall Software**:
-   - Click "Uninstall Software" 
-   - Select packages to remove
-   - Confirm uninstallation
-   - Tracking file automatically updatedon Windows, including GUI-based package management and automated repository downloaders.
+Comprehensive tools for setting up AI PC development applications and environments on Windows, including GUI-based package management and automated repository downloaders.
 
 ## 🚀 Quick Start
 
@@ -43,7 +27,7 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 **Best for setting up complete AI development environments**
 ```powershell
 # Navigate to the installer directory
-cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
+cd "Windows_Software_Installation\WingetGUI_Installer"
 
 # Launch the unified GUI
 .\Setup_1.ps1 gui
@@ -53,7 +37,7 @@ cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
 **Best for getting AI/ML code repositories**
 ```powershell
 # Navigate to the installer directory
-cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
+cd "Windows_Software_Installation\WingetGUI_Installer"
 
 # Run with default settings (downloads to C:\Intel)
 .\Setup_2.ps1
@@ -65,7 +49,7 @@ cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
 ### Option 3: Command Line Package Installation
 **Best for automated/scripted environments**
 ```powershell
-cd "Windows_Software_Installation\WingetGUI_Installer\EnvSetup"
+cd "Windows_Software_Installation\WingetGUI_Installer"
 
 # If execution policy allows scripts:
 .\Setup_1.ps1 install
@@ -147,7 +131,7 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 
 2. **Launch GUI**:
    ```powershell
-   cd "WingetGUI_Installer\EnvSetup"
+   cd "WingetGUI_Installer"
    
    # If execution policy allows scripts:
    .\Setup_1.ps1 gui
@@ -253,22 +237,21 @@ The GUI installer uses JSON configuration files for package management:
 Windows_Software_Installation/
 ├── README.md                              # This file
 └── WingetGUI_Installer/
-    ├── README.md                          # GUI installer documentation  
-    └── EnvSetup/
-        ├── Setup_1.ps1                   # Main installer script (GUI/CLI package manager)
-        ├── Setup_2.ps1                   # Repository downloader script
-        ├── JSON/
-        │   ├── install/
-        │   │   └── applications.json     # Package definitions
-        │   └── uninstall/
-        │       └── uninstall.json        # Installed package tracking
-        ├── logs/                          # Installation logs
-        └── Public/                        # Core functionality modules
-            ├── GUI.ps1                    # GUI interface
-            ├── Install.ps1                # Installation functions
-            ├── Uninstall.ps1              # Uninstallation functions
-            ├── Append-ToJson.ps1          # JSON management
-            └── Write_ToLog.ps1            # Logging utilities
+    ├── README.md                          # GUI installer documentation
+    ├── Setup_1.ps1                        # Main installer script (GUI/CLI package manager)
+    ├── Setup_2.ps1                        # Repository downloader script
+    ├── JSON/
+    │   ├── install/
+    │   │   └── applications.json          # Package definitions
+    │   └── uninstall/
+    │       └── uninstall.json             # Installed package tracking
+    ├── logs/                              # Installation logs
+    └── Public/                            # Core functionality modules
+        ├── GUI.ps1                        # GUI interface
+        ├── Install.ps1                    # Installation functions
+        ├── Uninstall.ps1                  # Uninstallation functions
+        ├── Append-ToJson.ps1              # JSON management
+        └── Write_ToLog.ps1                # Logging utilities
 ```
 
 ---
@@ -315,7 +298,7 @@ Windows_Software_Installation/
 For technical assistance or feature requests:
 
 - **Repository Issues**: Check individual repository documentation
-- **GUI Installer Issues**: Check logs in `WingetGUI_Installer\EnvSetup\logs\`
+- **GUI Installer Issues**: Check logs in `WingetGUI_Installer\logs\`
 - **Feature Requests**: Contact development team
 
 ## 📄 License
