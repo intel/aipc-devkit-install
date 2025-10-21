@@ -52,23 +52,23 @@ For any assistance, please refer to the support documentation or contact our tec
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted LocalMachine
 ```
 
-### Step 2: Run the Environment Setup Script
+### Step 2: Run the First Setup Script
 Navigate to the following directory and run the initial environment setup script:
 ```powershell
-cd Windows_Software_Installation\WingetGUI_Installer\EnvSetup
-.\Env_Setup.ps1 gui       #Install/Uninstall using GUI Mode
-.\Env_Setup.ps1 install       #Install using commandline
-.\Env_Setup.ps1 uninstall     #UnInstall using commandline
+cd Windows_Software_Installation\WingetGUI_Installer
+.\Setup_1.ps1 gui       #Install/Uninstall using GUI Mode
+.\Setup_1.ps1 install       #Install using commandline
+.\Setup_1.ps1 uninstall     #UnInstall using commandline
 ```
 GUI Mode opens the Windows Forms interface for interactive package selection and installation/uninstallation.
 
 ### Step 3: Reboot the Machine
 After completing the environment setup, reboot your machine to ensure all changes take effect and new environments are recognized.
 
-### Step 4: Run the Main Setup Script
+### Step 4: Run the Second Setup Script
 ```powershell
-cd Windows_Software_Installation
-.\setup_software.ps1
+cd Windows_Software_Installation\WingetGUI_Installer
+.\Setup_2.ps1
 ```
 This will pull a number of repositories and build the necessary environments to execute the samples.
 
@@ -96,7 +96,7 @@ Administrator Privileges: Ensure the "powershell" terminal is running in admin m
   Repair-WinGetPackageManager -Force -Latest
 - Ensure you have the latest version `1.10.X`
 
-- For every application installed a corresponding entry is created in `JSON\uninstall\uninstall.json`, once you have winget installed execute the script using `.\Env_Setup.ps1 install`
+- For every application installed a corresponding entry is created in `JSON\uninstall\uninstall.json`, once you have winget installed execute the script using `.\Setup_1.ps1 install`
 
 
 
@@ -110,7 +110,7 @@ Administrator Privileges: Ensure the "powershell" terminal is running in admin m
     - `--force` Final check to ensure things resolve and install
 
 ### Applications JSON Structure
-- **JSON Configuration**: [Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json](./Windows_Software_Installation/WingetGUI_Installer/EnvSetup/JSON/install/applications.json)
+- **JSON Configuration**: [Windows_Software_Installation/WingetGUI_Installer/JSON/install/applications.json](./Windows_Software_Installation/WingetGUI_Installer/JSON/install/applications.json)
   
 Winget Applications
 Applications installed via the Windows package manager, with automatic dependency resolution:
@@ -174,7 +174,7 @@ To find the specific product version, execute:
 **Applications Configuration**
 
 **applications.json Overview**
-The applications.json file configures applications for installation by the EnvSetup.ps1 script, detailing Winget and external applications along with their installation parameters.
+The applications.json file configures applications for installation by the Setup_1.ps1 script, detailing Winget and external applications along with their installation parameters.
 
 **VerifyInstall**
 
@@ -209,7 +209,7 @@ Example:
 
 #### Overview
 
-The `applications.json` file contains the configuration for applications to be installed by the `EnvSetup.ps1` script. It includes a list of Winget applications and external applications, along with their installation parameters.
+The `applications.json` file contains the configuration for applications to be installed by the `Setup_1.ps1` script. It includes a list of Winget applications and external applications, along with their installation parameters.
 
 #### VerifyInstall
 
