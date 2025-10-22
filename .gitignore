@@ -1,0 +1,49 @@
+# Generated files
+setup-static-drivers.sh
+
+# IDE and editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+temp/
+
+# Log files
+*.log
+logs/
+error.txt
+
+# Installer-specific generated files (winget_installer)
+SetupScript/EnvSetup/logs/
+SetupScript/EnvSetup/json/uninstall/
+**/install_log.txt
+**/error_log.txt
+**/uninstall.txt
+**/uninstall.json
+
+# Package files
+*.deb
+*.ddeb
+*.rpm
+*.tar.gz
+*.zip
+
+# Backup files
+*.bak
+*.backup
+*~
