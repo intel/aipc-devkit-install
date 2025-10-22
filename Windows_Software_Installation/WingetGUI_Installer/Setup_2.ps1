@@ -266,8 +266,8 @@ $runspacePool.Open()
 $jobs = @()
 
 # Define Repos
-$repos = @(
-    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/2025.3.zip"; File = "2025.3.zip" },
+$repos = @(    
+    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/latest.zip"; File = "openvino_notebooks-latest.zip" },
     @{ Name = "openvino_build_deploy"; Uri = "https://github.com/openvinotoolkit/openvino_build_deploy/archive/refs/heads/master.zip"; File = "master-build_deploy.zip" },
     @{ Name = "ollama-ipex-llm"; Uri = "https://github.com/ipex-llm/ipex-llm/releases/download/v2.3.0-nightly/ollama-ipex-llm-2.3.0b20250725-win.zip"; File = "ollama-ipex-llm.zip" },
     @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/windows/openvino_genai_windows_2025.3.0.0_x86_64.zip"; File = "openvino_genai.zip" },
@@ -426,9 +426,8 @@ foreach ($result in $downloadResults) {
 
         switch ($name) {
             "openvino_notebooks"     { 
-                # FIXED: Updated from 2025.2 to 2025.3
-                if (Test-Path "openvino_notebooks-2025.3") {
-                    Rename-Item "openvino_notebooks-2025.3" $name 
+                if (Test-Path "openvino_notebooks-latest") {
+                    Rename-Item "openvino_notebooks-latest" $name 
                 }
             }
             "openvino_build_deploy"  { 
@@ -829,7 +828,7 @@ if (Test-Path "open_model_zoo") {
 
 # Clean up any remaining zip files - UPDATED ZIP FILE NAMES
 Write-Host "`nCleaning up downloaded zip files..." -ForegroundColor Cyan
-$zipFiles = @("2025.3.zip", "master-build_deploy.zip", "ollama-ipex-llm.zip", "openvino_genai.zip", "ai-pc-samples.zip", "2024.4.0.zip")
+$zipFiles = @("openvino_notebooks-latest.zip", "master-build_deploy.zip", "ollama-ipex-llm.zip", "openvino_genai.zip", "ai-pc-samples.zip", "2024.4.0.zip")
 foreach ($zipFile in $zipFiles) {
     if (Test-Path $zipFile) {
         Remove-Item $zipFile -Force
