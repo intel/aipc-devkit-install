@@ -1,175 +1,290 @@
-name: CI for AIPC Devkit
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
+name: "CodeQL Advanced"
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
-    inputs:
-      upload_to_artifactory:
-        description: 'Upload to Artifactory'
-        required: true
-        type: boolean
-        default: 'false'
-      run_all_scans:
-        description: 'Run scans (Bandit, ClamAV, Trivy, Coverity, linting)'
-        required: true
-        type: boolean
-        default: 'false'
-      run_linting:
-        description: 'Run Linting and also upload to artifactory'
-        required: true
-        type: boolean
-        default: 'false'
-      run_bandit_scan:
-        description: 'Run Bandit Scan and also upload to artifactory'
-        required: true
-        type: boolean
-        default: 'false'
-      run_clamav_scan:
-        description: 'Run ClamAV Scan and also upload to artifactory'
-        required: true
-        type: boolean
-        default: 'false'
-      run_trivy_scan:
-        description: 'Run Trivy Scan and also upload to artifactory'
-        required: true
-        type: boolean
-        default: 'false'
-      run_coverity_scan:
-        description: 'Run Coverity Scan and also upload to artifactory'
-        required: true
-        type: boolean
-        default: 'false'
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: '25 0 * * 2'
 
-permissions: read-all # Adding Permission as Read for all of the available permissions
-
-env:
-  CoverityProject: "intel/aipc-devkit-install" # Project name for Coverity scans
+permissions:
+  contents: read
 
 jobs:
-  BuildStage:
-    runs-on: windows-latest
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Runner size impacts CodeQL analysis time. To learn more, please see:
+    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
+    #   - https://gh.io/supported-runners-and-hardware-resources
+    #   - https://gh.io/using-larger-runners (GitHub.com only)
+    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    permissions:
+      # required for all workflows
+      security-events: write
+
+      # required to fetch internal or private CodeQL packs
+      packages: read
+
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: javascript-typescript
+          build-mode: none
+        # Commented out languages that don't exist in this repository
+        # - language: python
+        #   build-mode: none
+        # - language: csharp
+        #   build-mode: autobuild
+        # CodeQL supports the following values keywords for 'language': 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
+        # javascript-typescript provides some basic analysis for shell scripts (.sh) and can analyze any .js/.ts files
+        # Re-enable python when you add actual .py source code files
+        # Re-enable csharp when you add actual C# projects (.csproj, .sln files)
+        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
+        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
+        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
+        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Harden Runner
+      uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+      with:
+        egress-policy: audit
 
-      - name: Set up Python and Package
-        # This action sets up the Python environment and installs necessary packages
-        uses: ./.github/actions/envsetup
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-      - name: Build aipc-devkit and upload to Artifactory
-        uses: ./.github/actions/buildartifact
-        with:
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-  
-  BanditScan:
-    name: BanditScan
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@294a9d92911152fe08befb9ec03e240add280cb3 # v3.26.8
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+
+        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+        queries: security-extended,security-and-quality
+
+    # If the analyze step fails for one of the languages you are analyzing with
+    # "We were unable to automatically build your code", modify the matrix above
+    # to set the build mode to "manual" for that language. Then modify this step
+    # to build your code.
+    # ℹ️ Command-line programs to run using the OS shell.
+    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+    - if: matrix.build-mode == 'manual'
+      shell: bash
+      run: |
+        echo 'If you are using a "manual" build mode for one or more of the' \
+          'languages you are analyzing, replace this with the commands to build' \
+          'your code, for example:'
+        echo '  make bootstrap'
+        echo '  make release'
+        exit 1
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@294a9d92911152fe08befb9ec03e240add280cb3 # v3.26.8
+      with:
+        category: "/language:${{matrix.language}}"
+
+    # Generate security report only after analysis completes
+    - name: Generate Security Report
+      if: matrix.language == 'javascript-typescript'  # Run only once, not for each language
+      uses: rsdmike/github-security-report-action@a149b24539044c92786ec39af8ba38c93496495d # v3.0.4
+      with:
+        template: report
+        token: ${{ secrets.AIPC_SDK_TOKEN }}
+
+    - name: GitHub Upload Release Artifacts
+      if: matrix.language == 'javascript-typescript'  # Upload only once, not for each language
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: report
+        path: |
+         ./report.pdf
+
+  # Trivy security scanning - additional security layer
+  trivy-scan:
+    name: Trivy Security Scan
     runs-on: ubuntu-latest
-    needs: [BuildStage]
-    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_bandit_scan == 'true' }}
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Harden Runner
+      uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    # List dependency files for debugging
+    - name: List dependency files for scanning
+      run: |
+        echo "## 📋 Dependency Files Found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Python Requirements Files:" >> $GITHUB_STEP_SUMMARY
+        find . -name "requirements.txt" -type f | while read file; do
+          echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Dependencies: $(grep -v '^#' "$file" | grep -v '^$' | wc -l)" >> $GITHUB_STEP_SUMMARY
+        done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Other Package Files:" >> $GITHUB_STEP_SUMMARY
+        find . -name "package.json" -o -name "Gemfile" -o -name "go.mod" -o -name "composer.json" -o -name "Cargo.toml" | while read file; do
+          echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+        done || echo "- No additional package files found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    # Vulnerability scanning
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        ignore-unfixed: true
+        format: 'sarif'
+        output: 'trivy-vuln-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        scanners: 'vuln'
+        # Ensure scanning of Python requirements files
+        scan-all-unpackaged: true
+
+    # Secret scanning
+    - name: Run Trivy secret scanner
+      uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-secret-results.sarif'
+        scanners: 'secret'
+
+    # Configuration scanning
+    - name: Run Trivy configuration scanner
+      uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-config-results.sarif'
+        scanners: 'config'
+
+    # Upload all Trivy results to GitHub Security tab
+    - name: Upload vulnerability results
+      uses: github/codeql-action/upload-sarif@294a9d92911152fe08befb9ec03e240add280cb3 # v3.26.8
+      if: always()
+      with:
+        sarif_file: 'trivy-vuln-results.sarif'
+        category: 'trivy-vulnerabilities'
+
+    - name: Upload secret scan results
+      uses: github/codeql-action/upload-sarif@294a9d92911152fe08befb9ec03e240add280cb3 # v3.26.8
+      if: always()
+      with:
+        sarif_file: 'trivy-secret-results.sarif'
+        category: 'trivy-secrets'
+
+    - name: Upload configuration scan results
+      uses: github/codeql-action/upload-sarif@294a9d92911152fe08befb9ec03e240add280cb3 # v3.26.8
+      if: always()
+      with:
+        sarif_file: 'trivy-config-results.sarif'
+        category: 'trivy-configurations'
+
+    # Generate human-readable Trivy report
+    - name: Generate Trivy comprehensive report
+      uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        output: 'trivy-report.txt'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        scanners: 'vuln,secret,config'
+        scan-all-unpackaged: true
+
+    # Generate detailed JSON report for debugging
+    - name: Generate Trivy detailed JSON report
+      uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'json'
+        output: 'trivy-detailed.json'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        scanners: 'vuln,secret,config'
+        scan-all-unpackaged: true
+
+    # Upload Trivy reports
+    - name: Upload Trivy comprehensive reports
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      if: always()
+      with:
+        name: trivy-comprehensive-report
+        path: |
+          trivy-*.sarif
+          trivy-report.txt
+          trivy-detailed.json
+        retention-days: 30
+
+    # Add summary step to show scan results
+    - name: Display Trivy scan summary
+      if: always()
+      run: |
+        echo "## 🛡️ Trivy Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
         
-      - name: RunBanditScan
-        id: BanditScan
-        uses: ./.github/actions/scans/bandit
-        with:
-          report_name: "bandit-results"
-          run_bandit_scan: ${{ github.event.inputs.run_bandit_scan }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-
-  ClamAVScan:
-    name: ClamAVScan
-    runs-on: ubuntu-latest
-    needs: [BuildStage]
-    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_clamav_scan == 'true' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: RunSourceClamAVScan
-        id: ClamAVScanSource
-        uses: ./.github/actions/scans/clamav
-        with:
-          report_name: "clamavsource-results"
-          exclude_paths: ".git"
-          run_clamav_scan: ${{ github.event.inputs.run_clamav_scan }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-
-      # Run binary ClamAV scan only if the artifact is being uploaded to Artifactory
-      - name: RunBinaryClamAVScan
-        if: ${{ github.event.inputs.upload_to_artifactory == 'true' }}
-        id: ClamAVScanBinary
-        uses: ./.github/actions/scans/clamav
-        with:
-          report_name: "clamavbinary-results"
-          exclude_paths: ".git"
-          artifact_name: "ArtifactAIPC"
-          artifact_path: "./ArtifactAIPC"
-          run_clamav_scan: ${{ github.event.inputs.run_clamav_scan }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-
-  TrivyScan:
-    name: TrivyScan
-    runs-on: ubuntu-latest
-    needs: [BuildStage]
-    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_trivy_scan == 'true' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: RunTrivyScan
-        id: TrivyScan
-        uses: ./.github/actions/scans/trivy
-        with:
-          report_name: "trivy-results"
-          scan-type: 'fs'
-          scan-ref: 'Prerequisites/PythonModules/requirements.txt'
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-          scanners: 'vuln,secret,misconfig,license' 
-          run_trivy_scan: ${{ github.event.inputs.run_trivy_scan }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-
-  CoverityScan:
-    name: CoverityScan
-    runs-on: ubuntu-latest
-    needs: [BuildStage]
-    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_coverity_scan == 'true' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: RunCoverityScan
-        id: RunCoverityScan
-        uses: ./.github/actions/scans/coverity
-        with:
-          project: ${{ env.CoverityProject }}
-          build_language: 'other' # 'other' is used because Coverity does not have a specific option for Python
-          command: '--no-command --fs-capture-search ${{ github.workspace }}'
-          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
-          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
-          run_coverity_scan: ${{ github.event.inputs.run_coverity_scan }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-
-  Linting:
-    name: Linting
-    runs-on: ubuntu-latest
-    needs: [BuildStage]
-    if: ${{ github.event.inputs.run_all_scans == 'true' || github.event.inputs.run_linting == 'true' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: RunLinting
-        id: Linting
-        uses: ./.github/actions/linting
-        with:
-          run_linting: ${{ github.event.inputs.run_linting }}
-          upload_to_artifactory: ${{ github.event.inputs.upload_to_artifactory }}
-
-
+        # Check if vulnerabilities were found
+        if [ -s trivy-vuln-results.sarif ]; then
+          echo "### 🔍 Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+          vuln_count=$(jq '.runs[0].results | length' trivy-vuln-results.sarif)
+          if [ "$vuln_count" -gt 0 ]; then
+            echo "- ⚠️ Found $vuln_count vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        # Check if secrets were found
+        if [ -s trivy-secret-results.sarif ]; then
+          echo "### 🔐 Secret Scan" >> $GITHUB_STEP_SUMMARY
+          secret_count=$(jq '.runs[0].results | length' trivy-secret-results.sarif)
+          if [ "$secret_count" -gt 0 ]; then
+            echo "- ⚠️ Found $secret_count potential secrets" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ No secrets detected" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        # Check if config issues were found
+        if [ -s trivy-config-results.sarif ]; then
+          echo "### ⚙️ Configuration Scan" >> $GITHUB_STEP_SUMMARY
+          config_count=$(jq '.runs[0].results | length' trivy-config-results.sarif)
+          if [ "$config_count" -gt 0 ]; then
+            echo "- ⚠️ Found $config_count configuration issues" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ No configuration issues found" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 **Detailed reports available in artifacts**" >> $GITHUB_STEP_SUMMARY
+        echo "📁 Files scanned: $(find . -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name 'requirements.txt' -o -name 'package.json' | wc -l) dependency/source files" >> $GITHUB_STEP_SUMMARY
