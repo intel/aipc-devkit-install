@@ -1,0 +1,140 @@
+{
+  "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity --force",
+  "winget_applications": [
+    {
+      "id": "Microsoft.NuGet",
+      "friendly_name": "NuGet Package Manager",
+      "summary": "Package manager for .NET",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Microsoft.VisualStudioCode",
+      "friendly_name": "Visual Studio Code",
+      "summary": "Code editor",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Microsoft.VisualStudio.2022.Community",
+      "friendly_name": "Visual Studio 2022 Community",
+      "summary": "Integrated development environment",
+      "override_flags": "--add Microsoft.VisualStudio.Workload.ManagedDesktop;includeRecommended --add Microsoft.VisualStudio.Workload.NativeDesktop;includeRecommended --quiet --norestart --includeRecommended --wait",
+
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no",
+      "note": "This package also installs VC++ redistributable, Microsoft .NET SDK"
+    },
+    {
+      "id": "Python.Python.3.12",
+      "friendly_name": "Python 3.12",
+      "summary": "Python programming language interpreter",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "chrisant996.Clink",
+      "friendly_name": "Clink",
+      "summary": "Command line editing enhancements for cmd.exe",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Google.Chrome.Canary",
+      "friendly_name": "Chrome Canary",
+      "summary": "Next-gen Chrome",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Git.Git",
+      "friendly_name": "Git for Windows",
+      "summary": "Distributed version control",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Kitware.CMake",
+      "friendly_name": "CMake",
+      "summary": "Cross-platform build system generator",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": "cmake --version",
+      "dependencies": [
+        {
+          "name": "Git",
+          "version": "2.49.0"
+        }
+      ],
+      "skip_install": "no"
+    },
+    {
+      "id": "astral-sh.uv",
+      "friendly_name": "uv",
+      "summary": "Fast Python package installer and resolver",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": "uv --version",
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "KhronosGroup.VulkanSDK",
+      "friendly_name": "Vulkan SDK",
+      "summary": "Next-generation graphics and compute API",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    }
+  ],
+  "external_applications": [
+    {
+      "name": "one_api_base_toolkit",
+      "friendly_name": "Intel oneAPI Base Toolkit",
+      "summary": "Intel's comprehensive suite of development tools",
+      "source": "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ae29263e-38b9-4d43-86c3-376d6e0668e7/intel-oneapi-base-toolkit-2025.0.1.47_offline.exe",
+      "install_flags": "-a --silent --eula accept",
+      "download_location": ".\\One_API",
+      "uninstall_command": "C:\\Program Files (x86)\\Intel\\oneAPI\\Installer\\installer.exe -s --action remove --product-id intel.oneapi.win.basekit.product --product-ver 2025.0.1+44",
+      "dependencies": [
+        {
+          "name": "Microsoft.VisualStudio.2022.Community",
+          "version": "1.100.2"
+        }
+      ],
+      "skip_install": "yes"
+    }
+  ]
+}
