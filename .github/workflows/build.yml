@@ -109,7 +109,7 @@ jobs:
       uses: rsdmike/github-security-report-action@a149b24539044c92786ec39af8ba38c93496495d # v3.0.4
       with:
         template: report
-        token: ${{ secrets.AIPC_SDK_TOKEN }}
+        token: ${{ secrets.AIPC_SDK_TOKEN_2 }}
 
     - name: GitHub Upload Release Artifacts
       if: matrix.language == 'javascript-typescript'  # Upload only once, not for each language
