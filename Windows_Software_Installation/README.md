@@ -17,10 +17,10 @@ If you encounter execution policy errors preventing scripts from running, use on
 **Method 1 - Run with execution policy parameter (Recommended):**
 ```powershell
 # For GUI mode
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup.ps1" gui
 
 # For command line install
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup.ps1" install
 ```
 
 ### Step 1: GUI Package Manager (Recommended)
@@ -30,7 +30,7 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 cd "Windows_Software_Installation\WingetGUI_Installer"
 
 # Launch the unified GUI
-.\Setup_1.ps1 gui
+.\Setup.ps1 gui
 ```
 
 ### Step 2: Download AI Repositories and create environments
@@ -52,13 +52,13 @@ cd "Windows_Software_Installation\WingetGUI_Installer"
 cd "Windows_Software_Installation\WingetGUI_Installer"
 
 # If execution policy allows scripts:
-.\Setup_1.ps1 install
+.\Setup.ps1 install
 
 # If execution policy blocks scripts:
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup.ps1" install
 
 # Or uninstall
-.\Setup_1.ps1 uninstall
+.\Setup.ps1 uninstall
 ```
 
 ---
@@ -79,15 +79,15 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 **Usage:**
 ```powershell
 # GUI Mode (Interactive)
-.\Setup_1.ps1 gui
-# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
+.\Setup.ps1 gui
+# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup.ps1" gui
 
 # Command Line Mode (Silent)
-.\Setup_1.ps1 install
-# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
+.\Setup.ps1 install
+# Or if execution policy blocks: powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup.ps1" install
 
 # Uninstall Mode
-.\Setup_1.ps1 uninstall
+.\Setup.ps1 uninstall
 ```
 
 ### 📦 Repository Downloader
@@ -134,10 +134,10 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
    cd "WingetGUI_Installer"
    
    # If execution policy allows scripts:
-   .\Setup_1.ps1 gui
+   .\Setup.ps1 gui
    
    # If execution policy blocks scripts:
-   powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
+   powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup.ps1" gui
    ```
 
 4. **Install Software**:
@@ -237,22 +237,37 @@ The GUI installer uses JSON configuration files for package management:
 Windows_Software_Installation/
 ├── README.md                              # This file
 └── WingetGUI_Installer/
-    ├── README.md                          # GUI installer documentation
-    ├── Setup_1.ps1                        # Main installer script (GUI/CLI package manager)
+    ├── Setup.ps1                          # Main entry point (GUI/CLI package manager)
+    ├── Setup_1.ps1                        # Legacy entry point (kept for reference)
     ├── Setup_2.ps1                        # Repository downloader script
+    ├── DevKitInstaller/                   # PowerShell module
+    │   ├── DevKitInstaller.psd1           # Module manifest
+    │   ├── DevKitInstaller.psm1           # Root module (auto-loads functions)
+    │   ├── Private/                       # Internal helper functions
+    │   │   ├── Write-ToLog.ps1            # Logging utility
+    │   │   ├── JsonHelpers.ps1            # JSON append / remove helpers
+    │   │   ├── InstallHelpers.ps1         # Install result checks, external installs
+    │   │   ├── UninstallHelpers.ps1       # Uninstall result checks, winget/external
+    │   │   └── GUIHelpers.ps1             # WPF assembly loading, data conversion
+    │   └── Public/                        # Exported functions
+    │       ├── Install-SelectedPackages.ps1
+    │       ├── Uninstall-SelectedPackages.ps1
+    │       ├── Show-GUI.ps1               # WPF dialogs (main menu, selection, results)
+    │       ├── Test-Prerequisites.ps1     # Winget/NuGet/admin checks
+    │       ├── Confirm-Eula.ps1           # EULA acceptance dialog
+    │       └── Request-AdminPrivileges.ps1 # Elevation helpers
     ├── JSON/
     │   ├── install/
     │   │   └── applications.json          # Package definitions
     │   └── uninstall/
     │       └── uninstall.json             # Installed package tracking
     ├── logs/                              # Installation logs
-    └── Public/                            # Core functionality modules
-        ├── GUI.ps1                        # GUI interface
-        ├── Install.ps1                    # Installation functions
-        ├── Uninstall.ps1                  # Uninstallation functions
-        ├── Append-ToJson.ps1              # JSON management
-        └── Write_ToLog.ps1                # Logging utilities
+    └── Public/                            # Legacy function files (kept for reference)
 ```
+
+> **Note:** `Setup.ps1` imports the `DevKitInstaller` module via `Import-Module`,
+> replacing the fragile dot-source chain used by the legacy `Setup_1.ps1`.
+> All business logic lives in the module; `Setup.ps1` is a thin orchestrator.
 
 ---
 
