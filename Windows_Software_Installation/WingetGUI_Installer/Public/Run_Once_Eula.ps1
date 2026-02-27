@@ -105,9 +105,10 @@ $box.Controls.Add($disagree_button)
 
 # Show the dialog box and return the result
 $box.ShowDialog() | Out-Null
-# Return the dialog result
+# Return the dialog result as a boolean (do not use exit, as this script is
+# invoked via & from the caller and exit would terminate the entire session)
 if ($box.DialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
-    exit 0
+    return $true
 } else {
-    exit 1
+    return $false
 }

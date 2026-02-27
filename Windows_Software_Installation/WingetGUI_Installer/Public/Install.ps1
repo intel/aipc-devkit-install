@@ -52,17 +52,10 @@ function Install-SelectedPackages {
         $appType = if ($app.PSObject.Properties["id"]) { "winget" } elseif ($app.PSObject.Properties["source"]) { "external" } else { "unknown" }
         $appName = if ($app.friendly_name) { $app.friendly_name } elseif ($app.name) { $app.name } elseif ($app.id) { $app.id } else { "UnknownApp" }
         $overrideFlags = $null
-        if ($app.PSObject.Properties["override_flags"]) {
+        if ($app.PSObject.Properties["override_flags"] -and $null -ne $app.override_flags) {
             $overrideFlags = $app.override_flags
-            if ($null -ne $app.override_flags) {
-            } else {
-            }
-        } elseif ($app.PSObject.Properties["OverrideFlags"]) {
+        } elseif ($app.PSObject.Properties["OverrideFlags"] -and $null -ne $app.OverrideFlags) {
             $overrideFlags = $app.OverrideFlags
-            if ($null -ne $app.OverrideFlags) {
-            } else {
-            }
-        } else {
         }
         $result = @{ name = $appName; type = $appType; status = "skipped"; message = "" }
 

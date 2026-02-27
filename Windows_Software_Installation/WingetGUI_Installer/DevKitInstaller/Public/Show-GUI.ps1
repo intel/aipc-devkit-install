@@ -1,75 +1,18 @@
 <#
 .SYNOPSIS
-    WPF-only GUI module for the Environment Setup Tool.
+    WPF GUI functions for the Environment Setup Tool.
 
 .DESCRIPTION
-    This module provides WPF GUI functions for the Environment Setup Tool,
-    including package selection, installation, and uninstallation interfaces.
-
-.NOTES
-    This is part of the Environment Setup tool for developers.
-    Authors:
-    - Ben (benjamin.j.odom@intel.com)
-    - Vijay (vijay.chandrashekar@intel.com)
+    Provides the main menu, package selection, install/uninstall result
+    dialogs — all using WPF (PresentationFramework).
 #>
-
-# Load required .NET assemblies
-Add-Type -AssemblyName PresentationFramework
-Add-Type -AssemblyName PresentationCore
-Add-Type -AssemblyName WindowsBase
-
-function Ensure-StaThread {
-    if ([Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
-        Write-Host 'WPF requires STA. Start PowerShell with -STA to use WPF dialogs.' -ForegroundColor Yellow
-        return $false
-    }
-
-    return $true
-}
-
-function Convert-AppsToSelectionItems {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        $applications
-    )
-
-    $items = New-Object System.Collections.Generic.List[object]
-
-    foreach ($app in $applications.winget_applications) {
-        if ($null -eq $app) { continue }
-
-        $items.Add([pscustomobject]@{
-            Check = if ($null -ne $app.skip_install) { $app.skip_install -ne 'yes' } else { $true }
-            Id = if ($null -ne $app.id -and $app.id -ne '') { $app.id } else { $app.name }
-            FriendlyName = if ($null -ne $app.friendly_name -and $app.friendly_name -ne '') { $app.friendly_name } else { $app.name }
-            Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { 'No description available' }
-            Version = if ($null -ne $app.version -and $app.version -ne '') { $app.version } else { 'Latest' }
-            Type = 'Winget'
-        })
-    }
-
-    foreach ($app in $applications.external_applications) {
-        if ($null -eq $app) { continue }
-
-        $items.Add([pscustomobject]@{
-            Check = if ($null -ne $app.skip_install) { $app.skip_install -ne 'yes' } else { $true }
-            Id = $app.name
-            FriendlyName = if ($null -ne $app.friendly_name -and $app.friendly_name -ne '') { $app.friendly_name } else { $app.name }
-            Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { 'External application' }
-            Version = 'External'
-            Type = 'External'
-        })
-    }
-
-    return ,$items
-}
 
 function Show-MainGUI {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         $applications,
+
         [string]$install_log_file,
         [string]$json_uninstall_file_path
     )
@@ -106,7 +49,7 @@ function Show-MainGUI {
 "@
 
     $reader = New-Object System.Xml.XmlNodeReader ([xml]$xaml)
-    $win = [Windows.Markup.XamlReader]::Load($reader)
+    $win    = [Windows.Markup.XamlReader]::Load($reader)
 
     $win.FindName('btnInstall').Add_Click({
         $win.Hide()
@@ -120,10 +63,9 @@ function Show-MainGUI {
                 if (-not (Test-Path -Path $uninstallDir)) {
                     New-Item -Path $uninstallDir -ItemType Directory -Force | Out-Null
                 }
-
                 if (-not (Test-Path -Path $json_uninstall_file_path)) {
                     $json_structure = @{
-                        winget_applications = @()
+                        winget_applications   = @()
                         external_applications = @()
                     }
                     $json_structure | ConvertTo-Json | Set-Content -Path $json_uninstall_file_path
@@ -133,7 +75,7 @@ function Show-MainGUI {
             $installResults = Install-SelectedPackages -selectedPackages $selectedPackages -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
 
             $username = [Environment]::UserName
-            Copy-Item -Path $install_log_file -Destination "C:\Users\$username\Desktop\install_logs.txt"
+            Copy-Item -Path $install_log_file -Destination "C:\Users\$username\Desktop\install_logs.txt" -ErrorAction SilentlyContinue
 
             Show-InstallResults -installResults $installResults
         }
@@ -163,7 +105,7 @@ function Show-InstallResults {
     [CmdletBinding()]
     param($installResults)
 
-    $resultMessage = "Installation Summary:`n"
+    $resultMessage  = "Installation Summary:`n"
     $resultMessage += "Total packages: $($installResults.TotalPackages)`n"
     $resultMessage += "Successfully installed: $($installResults.SuccessfulInstalls)`n"
     $resultMessage += "Failed installations: $($installResults.FailedInstalls)`n"
@@ -178,21 +120,19 @@ function Show-InstallResults {
     $resultMessage += "`nCheck the install logs on your desktop for details."
 
     if ($installResults.FailedInstalls -eq 0) {
-        $icon = [System.Windows.MessageBoxImage]::Information
+        $icon  = [System.Windows.MessageBoxImage]::Information
         $title = 'Environment Setup - Installation Completed Successfully'
     } elseif ($installResults.SuccessfulInstalls -eq 0) {
-        $icon = [System.Windows.MessageBoxImage]::Error
+        $icon  = [System.Windows.MessageBoxImage]::Error
         $title = 'Environment Setup - Installation Failed'
     } else {
-        $icon = [System.Windows.MessageBoxImage]::Warning
+        $icon  = [System.Windows.MessageBoxImage]::Warning
         $title = 'Environment Setup - Installation Completed with Errors'
     }
 
     [System.Windows.MessageBox]::Show(
-        $resultMessage,
-        $title,
-        [System.Windows.MessageBoxButton]::OK,
-        $icon
+        $resultMessage, $title,
+        [System.Windows.MessageBoxButton]::OK, $icon
     )
 }
 
@@ -239,8 +179,8 @@ function Show-PackageSelectionWpf {
 "@
 
     $reader = New-Object System.Xml.XmlNodeReader ([xml]$xaml)
-    $win = [Windows.Markup.XamlReader]::Load($reader)
-    $dg = $win.FindName('dg')
+    $win    = [Windows.Markup.XamlReader]::Load($reader)
+    $dg     = $win.FindName('dg')
     $dg.ItemsSource = $items
 
     $win.FindName('btnSelectAll').Add_Click({
@@ -255,15 +195,14 @@ function Show-PackageSelectionWpf {
         $selected = $items | Where-Object { $_.Check }
         if (-not $selected) {
             [System.Windows.MessageBox]::Show(
-                'No packages selected.',
-                'Environment Setup',
+                'No packages selected.', 'Environment Setup',
                 [System.Windows.MessageBoxButton]::OK,
                 [System.Windows.MessageBoxImage]::Information
             )
             return
         }
 
-        $cnt = @($selected).Count
+        $cnt     = @($selected).Count
         $pkgWord = if ($cnt -eq 1) { 'package' } else { 'packages' }
         $confirm = [System.Windows.MessageBox]::Show(
             "You are about to install $cnt $pkgWord. Continue?",
@@ -304,12 +243,9 @@ function Show-UninstallWpf {
 
     $uninstallData = Get-Content -Path $json_uninstall_file_path -Raw | ConvertFrom-Json
     $totalApps = 0
-    if ($uninstallData.winget_applications -and $uninstallData.winget_applications.Count) {
-        $totalApps += $uninstallData.winget_applications.Count
-    }
-    if ($uninstallData.external_applications -and $uninstallData.external_applications.Count) {
-        $totalApps += $uninstallData.external_applications.Count
-    }
+    if ($uninstallData.winget_applications   -and $uninstallData.winget_applications.Count)   { $totalApps += $uninstallData.winget_applications.Count }
+    if ($uninstallData.external_applications -and $uninstallData.external_applications.Count) { $totalApps += $uninstallData.external_applications.Count }
+
     if ($totalApps -eq 0) {
         [System.Windows.MessageBox]::Show(
             'No applications are currently tracked for uninstallation.',
@@ -324,22 +260,22 @@ function Show-UninstallWpf {
     if ($uninstallData.winget_applications) {
         foreach ($app in $uninstallData.winget_applications) {
             $items.Add([pscustomobject]@{
-                Check = $false
-                Id = if ($app.id) { $app.id } else { $app.name }
+                Check        = $false
+                Id           = if ($app.id) { $app.id } else { $app.name }
                 FriendlyName = if ($app.friendly_name) { $app.friendly_name } elseif ($app.id) { $app.id } else { $app.name }
-                Version = if ($app.version) { $app.version } else { 'Latest' }
-                Type = 'Winget'
+                Version      = if ($app.version) { $app.version } else { 'Latest' }
+                Type         = 'Winget'
             })
         }
     }
     if ($uninstallData.external_applications) {
         foreach ($app in $uninstallData.external_applications) {
             $items.Add([pscustomobject]@{
-                Check = $false
-                Id = $app.name
+                Check        = $false
+                Id           = $app.name
                 FriendlyName = if ($app.friendly_name) { $app.friendly_name } else { $app.name }
-                Version = 'External'
-                Type = 'External'
+                Version      = 'External'
+                Type         = 'External'
             })
         }
     }
@@ -375,8 +311,8 @@ function Show-UninstallWpf {
 "@
 
     $reader = New-Object System.Xml.XmlNodeReader ([xml]$xaml)
-    $win = [Windows.Markup.XamlReader]::Load($reader)
-    $dg = $win.FindName('dg')
+    $win    = [Windows.Markup.XamlReader]::Load($reader)
+    $dg     = $win.FindName('dg')
     $dg.ItemsSource = $items
 
     $win.FindName('btnSelectAll').Add_Click({
@@ -391,15 +327,14 @@ function Show-UninstallWpf {
         $selected = $items | Where-Object { $_.Check }
         if (-not $selected) {
             [System.Windows.MessageBox]::Show(
-                'No packages selected.',
-                'Environment Setup',
+                'No packages selected.', 'Environment Setup',
                 [System.Windows.MessageBoxButton]::OK,
                 [System.Windows.MessageBoxImage]::Information
             )
             return
         }
 
-        $cnt = @($selected).Count
+        $cnt     = @($selected).Count
         $confirm = [System.Windows.MessageBox]::Show(
             "You are about to uninstall $cnt package(s). This action cannot be undone. Continue?",
             'Environment Setup - Confirm Uninstallation',
@@ -423,7 +358,7 @@ function Show-UninstallResults {
     [CmdletBinding()]
     param($uninstallResults)
 
-    $resultMessage = "Uninstallation Summary:`n"
+    $resultMessage  = "Uninstallation Summary:`n"
     $resultMessage += "Total packages: $($uninstallResults.TotalPackages)`n"
     $resultMessage += "Successfully uninstalled: $($uninstallResults.SuccessfulUninstalls)`n"
     $resultMessage += "Failed uninstallations: $($uninstallResults.FailedUninstalls)`n"
@@ -436,23 +371,18 @@ function Show-UninstallResults {
     }
 
     if ($uninstallResults.FailedUninstalls -eq 0) {
-        $icon = [System.Windows.MessageBoxImage]::Information
+        $icon  = [System.Windows.MessageBoxImage]::Information
         $title = 'Environment Setup - Uninstallation Completed Successfully'
     } elseif ($uninstallResults.SuccessfulUninstalls -eq 0) {
-        $icon = [System.Windows.MessageBoxImage]::Error
+        $icon  = [System.Windows.MessageBoxImage]::Error
         $title = 'Environment Setup - Uninstallation Failed'
     } else {
-        $icon = [System.Windows.MessageBoxImage]::Warning
+        $icon  = [System.Windows.MessageBoxImage]::Warning
         $title = 'Environment Setup - Uninstallation Completed with Errors'
     }
 
     [System.Windows.MessageBox]::Show(
-        $resultMessage,
-        $title,
-        [System.Windows.MessageBoxButton]::OK,
-        $icon
+        $resultMessage, $title,
+        [System.Windows.MessageBoxButton]::OK, $icon
     )
 }
-
-# Functions are automatically available when the script is sourced
-# No need to export members since this is not a module

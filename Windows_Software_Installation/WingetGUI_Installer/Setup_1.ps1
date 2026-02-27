@@ -40,7 +40,6 @@
     Requires Administrator privileges to run.
     Authors: 
     - Vijay (vijay.chandrashekar@intel.com)
-    - Ram (vaithi.s.ramadoss@intel.com)
     - Ben (benjamin.j.odom@intel.com)
 #>
 param(
@@ -58,7 +57,7 @@ Write-Host "expected. User discretion is mandatory. ***" -ForegroundColor White 
 Write-Host ""
 Write-Host ""
 Write-Host "*** Recommended System Requirements:  This SDK will work best on systems that contain  " -ForegroundColor White -BackgroundColor Blue
-Write-Host ""Intel`u{00AE} Core`u{2122} Ultra processors and Intel Arc`u{2122}" GPUs, it will work on other products but " -ForegroundColor White -BackgroundColor Blue
+Write-Host ("Intel$([char]0x00AE) Core$([char]0x2122) Ultra processors and Intel Arc$([char]0x2122) GPUs, it will work on other products but ") -ForegroundColor White -BackgroundColor Blue
 Write-Host "not all features will be supported. ***" -ForegroundColor White -BackgroundColor Blue
 Write-Host "=======================================================================================" -ForegroundColor Yellow
 Write-Host ""
@@ -94,10 +93,6 @@ Write-Host "Running in mode: $command" -ForegroundColor Cyan
 $Global:external = $false # Indicates whether the script is for external use, affecting EULA acceptance
 $task_name = "AIPCCloud ENV Setup" # Name of the scheduled task for environment setup
 
-<#
-    Administrator privilege checking
-#>
-function Test-Administrator {
 # Check for at least 100GB free disk space before proceeding
 function Test-FreeDiskSpace {
     [CmdletBinding()]
@@ -119,13 +114,20 @@ function Test-FreeDiskSpace {
         Write-Host "You have adequate disk space to continue installation." -ForegroundColor Green
     }
     Write-Host "=============================================================" -ForegroundColor Yellow
-
 }
 
 # Run disk space check before any installation or GUI mode
 if ($command -eq 'install' -or $command -eq 'gui') {
     Test-FreeDiskSpace
 }
+
+<#
+    Administrator privilege checking
+#>
+function Test-Administrator {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -222,10 +224,10 @@ function Confirm-Eula {
     [OutputType([bool])]
     param()
     
-    # Source Script
-    $run_once = ".\Public\Run_Once_Eula.ps1" # Path to the EULA acceptance script
-    & $run_once # Executes the EULA acceptance script
-    return $? # Returns the exit status of the EULA script
+    # Source Script - the EULA script returns $true/$false directly
+    $run_once = ".\Public\Run_Once_Eula.ps1"
+    $result = & $run_once
+    return $result
 }
 
 try {
@@ -318,14 +320,33 @@ try {
 
         # Create JSON directory for uninstall files if it doesn't exist
         Initialize-Directory $json_uninstall_dir
-        New-File $json_uninstall_file_path
 
-        # Create the base JSON structure in the uninstall file
-        $json_structure = @{
-            "winget_applications" = @()
-            "external_applications" = @()
+        # Only create the base JSON structure if the file doesn't exist or is empty/invalid
+        # This preserves tracking data from previous install runs
+        if (-not (Test-Path -Path $json_uninstall_file_path)) {
+            $json_structure = @{
+                "winget_applications" = @()
+                "external_applications" = @()
+            }
+            $json_structure | ConvertTo-Json | Set-Content -Path $json_uninstall_file_path
+        } else {
+            # Validate existing file is valid JSON; recreate if corrupted
+            try {
+                $existingContent = Get-Content -Path $json_uninstall_file_path -Raw
+                if ([string]::IsNullOrWhiteSpace($existingContent)) {
+                    throw "Empty file"
+                }
+                $null = $existingContent | ConvertFrom-Json
+                Write-Host "Existing uninstall tracking file found and valid. Preserving previous data." -ForegroundColor Green
+            } catch {
+                Write-Host "Uninstall tracking file was corrupted or empty. Recreating." -ForegroundColor Yellow
+                $json_structure = @{
+                    "winget_applications" = @()
+                    "external_applications" = @()
+                }
+                $json_structure | ConvertTo-Json | Set-Content -Path $json_uninstall_file_path
+            }
         }
-        $json_structure | ConvertTo-Json | Set-Content -Path $json_uninstall_file_path
 
         # Check for pre-requisites
         $pre_req = Check-PreReq # Calls a function to check pre-requisites
@@ -432,6 +453,8 @@ try {
         # Check dependencies
         foreach ($app in $applications.winget_applications) {
             if ($null -ne $app.dependencies) {
+                $appIdentifier = if ($app.id) { $app.id } else { $app.name }
+                $appDisplayName = if ($app.friendly_name) { $app.friendly_name } else { $appIdentifier }
                 foreach ($dep in $app.dependencies) {
                     $depName = $dep.name
                     
@@ -445,10 +468,10 @@ try {
                         $isInstalled = $winget_list | Where-Object { $_.Name -match $depName }
 
                         if ($null -eq $isInstalled) {
-                            Write-Host "Dependency $depName required for $app_id is not installed and not in the install list. Skipping $app_id" -ForegroundColor Yellow
+                            Write-Host "Dependency $depName required for $appDisplayName is not installed and not in the install list. Skipping $appDisplayName" -ForegroundColor Yellow
                             # Remove the application from the list if its dependency can't be met
                             $applications.winget_applications = $applications.winget_applications | Where-Object { 
-                                ($_.id -ne $app_id) -and ($_.name -ne $app_id)
+                                ($_.id -ne $appIdentifier) -and ($_.name -ne $appIdentifier)
                             }
                         } 
                     }
