@@ -32,15 +32,54 @@ function Install-SelectedPackages {
     $jsonPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'JSON/install/applications.json'
     $allAppsJson = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
     $allWingetApps = $allAppsJson.winget_applications
+    $allExternalApps = $allAppsJson.external_applications
+    $sharedPrerequisiteCommands = $allAppsJson.shared_prerequisites_commands
 
     foreach ($app in $selectedPackages) {
-        # Try to find the full app object from the original JSON by id
-        $fullApp = $null
-        if ($app.PSObject.Properties["id"]) {
-            $fullApp = $allWingetApps | Where-Object { $_.id -eq $app.id }
-        } elseif ($app.PSObject.Properties["name"]) {
-            $fullApp = $allWingetApps | Where-Object { $_.id -eq $app.name }
+        $appType = $null
+
+        if ($app.PSObject.Properties["Type"]) {
+            $typeValue = $app.Type.ToString().ToLower()
+            if ($typeValue -eq "winget") {
+                $appType = "winget"
+            } elseif ($typeValue -eq "external") {
+                $appType = "external"
+            }
         }
+
+        if (-not $appType) {
+            if ($app.PSObject.Properties["id"]) {
+                $appType = "winget"
+            } elseif ($app.PSObject.Properties["source"] -or $app.PSObject.Properties["install_command"] -or $app.PSObject.Properties["name"]) {
+                $appType = "external"
+            } else {
+                $appType = "unknown"
+            }
+        }
+
+        # Try to find the full app object fromgit stat the original JSON by id
+        $fullApp = $null
+        if ($appType -eq "winget") {
+            if ($app.PSObject.Properties["id"]) {
+                $fullApp = $allWingetApps | Where-Object { $_.id -eq $app.id } | Select-Object -First 1
+            } elseif ($app.PSObject.Properties["Id"]) {
+                $fullApp = $allWingetApps | Where-Object { $_.id -eq $app.Id } | Select-Object -First 1
+            }
+        } elseif ($appType -eq "external") {
+            $externalName = $null
+            if ($app.PSObject.Properties["name"]) {
+                $externalName = $app.name
+            } elseif ($app.PSObject.Properties["id"]) {
+                $externalName = $app.id
+            } elseif ($app.PSObject.Properties["Id"]) {
+                $externalName = $app.Id
+            }
+
+            if ($externalName) {
+                $fullApp = $allExternalApps | Where-Object { $_.name -eq $externalName } | Select-Object -First 1
+            }
+        }
+
         if ($fullApp) {
             # Merge missing properties from fullApp into $app
             foreach ($prop in $fullApp.PSObject.Properties) {
@@ -49,8 +88,21 @@ function Install-SelectedPackages {
                 }
             }
         }
-        $appType = if ($app.PSObject.Properties["id"]) { "winget" } elseif ($app.PSObject.Properties["source"]) { "external" } else { "unknown" }
-        $appName = if ($app.friendly_name) { $app.friendly_name } elseif ($app.name) { $app.name } elseif ($app.id) { $app.id } else { "UnknownApp" }
+
+        $appName = if ($app.PSObject.Properties["friendly_name"] -and $app.friendly_name) {
+            $app.friendly_name
+        } elseif ($app.PSObject.Properties["FriendlyName"] -and $app.FriendlyName) {
+            $app.FriendlyName
+        } elseif ($app.PSObject.Properties["name"] -and $app.name) {
+            $app.name
+        } elseif ($app.PSObject.Properties["id"] -and $app.id) {
+            $app.id
+        } elseif ($app.PSObject.Properties["Id"] -and $app.Id) {
+            $app.Id
+        } else {
+            "UnknownApp"
+        }
+
         $overrideFlags = $null
         if ($app.PSObject.Properties["override_flags"]) {
             $overrideFlags = $app.override_flags
@@ -77,11 +129,20 @@ function Install-SelectedPackages {
                 } elseif ($app.install_args) {
                     $wingetArgs += $app.install_args
                 }
-                $wingetArgsString = $wingetArgs -join ' '
                 $process = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -PassThru -Wait -NoNewWindow
                 $exit_code = $process.ExitCode
                 $success = Test-InstallationSuccess -exit_code $exit_code -app_name $appName -log_file $log_file
                 if ($success) {
+                    $postInstallSuccess = Invoke-PostInstallActions -app $app -sharedPrerequisiteCommands $sharedPrerequisiteCommands -log_file $log_file
+                    if (-not $postInstallSuccess) {
+                        $failedCount++
+                        $failedPackages += $appName
+                        $result.status = "failed"
+                        $result.message = "Installed, but post-install actions failed."
+                        $results += $result
+                        continue
+                    }
+
                     $installedCount++
                     # Always add to uninstall tracking immediately, with required fields
                     $trackingApp = [PSCustomObject]@{
@@ -112,6 +173,16 @@ function Install-SelectedPackages {
             # Always ensure uninstall tracking is updated for external apps as well, with required fields
             $success = Install-ExternalApplication -app $app -log_file $log_file -uninstall_json_file $uninstall_json_file
             if ($success) {
+                $postInstallSuccess = Invoke-PostInstallActions -app $app -sharedPrerequisiteCommands $sharedPrerequisiteCommands -log_file $log_file
+                if (-not $postInstallSuccess) {
+                    $failedCount++
+                    $failedPackages += $appName
+                    $result.status = "failed"
+                    $result.message = "Installed, but post-install actions failed."
+                    $results += $result
+                    continue
+                }
+
                 $installedCount++
                 $result.status = "success"
                 $result.message = "Installed and tracked."
@@ -205,6 +276,140 @@ function Test-InstallationSuccess {
     }
 }
 
+function Resolve-PostInstallCommands {
+    param(
+        [object]$postInstallCommands,
+        [object]$sharedPrerequisiteCommands,
+        [string]$log_file
+    )
+
+    $resolvedCommands = @()
+
+    if (-not $postInstallCommands) {
+        return $resolvedCommands
+    }
+
+    foreach ($commandEntry in $postInstallCommands) {
+        if (-not $commandEntry) {
+            continue
+        }
+
+        $entryText = $commandEntry.ToString().Trim()
+        if ([string]::IsNullOrWhiteSpace($entryText)) {
+            continue
+        }
+
+        if ($entryText -match '^shared_prerequisites_commands:(.+)$') {
+            $commandSetName = $matches[1].Trim()
+            if ($sharedPrerequisiteCommands -and $sharedPrerequisiteCommands.PSObject.Properties[$commandSetName]) {
+                $sharedSet = $sharedPrerequisiteCommands.$commandSetName
+                foreach ($sharedCommand in $sharedSet) {
+                    if (-not [string]::IsNullOrWhiteSpace($sharedCommand)) {
+                        $resolvedCommands += $sharedCommand.ToString()
+                    }
+                }
+            } else {
+                Write-ToLog -message "Shared post-install command set '$commandSetName' not found in JSON." -log_file $log_file
+                return $null
+            }
+        } else {
+            $resolvedCommands += $entryText
+        }
+    }
+
+    return $resolvedCommands
+}
+
+function Set-PersistentEnvironmentVariables {
+    param(
+        [object]$environmentVariables,
+        [string]$log_file,
+        [string]$appDisplayName
+    )
+
+    if (-not $environmentVariables) {
+        return $true
+    }
+
+    foreach ($property in $environmentVariables.PSObject.Properties) {
+        $varName = $property.Name
+        $varValue = if ($null -eq $property.Value) { "" } else { $property.Value.ToString() }
+
+        if ([string]::IsNullOrWhiteSpace($varName)) {
+            continue
+        }
+
+        try {
+            [Environment]::SetEnvironmentVariable($varName, $varValue, "Machine")
+            [Environment]::SetEnvironmentVariable($varName, $varValue, "Process")
+            Write-ToLog -message "Set persistent machine environment variable for ${appDisplayName}: $varName=$varValue" -log_file $log_file
+        }
+        catch {
+            try {
+                [Environment]::SetEnvironmentVariable($varName, $varValue, "User")
+                [Environment]::SetEnvironmentVariable($varName, $varValue, "Process")
+                Write-ToLog -message "Set persistent user environment variable for ${appDisplayName}: $varName=$varValue" -log_file $log_file
+            }
+            catch {
+                Write-ToLog -message "Failed setting environment variable for ${appDisplayName}: $varName. Error: $($_.Exception.Message)" -log_file $log_file
+                return $false
+            }
+        }
+    }
+
+    return $true
+}
+
+function Invoke-PostInstallActions {
+    param(
+        [PSCustomObject]$app,
+        [object]$sharedPrerequisiteCommands,
+        [string]$log_file
+    )
+
+    $appDisplayName = if ($app.PSObject.Properties["friendly_name"] -and $app.friendly_name) {
+        $app.friendly_name
+    } elseif ($app.PSObject.Properties["name"] -and $app.name) {
+        $app.name
+    } elseif ($app.PSObject.Properties["id"] -and $app.id) {
+        $app.id
+    } else {
+        "UnknownApp"
+    }
+
+    if ($app.PSObject.Properties["post_install_commands"]) {
+        $resolvedCommands = Resolve-PostInstallCommands -postInstallCommands $app.post_install_commands -sharedPrerequisiteCommands $sharedPrerequisiteCommands -log_file $log_file
+        if ($null -eq $resolvedCommands) {
+            Write-ToLog -message "Post-install command resolution failed for $appDisplayName" -log_file $log_file
+            return $false
+        }
+
+        foreach ($command in $resolvedCommands) {
+            Write-ToLog -message "Running post-install command for ${appDisplayName}: $command" -log_file $log_file
+            try {
+                $process = Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) -PassThru -Wait -NoNewWindow
+                if ($process.ExitCode -ne 0) {
+                    Write-ToLog -message "Post-install command failed for ${appDisplayName} with exit code $($process.ExitCode): $command" -log_file $log_file
+                    return $false
+                }
+            }
+            catch {
+                Write-ToLog -message "Error running post-install command for ${appDisplayName}: $command. Error: $($_.Exception.Message)" -log_file $log_file
+                return $false
+            }
+        }
+    }
+
+    if ($app.PSObject.Properties["post_install_environment_variables"]) {
+        $envSuccess = Set-PersistentEnvironmentVariables -environmentVariables $app.post_install_environment_variables -log_file $log_file -appDisplayName $appDisplayName
+        if (-not $envSuccess) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 # Install an external application
 function Install-ExternalApplication {
     param (
@@ -219,41 +424,49 @@ function Install-ExternalApplication {
     Write-ToLog -message "Installing external application $appDisplayName" -log_file $log_file
     
     # Check for required properties
-    if (-not $app.name -or -not $app.source) {
-        Write-ToLog -message "Error: External application $appDisplayName is missing required properties (name or source)" -log_file $log_file
+    if (-not $app.name -or (-not $app.source -and -not $app.install_command)) {
+        Write-ToLog -message "Error: External application $appDisplayName is missing required properties (name and either source or install_command)" -log_file $log_file
         return $false
     }
     
-    # Create a temporary directory for downloads if it doesn't exist
-    $temp_dir = Join-Path $env:TEMP "EnvSetup_Downloads"
-    if (-not (Test-Path $temp_dir)) {
-        New-Item -ItemType Directory -Path $temp_dir -Force | Out-Null
-    }
-    
     try {
-        # Download the installer
-        $installer_path = Join-Path $temp_dir "$($app.name)_installer$(Split-Path $app.source -Extension)"
-        try {
-            Write-ToLog -message "Downloading $($appDisplayName) from $($app.source)" -log_file $log_file
-            Invoke-WebRequest -Uri $app.source -OutFile $installer_path -UseBasicParsing
-            Write-ToLog -message "Downloaded installer for $($appDisplayName) to $installer_path" -log_file $log_file
+        $process = $null
+
+        if ($app.install_command) {
+            Write-ToLog -message "Running install command for ${appDisplayName}: $($app.install_command)" -log_file $log_file
+            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $app.install_command) -PassThru -Wait -NoNewWindow
+        } else {
+            # Create a temporary directory for downloads if it doesn't exist
+            $temp_dir = Join-Path $env:TEMP "EnvSetup_Downloads"
+            if (-not (Test-Path $temp_dir)) {
+                New-Item -ItemType Directory -Path $temp_dir -Force | Out-Null
+            }
+
+            # Download the installer
+            $installer_path = Join-Path $temp_dir "$($app.name)_installer$(Split-Path $app.source -Extension)"
+            try {
+                Write-ToLog -message "Downloading $($appDisplayName) from $($app.source)" -log_file $log_file
+                Invoke-WebRequest -Uri $app.source -OutFile $installer_path -UseBasicParsing
+                Write-ToLog -message "Downloaded installer for $($appDisplayName) to $installer_path" -log_file $log_file
+            }
+            catch {
+                Write-ToLog -message "Failed to download installer for $($appDisplayName): $_" -log_file $log_file
+                return $false
+            }
+
+            # Run the installer
+            $arguments = @()
+            if ($app.install_flags) {
+                $arguments = $app.install_flags -split '\s+'
+            } elseif ($app.install_args) {
+                # For backward compatibility
+                $arguments = $app.install_args -split '\s+'
+            }
+
+            Write-ToLog -message "Running installer for $appDisplayName with arguments: $($arguments -join ' ')" -log_file $log_file
+            $process = Start-Process -FilePath $installer_path -ArgumentList $arguments -PassThru -Wait -NoNewWindow
         }
-        catch {
-            Write-ToLog -message "Failed to download installer for $($appDisplayName): $_" -log_file $log_file
-            return $false
-        }
-        
-        # Run the installer
-        $arguments = @()
-        if ($app.install_flags) {
-            $arguments = $app.install_flags -split '\s+'
-        } elseif ($app.install_args) {
-            # For backward compatibility
-            $arguments = $app.install_args -split '\s+'
-        }
-        
-        Write-ToLog -message "Running installer for $appDisplayName with arguments: $($arguments -join ' ')" -log_file $log_file
-        $process = Start-Process -FilePath $installer_path -ArgumentList $arguments -PassThru -Wait -NoNewWindow
+
         $exit_code = $process.ExitCode
         
         $success = ($exit_code -eq 0)

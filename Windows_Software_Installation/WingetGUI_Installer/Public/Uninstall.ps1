@@ -1,6 +1,39 @@
 # Uninstall.ps1
 # Module containing all uninstallation-related functions
 
+# Remove persistent environment variables set during installation
+function Remove-PersistentEnvironmentVariables {
+    param (
+        [PSCustomObject]$app,
+        [string]$log_file
+    )
+
+    # Check if the app has post_install_environment_variables
+    if (-not $app.post_install_environment_variables) {
+        return
+    }
+
+    $appDisplayName = if ($app.friendly_name) { $app.friendly_name } else { 
+        if ($app.id) { $app.id } else { $app.name }
+    }
+
+    foreach ($varName in $app.post_install_environment_variables.PSObject.Properties.Name) {
+        try {
+            # Try to remove from Machine scope first (requires admin)
+            [Environment]::SetEnvironmentVariable($varName, $null, "Machine")
+            Write-ToLog -message "Removed environment variable $varName from Machine scope for ${appDisplayName}" -log_file $log_file
+        } catch {
+            # If Machine scope fails, try User scope
+            try {
+                [Environment]::SetEnvironmentVariable($varName, $null, "User")
+                Write-ToLog -message "Removed environment variable $varName from User scope for ${appDisplayName}" -log_file $log_file
+            } catch {
+                Write-ToLog -message "Warning: Failed to remove environment variable $varName for ${appDisplayName}: $_" -log_file $log_file
+            }
+        }
+    }
+}
+
 # Test if a winget uninstallation was successful
 function Test-UninstallationSuccess {
     param (
@@ -67,7 +100,7 @@ function Uninstall-SelectedPackages {
             $app = [PSCustomObject]@{
                 id = $package.Id
                 friendly_name = $package.FriendlyName
-                version = if ($package.Version -eq "Latest") { $null } else { $package.Version }
+                version = if ("Latest" -eq $package.Version) { $null } else { $package.Version }
             }
             $section = "winget_applications"
             $id = $package.Id
@@ -75,7 +108,7 @@ function Uninstall-SelectedPackages {
             $app = [PSCustomObject]@{
                 name = $package.Id
                 friendly_name = $package.FriendlyName
-                version = if ($package.Version -eq "Latest") { $null } else { $package.Version }
+                version = if ("Latest" -eq $package.Version) { $null } else { $package.Version }
             }
             $section = "external_applications"
             $id = $package.Id
@@ -151,7 +184,7 @@ function Uninstall-WingetApplication {
     # Add the application ID
     $arguments += @("--id", $appIdentifier)
     
-    if ($app.version -and $app.version -ne "Latest" -and $app.version -ne "" -and $app.version -ne $null) {
+    if ($app.version -and $app.version -ne "Latest" -and $app.version -ne "" -and $null -ne $app.version) {
         $arguments += @("-v", $app.version)
     }
     
@@ -178,7 +211,14 @@ function Uninstall-WingetApplication {
         $process = Start-Process -FilePath winget -ArgumentList $arguments -PassThru -Wait -NoNewWindow
         $exit_code = $process.ExitCode
         
-        return Test-UninstallationSuccess -exit_code $exit_code -app_name $appDisplayName -log_file $log_file
+        $uninstallSuccess = Test-UninstallationSuccess -exit_code $exit_code -app_name $appDisplayName -log_file $log_file
+        
+        # Remove persistent environment variables if uninstall was successful
+        if ($uninstallSuccess) {
+            Remove-PersistentEnvironmentVariables -app $app -log_file $log_file
+        }
+        
+        return $uninstallSuccess
     }
     catch {
         Write-ToLog -message "Error during uninstallation of ${appDisplayName}: $_" -log_file $log_file
@@ -240,16 +280,22 @@ function Uninstall-ExternalApplication {
             # Consider any exit code as success for external applications, as different installers use different codes
             # For applications like Visual Studio, the uninstaller might return a non-zero exit code even on success
             if ($exit_code -eq 0) {
+                # Remove persistent environment variables after successful uninstall
+                Remove-PersistentEnvironmentVariables -app $app -log_file $log_file
                 return $true
             } else {
                 # Check known "success" exit codes from common uninstallers
                 $successExitCodes = @(0, 3010, 1641)  # 3010 = Reboot required, 1641 = Initiated reboot
                 if ($successExitCodes -contains $exit_code) {
                     Write-ToLog -message "Uninstallation of $appDisplayName successful with expected exit code $exit_code" -log_file $log_file
+                    # Remove persistent environment variables after successful uninstall
+                    Remove-PersistentEnvironmentVariables -app $app -log_file $log_file
                     return $true
                 } else {
                     Write-ToLog -message "Uninstallation of $appDisplayName may have failed with exit code $exit_code" -log_file $log_file
                     # Return true anyway to remove from tracking file, as we can't reliably determine failure for external apps
+                    # Also remove environment variables since app is being removed from tracking
+                    Remove-PersistentEnvironmentVariables -app $app -log_file $log_file
                     return $true
                 }
             }

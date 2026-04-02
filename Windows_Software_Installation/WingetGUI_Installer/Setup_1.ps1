@@ -58,7 +58,7 @@ Write-Host "expected. User discretion is mandatory. ***" -ForegroundColor White 
 Write-Host ""
 Write-Host ""
 Write-Host "*** Recommended System Requirements:  This SDK will work best on systems that contain  " -ForegroundColor White -BackgroundColor Blue
-Write-Host ""Intel`u{00AE} Core`u{2122} Ultra processors and Intel Arc`u{2122}" GPUs, it will work on other products but " -ForegroundColor White -BackgroundColor Blue
+Write-Host "Intel Core Ultra processors and Intel Arc GPUs, it will work on other products but" -ForegroundColor White -BackgroundColor Blue
 Write-Host "not all features will be supported. ***" -ForegroundColor White -BackgroundColor Blue
 Write-Host "=======================================================================================" -ForegroundColor Yellow
 Write-Host ""
