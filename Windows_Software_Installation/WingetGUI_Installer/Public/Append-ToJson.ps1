@@ -22,6 +22,19 @@ function Append-ToJson {
     
     while ($retryCount -lt $maxRetries -and -not $success) {
         try {
+            # Read global_uninstall_flags from applications.json (single source of truth)
+            $_appJsonPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'JSON\install\applications.json'
+            $_globalUninstallFlags = "--purge --accept-source-agreements --silent --disable-interactivity --force"
+            if (Test-Path -Path $_appJsonPath) {
+                try {
+                    $_appJson = Get-Content -Path $_appJsonPath -Raw | ConvertFrom-Json
+                    if ($_appJson.PSObject.Properties.Name -contains "global_uninstall_flags" -and
+                        -not [string]::IsNullOrWhiteSpace($_appJson.global_uninstall_flags)) {
+                        $_globalUninstallFlags = $_appJson.global_uninstall_flags
+                    }
+                } catch {}
+            }
+
             # Check if the JSON file exists
             if (-not (Test-Path -Path $jsonFilePath)) {
                 # Create the directory if it doesn't exist
@@ -32,6 +45,7 @@ function Append-ToJson {
                 
                 # Create a new JSON file with empty arrays
                 $baseJson = @{
+                    "global_uninstall_flags" = $_globalUninstallFlags
                     "winget_applications" = @()
                     "external_applications" = @()
                 }
@@ -45,6 +59,7 @@ function Append-ToJson {
                 if ([string]::IsNullOrWhiteSpace($jsonText)) {
                     # Empty file, create default structure
                     $jsonContent = @{
+                        "global_uninstall_flags" = $_globalUninstallFlags
                         "winget_applications" = @()
                         "external_applications" = @()
                     }
@@ -56,6 +71,7 @@ function Append-ToJson {
                 Write-Warning "JSON file appears to be corrupted. Creating new file."
                 # Create a new JSON file with empty arrays
                 $jsonContent = @{
+                    "global_uninstall_flags" = $_globalUninstallFlags
                     "winget_applications" = @()
                     "external_applications" = @()
                 }

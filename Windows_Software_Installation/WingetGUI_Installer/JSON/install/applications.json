@@ -1,5 +1,6 @@
 {
   "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity --force",
+  "global_uninstall_flags": "--purge --accept-source-agreements --silent --disable-interactivity --force",
   "winget_applications": [
     {
       "id": "Microsoft.VisualStudioCode",
@@ -93,7 +94,8 @@
       "version": null,
       "version_check": null,
       "dependencies": null,
-      "skip_install": "no"
+      "skip_install": "no",
+      "uninstall_override_flags": "/S"
     },
     {
       "id": "OpenJS.NodeJS.LTS",
@@ -103,7 +105,12 @@
       "install_location": null,
       "version": null,
       "version_check": "node --version",
-      "dependencies": null,
+      "dependencies": [
+        {
+          "name": "npm",
+          "version": null
+        }
+      ],
       "skip_install": "no"
     },
     {
@@ -156,7 +163,7 @@
       "install_flags": null,
       "install_command": "npm install -g npm --silent",
       "download_location": null,
-      "uninstall_command": null,
+      "uninstall_command": "npm uninstall -g npm",
       "dependencies": [
         {
           "name": "OpenJS.NodeJS.LTS",
@@ -171,7 +178,7 @@
       "summary": "AI Playground installer package",
       "source": "https://github.com/intel/ai-playground/releases/latest/download/AI-Playground-installer.exe",
       "install_flags": "/S",      
-      "uninstall_command": null,
+      "uninstall_command": "\"%LOCALAPPDATA%\\Programs\\AI Playground\\Uninstall AI Playground.exe\" /currentuser /S",
       "dependencies": null,
       "skip_install": "no"
     },

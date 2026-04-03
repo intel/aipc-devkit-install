@@ -28,6 +28,7 @@ function Install-SelectedPackages {
     $failedCount = 0
     $skippedCount = 0
     $failedPackages = @()
+    $rebootRequiredPackages = @()
     # Reload the original JSON so we can merge in all properties (like override_flags)
     $jsonPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'JSON/install/applications.json'
     $allAppsJson = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
@@ -131,6 +132,13 @@ function Install-SelectedPackages {
                 }
                 $process = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -PassThru -Wait -NoNewWindow
                 $exit_code = $process.ExitCode
+                if (@(-1978335181, -1978335182, 3010, 1641) -contains $exit_code) {
+                    if ($rebootRequiredPackages -notcontains $appName) {
+                        $rebootRequiredPackages += $appName
+                    }
+                    Write-Host "Reboot required after installing $appName" -ForegroundColor Yellow
+                    Write-ToLog -message "Reboot required after installing $appName" -log_file $log_file
+                }
                 $success = Test-InstallationSuccess -exit_code $exit_code -app_name $appName -log_file $log_file
                 if ($success) {
                     $postInstallSuccess = Invoke-PostInstallActions -app $app -sharedPrerequisiteCommands $sharedPrerequisiteCommands -log_file $log_file
@@ -150,6 +158,8 @@ function Install-SelectedPackages {
                         name = if ($app.name) { $app.name } elseif ($app.id) { $app.id } else { $appName }
                         friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $appName }
                         version = if ($app.version) { $app.version } else { "Latest" }
+                        uninstall_override_flags = if ($app.uninstall_override_flags) { $app.uninstall_override_flags } elseif ($app.UninstallOverrideFlags) { $app.UninstallOverrideFlags } else { $null }
+                        post_install_environment_variables = if ($app.post_install_environment_variables) { $app.post_install_environment_variables } else { $null }
                         installed_on = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
                         last_updated = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
                     }
@@ -205,9 +215,14 @@ function Install-SelectedPackages {
         FailedInstalls = $failedCount
         SkippedInstalls = $skippedCount
         FailedPackages = if ($failedPackages -and $failedPackages.Count -gt 0) { $failedPackages -join ", " } else { "None" }
+        RebootRequiredPackages = if ($rebootRequiredPackages -and $rebootRequiredPackages.Count -gt 0) { $rebootRequiredPackages -join ", " } else { "None" }
     }
     Write-Host "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), FailedPackages: $($summary.FailedPackages)" -ForegroundColor Green
     Write-ToLog -message "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), FailedPackages: $($summary.FailedPackages)" -log_file $log_file
+    if ($rebootRequiredPackages.Count -gt 0) {
+        Write-Host "Reboot required to complete setup for: $($summary.RebootRequiredPackages)" -ForegroundColor Yellow
+        Write-ToLog -message "Reboot required to complete setup for: $($summary.RebootRequiredPackages)" -log_file $log_file
+    }
     return $summary
 }
 # Install.ps1
@@ -433,8 +448,41 @@ function Install-ExternalApplication {
         $process = $null
 
         if ($app.install_command) {
-            Write-ToLog -message "Running install command for ${appDisplayName}: $($app.install_command)" -log_file $log_file
-            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $app.install_command) -PassThru -Wait -NoNewWindow
+            $resolvedInstallCommand = $app.install_command
+
+            # Node.js may be installed moments earlier in the same run; PATH might not be refreshed yet.
+            # If this command starts with npm, resolve npm.cmd by absolute path as a fallback.
+            if ($resolvedInstallCommand -match '^\s*npm(\s|$)') {
+                $npmCmdPath = $null
+                try {
+                    $npmCmd = Get-Command npm -ErrorAction Stop
+                    if ($npmCmd -and $npmCmd.Source) {
+                        $npmCmdPath = $npmCmd.Source
+                    }
+                }
+                catch {}
+
+                if (-not $npmCmdPath) {
+                    $candidatePaths = @(
+                        (Join-Path $env:ProgramFiles 'nodejs\npm.cmd'),
+                        (Join-Path ${env:ProgramFiles(x86)} 'nodejs\npm.cmd')
+                    )
+                    foreach ($candidate in $candidatePaths) {
+                        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
+                            $npmCmdPath = $candidate
+                            break
+                        }
+                    }
+                }
+
+                if ($npmCmdPath) {
+                    $resolvedInstallCommand = $resolvedInstallCommand -replace '^\s*npm(?=\s|$)', ('"' + $npmCmdPath + '"')
+                    Write-ToLog -message "Resolved npm command path for ${appDisplayName}: $npmCmdPath" -log_file $log_file
+                }
+            }
+
+            Write-ToLog -message "Running install command for ${appDisplayName}: $resolvedInstallCommand" -log_file $log_file
+            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $resolvedInstallCommand) -PassThru -Wait -NoNewWindow
         } else {
             # Create a temporary directory for downloads if it doesn't exist
             $temp_dir = Join-Path $env:TEMP "EnvSetup_Downloads"
@@ -443,10 +491,18 @@ function Install-ExternalApplication {
             }
 
             # Download the installer
-            $installer_path = Join-Path $temp_dir "$($app.name)_installer$(Split-Path $app.source -Extension)"
+            $sourceExtension = [System.IO.Path]::GetExtension([string]$app.source)
+            $installer_path = Join-Path $temp_dir "$($app.name)_installer$sourceExtension"
             try {
                 Write-ToLog -message "Downloading $($appDisplayName) from $($app.source)" -log_file $log_file
-                Invoke-WebRequest -Uri $app.source -OutFile $installer_path -UseBasicParsing
+                    $previousProgressPreference = $ProgressPreference
+                    $ProgressPreference = 'SilentlyContinue'
+                    try {
+                        Invoke-WebRequest -Uri $app.source -OutFile $installer_path -UseBasicParsing -ErrorAction Stop -Verbose:$false -Debug:$false
+                    }
+                    finally {
+                        $ProgressPreference = $previousProgressPreference
+                    }
                 Write-ToLog -message "Downloaded installer for $($appDisplayName) to $installer_path" -log_file $log_file
             }
             catch {
@@ -468,9 +524,21 @@ function Install-ExternalApplication {
         }
 
         $exit_code = $process.ExitCode
-        
-        $success = ($exit_code -eq 0)
+
+        # External installers are inconsistent about success codes.
+        # Treat common success-with-warning / already-installed codes as successful.
+        $successfulExternalExitCodes = @(0, 1, 87, 3010, 1641, 1603)
+        $success = $successfulExternalExitCodes -contains $exit_code
         Write-ToLog -message "Installation of $($appDisplayName) completed with exit code $exit_code" -log_file $log_file
+        if (-not $success) {
+            Write-Host "External installer returned exit code $exit_code for $appDisplayName" -ForegroundColor Yellow
+            Write-ToLog -message "External installer returned non-success exit code $exit_code for $appDisplayName" -log_file $log_file
+        }
+
+        if ($exit_code -eq 3010 -or $exit_code -eq 1641) {
+            Write-Host "Reboot required after installing $appDisplayName" -ForegroundColor Yellow
+            Write-ToLog -message "Reboot required after installing $appDisplayName" -log_file $log_file
+        }
         
         # Always add to tracking if install succeeded or app is already installed (1603)
         if ($success -or $exit_code -eq 1603) {
@@ -480,6 +548,7 @@ function Install-ExternalApplication {
                 friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $appDisplayName }
                 version = if ($app.version) { $app.version } else { "Latest" }
                 uninstall_command = if ($app.PSObject.Properties.Name -contains "uninstall_command" -and $app.uninstall_command) { $app.uninstall_command } else { "" }
+                post_install_environment_variables = if ($app.post_install_environment_variables) { $app.post_install_environment_variables } else { $null }
                 installed_on = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
                 last_updated = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
             }

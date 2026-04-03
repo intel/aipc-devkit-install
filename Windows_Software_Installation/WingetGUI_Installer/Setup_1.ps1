@@ -306,7 +306,7 @@ try {
         winget list --accept-source-agreements > $null 2>&1
 
         # Show main GUI menu
-        Show-MainGUI -applications $applications -install_log_file $install_log_file -json_uninstall_file_path $json_uninstall_file_path
+        Show-MainGUI -applications $applications -install_log_file $install_log_file -uninstall_log_file $uninstall_log_file -json_uninstall_file_path $json_uninstall_file_path
     }
     elseif ($command -eq "install") {
 
@@ -321,11 +321,27 @@ try {
         New-File $json_uninstall_file_path
 
         # Create the base JSON structure in the uninstall file
+        # Carry global_uninstall_flags from applications.json (single source of truth)
+        # Do not rely on $applications here, as it is loaded later in this branch.
+        $globalUninstallFlags = "--purge --accept-source-agreements --silent --disable-interactivity --force"
+        if (Test-Path -Path $json_install_file_path) {
+            try {
+                $applicationsForFlags = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json
+                if ($applicationsForFlags.PSObject.Properties.Name -contains "global_uninstall_flags" -and
+                    -not [string]::IsNullOrWhiteSpace($applicationsForFlags.global_uninstall_flags)) {
+                    $globalUninstallFlags = $applicationsForFlags.global_uninstall_flags
+                }
+            }
+            catch {
+                Write-ToLog -message "Warning: Unable to read global_uninstall_flags from applications.json. Using default flags. Details: $($_.Exception.Message)" -log_file $install_log_file
+            }
+        }
         $json_structure = @{
+            "global_uninstall_flags" = $globalUninstallFlags
             "winget_applications" = @()
             "external_applications" = @()
         }
-        $json_structure | ConvertTo-Json | Set-Content -Path $json_uninstall_file_path
+        $json_structure | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Encoding UTF8
 
         # Check for pre-requisites
         $pre_req = Check-PreReq # Calls a function to check pre-requisites
@@ -530,7 +546,19 @@ try {
                     }
                     
                     # Create empty uninstall JSON file
+                    # Read global_uninstall_flags from applications.json (single source of truth)
+                    $globalUninstallFlagsFallback = "--purge --accept-source-agreements --silent --disable-interactivity --force"
+                    if (Test-Path -Path $json_install_file_path) {
+                        try {
+                            $installAppsJson = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json
+                            if ($installAppsJson.PSObject.Properties.Name -contains "global_uninstall_flags" -and
+                                -not [string]::IsNullOrWhiteSpace($installAppsJson.global_uninstall_flags)) {
+                                $globalUninstallFlagsFallback = $installAppsJson.global_uninstall_flags
+                            }
+                        } catch {}
+                    }
                     $emptyJson = @{
+                        "global_uninstall_flags" = $globalUninstallFlagsFallback
                         "winget_applications" = @()
                         "external_applications" = @()
                     }
