@@ -18,6 +18,7 @@
       "friendly_name": "Visual Studio Community 2026 Edition",
       "summary": "Integrated development environment",
       "override_flags": "--add Microsoft.VisualStudio.Workload.ManagedDesktop;includeRecommended --add Microsoft.VisualStudio.Workload.NativeDesktop;includeRecommended --quiet --norestart --includeRecommended --wait",
+      "uninstall_override_flags": "--quiet --wait --norestart --force",
       "install_location": null,
       "version": "18.4.2",
       "version_check": null,
@@ -94,8 +95,7 @@
       "version": null,
       "version_check": null,
       "dependencies": null,
-      "skip_install": "no",
-      "uninstall_override_flags": "/S"
+      "skip_install": "no"
     },
     {
       "id": "OpenJS.NodeJS.LTS",
@@ -105,12 +105,7 @@
       "install_location": null,
       "version": null,
       "version_check": "node --version",
-      "dependencies": [
-        {
-          "name": "npm",
-          "version": null
-        }
-      ],
+      "dependencies": null,
       "skip_install": "no"
     },
     {
@@ -139,12 +134,16 @@
       }
     }
   ],
-  "vscode_extensions": [
+  "external_applications": [
     {
-      "id": "Continue.continue",
-      "friendly_name": "Continue",
-      "summary": "AI code assistant for VS Code",
+      "name": "vscode-extension-continue",
+      "friendly_name": "Continue (VS Code Extension)",
+      "summary": "AI code assistant extension for Visual Studio Code",
+      "source": null,
+      "install_flags": null,
       "install_command": "code --install-extension Continue.continue --force",
+      "uninstall_command": "code --uninstall-extension Continue.continue --force",
+      "download_location": null,
       "dependencies": [
         {
           "name": "Microsoft.VisualStudioCode",
@@ -152,9 +151,7 @@
         }
       ],
       "skip_install": "no"
-    }
-  ],
-  "external_applications": [
+    },
     {
       "name": "npm",
       "friendly_name": "npm (Node Package Manager)",
@@ -183,16 +180,21 @@
       "skip_install": "no"
     },
     {
-      "name": "final-installation-steps",
-      "friendly_name": "Final Installation Steps",
-      "summary": "Complete final setup and configuration",
-      "install_command": "echo Final installation steps",
-      "uninstall_command": null,
-      "dependencies": null,
+      "name": "nuget-installation",
+      "friendly_name": "NuGet Installation",
+      "summary": "Complete NuGet installation configuration",
+      "install_command": "echo NuGet installation steps",
+      "uninstall_command": "dotnet nuget remove source nuget.org",
+      "dependencies": [
+        {
+          "name": "Microsoft.VisualStudio.Community",
+          "version": null
+        }
+      ],
       "skip_install": "no",
       "post_install_commands": [
         "dotnet nuget locals all --clear",
-        "dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org",
+        "if (-not ((dotnet nuget list source | Out-String) -match '(?im)^\\s*\\d+\\.\\s+nuget\\.org\\b')) { dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org } else { Write-Host 'NuGet source nuget.org already configured. Skipping add source step.' }",
         "dotnet nuget list source"
       ]
     }

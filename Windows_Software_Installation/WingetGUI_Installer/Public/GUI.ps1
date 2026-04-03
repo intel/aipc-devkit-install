@@ -708,7 +708,7 @@ function Show-UninstallGUI {
         
         $cnt = $selectedRows.Count
         $confirm = [System.Windows.Forms.MessageBox]::Show(
-            "You are about to uninstall $cnt package(s). This action cannot be undone. Continue?",
+            "You are about to uninstall $cnt package(s). This action cannot be undone.`n`nDependency handling may also uninstall additional related packages to keep the environment consistent.`n`nContinue?",
             'Environment Setup - Confirm Uninstallation',
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Warning

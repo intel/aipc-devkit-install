@@ -446,6 +446,11 @@ function Install-ExternalApplication {
     
     try {
         $process = $null
+        $installer_path = $null
+        $arguments = @()
+        $isVsCodeExtensionInstall = $false
+        $vsCodeExtensionId = $null
+        $vsCodeCliForVerification = $null
 
         if ($app.install_command) {
             $resolvedInstallCommand = $app.install_command
@@ -481,6 +486,44 @@ function Install-ExternalApplication {
                 }
             }
 
+            # VS Code may be newly installed in the same run; PATH can lag for the code CLI.
+            if ($resolvedInstallCommand -match '^\s*code(\s|$)') {
+                $codeCmdPath = $null
+                try {
+                    $codeCmd = Get-Command code -ErrorAction Stop
+                    if ($codeCmd -and $codeCmd.Source) {
+                        $codeCmdPath = $codeCmd.Source
+                    }
+                }
+                catch {}
+
+                if (-not $codeCmdPath) {
+                    $candidateCodePaths = @(
+                        (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\bin\code.cmd'),
+                        (Join-Path $env:ProgramFiles 'Microsoft VS Code\bin\code.cmd'),
+                        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft VS Code\bin\code.cmd')
+                    )
+                    foreach ($candidate in $candidateCodePaths) {
+                        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
+                            $codeCmdPath = $candidate
+                            break
+                        }
+                    }
+                }
+
+                if ($codeCmdPath) {
+                    $resolvedInstallCommand = $resolvedInstallCommand -replace '^\s*code(?=\s|$)', ('"' + $codeCmdPath + '"')
+                    Write-ToLog -message "Resolved code command path for ${appDisplayName}: $codeCmdPath" -log_file $log_file
+                }
+            }
+
+            # Capture VS Code extension install commands so we can verify install state explicitly.
+            if ($resolvedInstallCommand -match '^\s*"?(?<cmd>[^"\s]*code(?:\.cmd|\.exe)?)"?\s+--install-extension\s+(?<ext>[^\s]+)') {
+                $isVsCodeExtensionInstall = $true
+                $vsCodeCliForVerification = [string]$matches['cmd']
+                $vsCodeExtensionId = ([string]$matches['ext']).Trim('"')
+            }
+
             Write-ToLog -message "Running install command for ${appDisplayName}: $resolvedInstallCommand" -log_file $log_file
             $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $resolvedInstallCommand) -PassThru -Wait -NoNewWindow
         } else {
@@ -511,7 +554,6 @@ function Install-ExternalApplication {
             }
 
             # Run the installer
-            $arguments = @()
             if ($app.install_flags) {
                 $arguments = $app.install_flags -split '\s+'
             } elseif ($app.install_args) {
@@ -530,6 +572,187 @@ function Install-ExternalApplication {
         $successfulExternalExitCodes = @(0, 1, 87, 3010, 1641, 1603)
         $success = $successfulExternalExitCodes -contains $exit_code
         Write-ToLog -message "Installation of $($appDisplayName) completed with exit code $exit_code" -log_file $log_file
+
+        if ($isVsCodeExtensionInstall -and (-not [string]::IsNullOrWhiteSpace($vsCodeExtensionId))) {
+            $codeCliPath = $null
+            if (-not [string]::IsNullOrWhiteSpace($vsCodeCliForVerification) -and (Test-Path -Path $vsCodeCliForVerification)) {
+                $codeCliPath = $vsCodeCliForVerification
+            }
+
+            if (-not $codeCliPath) {
+                try {
+                    $codeCmd = Get-Command code -ErrorAction Stop
+                    if ($codeCmd -and $codeCmd.Source) {
+                        $codeCliPath = $codeCmd.Source
+                    }
+                }
+                catch {}
+            }
+
+            if (-not $codeCliPath) {
+                $candidateCodePaths = @(
+                    (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\bin\code.cmd'),
+                    (Join-Path $env:ProgramFiles 'Microsoft VS Code\bin\code.cmd'),
+                    (Join-Path ${env:ProgramFiles(x86)} 'Microsoft VS Code\bin\code.cmd')
+                )
+                foreach ($candidate in $candidateCodePaths) {
+                    if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
+                        $codeCliPath = $candidate
+                        break
+                    }
+                }
+            }
+
+            if ($codeCliPath) {
+                try {
+                    $listProcess = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", ('"' + $codeCliPath + '" --list-extensions')) -PassThru -Wait -NoNewWindow -RedirectStandardOutput "$env:TEMP\code_ext_list_stdout.txt" -RedirectStandardError "$env:TEMP\code_ext_list_stderr.txt"
+                    $extListOutput = ""
+                    if (Test-Path -Path "$env:TEMP\code_ext_list_stdout.txt") {
+                        $extListOutput = Get-Content -Path "$env:TEMP\code_ext_list_stdout.txt" -Raw -ErrorAction SilentlyContinue
+                    }
+
+                    if ($extListOutput -match ("(?im)^" + [regex]::Escape($vsCodeExtensionId) + "\\s*$")) {
+                        Write-ToLog -message "Verified VS Code extension installation for ${appDisplayName}: $vsCodeExtensionId" -log_file $log_file
+                    }
+                    else {
+                        Write-ToLog -message "VS Code extension verification failed for ${appDisplayName}: '$vsCodeExtensionId' was not found in 'code --list-extensions' output." -log_file $log_file
+                        $success = $false
+                    }
+                }
+                catch {
+                    Write-ToLog -message "Warning: Could not verify VS Code extension installation for ${appDisplayName}: $($_.Exception.Message)" -log_file $log_file
+                }
+                finally {
+                    Remove-Item -Path "$env:TEMP\code_ext_list_stdout.txt" -Force -ErrorAction SilentlyContinue
+                    Remove-Item -Path "$env:TEMP\code_ext_list_stderr.txt" -Force -ErrorAction SilentlyContinue
+                }
+            }
+            else {
+                Write-ToLog -message "Warning: VS Code CLI not found for post-install verification of ${appDisplayName}." -log_file $log_file
+            }
+        }
+
+        # Some EXE installers can report a crash-like code even when installation actually succeeded.
+        # For source-based installers, validate install presence before deciding failure.
+        if ((-not $success) -and $app.source -and (-not $app.install_command)) {
+            $installedEvidenceFound = $false
+            $resolvedUninstallCommand = [Environment]::ExpandEnvironmentVariables([string]$app.uninstall_command)
+            $uninstallRegex = '^\s*"?([^"]+\.exe)"?\s*(.*)$'
+            $displayPatterns = @()
+            if (-not [string]::IsNullOrWhiteSpace([string]$app.friendly_name)) { $displayPatterns += [string]$app.friendly_name }
+            if (-not [string]::IsNullOrWhiteSpace([string]$app.name)) { $displayPatterns += [string]$app.name }
+
+            $registryKeys = @(
+                'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            )
+
+            $testInstallEvidence = {
+                param(
+                    [string]$uninstallCommand,
+                    [string]$regexPattern,
+                    [array]$patterns,
+                    [array]$keys,
+                    [array]$expectedPaths,
+                    [string]$displayName,
+                    [string]$currentLogFile
+                )
+
+                # First, verify uninstall executable path (if uninstall_command points to an .exe).
+                if (-not [string]::IsNullOrWhiteSpace($uninstallCommand) -and ($uninstallCommand -match $regexPattern)) {
+                    $uninstallExePath = $matches[1]
+                    if (Test-Path -Path $uninstallExePath) {
+                        Write-ToLog -message "Install verification passed for ${displayName}: found uninstall executable at $uninstallExePath" -log_file $currentLogFile
+                        return $true
+                    }
+                }
+
+                # Check explicit expected install paths when provided.
+                foreach ($p in @($expectedPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+                    $resolvedPath = [Environment]::ExpandEnvironmentVariables([string]$p)
+                    if (Test-Path -Path $resolvedPath) {
+                        Write-ToLog -message "Install verification passed for ${displayName}: found installed path $resolvedPath" -log_file $currentLogFile
+                        return $true
+                    }
+                }
+
+                # Fallback: verify by uninstall registry display name.
+                if ($patterns.Count -gt 0) {
+                    foreach ($key in $keys) {
+                        $items = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue
+                        foreach ($pattern in $patterns) {
+                            if ($items | Where-Object { $_.DisplayName -and $_.DisplayName -like ("*" + $pattern + "*") } | Select-Object -First 1) {
+                                Write-ToLog -message "Install verification passed for ${displayName}: found uninstall registry entry using pattern '$pattern'" -log_file $currentLogFile
+                                return $true
+                            }
+                        }
+                    }
+                }
+
+                return $false
+            }
+
+            $expectedInstallPaths = @()
+            if ($app.PSObject.Properties.Name -contains "install_location" -and -not [string]::IsNullOrWhiteSpace([string]$app.install_location)) {
+                $expectedInstallPaths += [string]$app.install_location
+            }
+            if ($app.PSObject.Properties.Name -contains "name" -and ([string]$app.name -eq "Intel AI Playground")) {
+                $expectedInstallPaths += "%LOCALAPPDATA%\\Programs\\AI Playground\\AI Playground.exe"
+                $expectedInstallPaths += "%LOCALAPPDATA%\\Programs\\AI Playground"
+            }
+
+            $installedEvidenceFound = & $testInstallEvidence -uninstallCommand $resolvedUninstallCommand -regexPattern $uninstallRegex -patterns $displayPatterns -keys $registryKeys -expectedPaths $expectedInstallPaths -displayName $appDisplayName -currentLogFile $log_file
+
+            # Some installers spawn child processes and only register uninstall info a few seconds later.
+            if (-not $installedEvidenceFound) {
+                $maxAttempts = 8
+                $delaySeconds = 3
+                for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+                    Start-Sleep -Seconds $delaySeconds
+                    $installedEvidenceFound = & $testInstallEvidence -uninstallCommand $resolvedUninstallCommand -regexPattern $uninstallRegex -patterns $displayPatterns -keys $registryKeys -expectedPaths $expectedInstallPaths -displayName $appDisplayName -currentLogFile $log_file
+                    if ($installedEvidenceFound) {
+                        Write-ToLog -message "Install verification for ${appDisplayName} succeeded on delayed attempt $attempt/$maxAttempts." -log_file $log_file
+                        break
+                    }
+                }
+            }
+
+            # If still not detected, perform one retry for source installers and re-check evidence.
+            if ((-not $installedEvidenceFound) -and (-not [string]::IsNullOrWhiteSpace($installer_path)) -and (Test-Path -Path $installer_path)) {
+                Write-ToLog -message "No installation evidence found for ${appDisplayName} after initial run (exit code $exit_code). Retrying installer once." -log_file $log_file
+                try {
+                    $retryCommand = '"' + $installer_path + '" ' + ($arguments -join ' ')
+                    $retryProcess = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $retryCommand) -PassThru -Wait -NoNewWindow
+                    $retryExitCode = $retryProcess.ExitCode
+                    Write-ToLog -message "Retry installer run for ${appDisplayName} completed with exit code $retryExitCode" -log_file $log_file
+
+                    if ($successfulExternalExitCodes -contains $retryExitCode) {
+                        $exit_code = $retryExitCode
+                        $success = $true
+                    } else {
+                        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+                            Start-Sleep -Seconds $delaySeconds
+                            $installedEvidenceFound = & $testInstallEvidence -uninstallCommand $resolvedUninstallCommand -regexPattern $uninstallRegex -patterns $displayPatterns -keys $registryKeys -expectedPaths $expectedInstallPaths -displayName $appDisplayName -currentLogFile $log_file
+                            if ($installedEvidenceFound) {
+                                Write-ToLog -message "Install verification for ${appDisplayName} succeeded after retry on delayed attempt $attempt/$maxAttempts." -log_file $log_file
+                                break
+                            }
+                        }
+                    }
+                }
+                catch {
+                    Write-ToLog -message "Retry installer execution failed for ${appDisplayName}: $($_.Exception.Message)" -log_file $log_file
+                }
+            }
+
+            if ($installedEvidenceFound) {
+                $success = $true
+                Write-Host "Installer returned exit code $exit_code for $appDisplayName, but install verification passed. Treating as success." -ForegroundColor Yellow
+                Write-ToLog -message "Installer returned non-success exit code $exit_code for $appDisplayName, but install verification passed. Treating as success." -log_file $log_file
+            }
+        }
+
         if (-not $success) {
             Write-Host "External installer returned exit code $exit_code for $appDisplayName" -ForegroundColor Yellow
             Write-ToLog -message "External installer returned non-success exit code $exit_code for $appDisplayName" -log_file $log_file

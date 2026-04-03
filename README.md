@@ -1,8 +1,8 @@
-# AIPC Application Installer Version v2.0
+# AI PC Application Installer Version v2.0
 
 ## Introduction
 
-Welcome to the AIPC Application Installer. This application is specifically designed to facilitate the setup of development tools, apps and environments for the Intel AIPC Developer engagements and events. It leverages the Microsoft package manager, winget, and can also download external applications using curl with additional configuration as listed below
+Welcome to the AI PC Application Installer. This application is specifically designed to facilitate the setup of development tools, apps and environments for the Intel AIPC Developer engagements and events. It leverages the Microsoft package manager, winget, and can also download external applications using curl with additional configuration as listed below
 
 **Note**:-  If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory.
 
@@ -223,16 +223,17 @@ This script runs a basic command line version check with the specified tool
 
  ## Opens/Issues
 
-- Uninstall of Clink and Microsoft Visual Studio Installer does not have a silent and suppress window method, user interaction is required. There is no available solution with winget and will be resolved when the software vendor releases a patch.This is not a blocker and functionality of this installer is not hampered in anyway.
+- Uninstall of Vulkan, Clink and Microsoft Visual Studio Installer does not have a silent and suppress window method, user interaction is required. There is no available solution with winget and will be resolved when the software vendor releases a patch.This is not a blocker and functionality of this installer is not hampered in anyway.
 - If python is installed please make sure Python is added to the system's PATH environment variable. This step is manual and not part of installation
 
 ## Documentation
 
 For detailed documentation, configuration guides, and troubleshooting:
 - **Windows Installer Documentation**: [Windows_Software_Installation/README.md](./Windows_Software_Installation/README.md)
+- **Linux Installer Documentation**: [Linux_Software_Installation/README.md](./Windows_Software_Installation/README.md)
 
 ## Support
 
 For technical assistance, configuration help, or feature requests:
-- Contact: Ram (vaithi.s.ramadoss@intel.com) or Vijay (vijay.chandrashekar@intel.com)
-- Full documentation: [Windows_Software_Installation/README.md](./Windows_Software_Installation/README.md)
+- Contact: Vijay - vijay.chandrashekar@intel.com
+

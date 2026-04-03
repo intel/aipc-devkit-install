@@ -287,13 +287,13 @@ Use `uninstall_override_flags` on a specific entry to **replace** the global uni
 #### Post-Install Commands
 Execute arbitrary commands after an application installs successfully. Commands are executed in sequence via PowerShell.
 
-**Example - Final Setup Steps with NuGet Configuration:**
+**Example - NuGet Installation Steps:**
 ```json
 {
-  "name": "final-installation-steps",
-  "friendly_name": "Final Installation Steps",
+   "name": "nuget-installation",
+   "friendly_name": "NuGet Installation",
   "summary": "Complete final setup and configuration",
-  "install_command": "echo Final installation steps",
+   "install_command": "echo NuGet installation steps",
   "post_install_commands": [
     "dotnet nuget locals all --clear",
     "dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org",
@@ -413,7 +413,8 @@ Windows_Software_Installation/
      1. Per-app `uninstall_override_flags` (takes precedence if set)
      2. `global_uninstall_flags` from `uninstall.json` (sourced from `applications.json`)
      3. Hardcoded fallback if JSON is unavailable
-   - External: Execute `uninstall_command` if defined
+    - External: Resolve app from `applications.json` and execute its `uninstall_command`
+       - If `uninstall_command` is missing/empty, fallback to registry `QuietUninstallString` then `UninstallString`
 
 2. **Success Verification** (via `Test-UninstallationSuccess`)
    - Check exit codes
@@ -479,4 +480,24 @@ For technical assistance or feature requests:
 
 ## 📄 License
 
-This script collection is provided as-is for Intel AI Dev Kit setup. Individual repositories and packages have their own licenses.
+MIT License
+
+Copyright (c) 2025 Intel
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
