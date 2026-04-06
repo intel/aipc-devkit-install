@@ -27,6 +27,7 @@ function Show-MainGUI {
         [Parameter(Mandatory)]
         $applications,
         [string]$install_log_file,
+        [string]$uninstall_log_file,
         [string]$json_uninstall_file_path
     )
     
@@ -92,11 +93,18 @@ function Show-MainGUI {
                 }
                 
                 if (-not (Test-Path -Path $json_uninstall_file_path)) {
+                    $globalUninstallFlags = if ($applications.PSObject.Properties.Name -contains "global_uninstall_flags" -and
+                        -not [string]::IsNullOrWhiteSpace($applications.global_uninstall_flags)) {
+                        $applications.global_uninstall_flags
+                    } else {
+                        "--purge --accept-source-agreements --silent --disable-interactivity --force"
+                    }
                     $json_structure = @{
+                        "global_uninstall_flags" = $globalUninstallFlags
                         "winget_applications" = @()
                         "external_applications" = @()
                     }
-                    $json_structure | ConvertTo-Json | Set-Content -Path $json_uninstall_file_path
+                    $json_structure | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Encoding UTF8
                 }
             }
             
@@ -112,18 +120,38 @@ function Show-MainGUI {
     })
     
     $btnUninstall.Add_Click({
-        $mainForm.Hide()
-        $selectedPackages = Show-UninstallGUI -json_uninstall_file_path $json_uninstall_file_path
-        
-        if ($selectedPackages) {
-            Write-Host "Uninstalling selected packages..." -ForegroundColor Yellow
-            $uninstallResults = Uninstall-SelectedPackages -selectedPackages $selectedPackages -log_file $install_log_file -json_uninstall_file_path $json_uninstall_file_path
-            Show-UninstallResults -uninstallResults $uninstallResults
+        try {
+            $mainForm.Hide()
+            $selectedPackages = Show-UninstallGUI -json_uninstall_file_path $json_uninstall_file_path
+            
+            if ($selectedPackages) {
+                Write-Host "Uninstalling selected packages..." -ForegroundColor Yellow
+                $uninstallResults = Uninstall-SelectedPackages -selectedPackages $selectedPackages -log_file $uninstall_log_file -json_uninstall_file_path $json_uninstall_file_path
+
+                # Copy uninstall logs to desktop
+                $username = [Environment]::UserName
+                Copy-Item -Path $uninstall_log_file -Destination "C:\Users\$username\Desktop\uninstall_logs.txt" -Force
+                Show-UninstallResults -uninstallResults $uninstallResults
+            }
         }
-        $mainForm.Close()
+        catch {
+            [System.Windows.Forms.MessageBox]::Show(
+                "Uninstall failed due to invalid or corrupted uninstall JSON data. Please re-run install or recreate uninstall.json.`n`nDetails: $($_.Exception.Message)",
+                'Environment Setup - Uninstall Error',
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+        }
+        finally {
+            $mainForm.Close()
+        }
     })
     
-    $btnExit.Add_Click({ $mainForm.Close() })
+    $btnExit.Add_Click({
+        # Set DialogResult before closing — proper way to exit a ShowDialog modal form
+        $mainForm.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+        $mainForm.Close()
+    })
     
     # Show the form
     [void] $mainForm.ShowDialog()
@@ -190,6 +218,77 @@ function Show-PackageSelectionGUI {
     $dt.Columns.Add('Summary', [string]) | Out-Null
     $dt.Columns.Add('Version', [string]) | Out-Null
     $dt.Columns.Add('Type', [string]) | Out-Null
+    $dt.Columns.Add('Dependencies', [string]) | Out-Null
+
+    # Build a catalog and dependency maps so dependency relationships are visible and actionable.
+    $appCatalog = @()
+    foreach ($item in $applications.winget_applications) {
+        if ($null -eq $item) { continue }
+        $appCatalog += [PSCustomObject]@{
+            Id = if ($item.id) { $item.id } else { $item.name }
+            FriendlyName = if ($item.friendly_name) { $item.friendly_name } else { if ($item.id) { $item.id } else { $item.name } }
+            Name = if ($item.name) { $item.name } else { if ($item.id) { $item.id } else { "" } }
+        }
+    }
+    foreach ($item in $applications.external_applications) {
+        if ($null -eq $item) { continue }
+        $appCatalog += [PSCustomObject]@{
+            Id = $item.name
+            FriendlyName = if ($item.friendly_name) { $item.friendly_name } else { $item.name }
+            Name = $item.name
+        }
+    }
+
+    function Resolve-AppIdsByDependencyName {
+        param(
+            [string]$dependencyName,
+            [array]$catalog
+        )
+
+        if ([string]::IsNullOrWhiteSpace($dependencyName)) {
+            return @()
+        }
+
+        $matches = $catalog | Where-Object {
+            ($_.Id -and $_.Id -match [regex]::Escape($dependencyName)) -or
+            ($_.FriendlyName -and $_.FriendlyName -match [regex]::Escape($dependencyName)) -or
+            ($_.Name -and $_.Name -match [regex]::Escape($dependencyName))
+        }
+
+        return @($matches | ForEach-Object { $_.Id } | Sort-Object -Unique)
+    }
+
+    $dependencyMap = @{}
+
+    $allApps = @()
+    if ($applications.winget_applications) { $allApps += $applications.winget_applications }
+    if ($applications.external_applications) { $allApps += $applications.external_applications }
+
+    foreach ($app in $allApps) {
+        if ($null -eq $app) { continue }
+
+        $appId = if ($app.id) { $app.id } else { $app.name }
+        if ([string]::IsNullOrWhiteSpace($appId)) { continue }
+
+        $dependencyIds = @()
+        if ($app.dependencies) {
+            foreach ($dep in $app.dependencies) {
+                $depName = if ($dep.name) { $dep.name } else { $null }
+                if ([string]::IsNullOrWhiteSpace($depName)) { continue }
+
+                $resolvedIds = Resolve-AppIdsByDependencyName -dependencyName $depName -catalog $appCatalog
+                if ($resolvedIds.Count -gt 0) {
+                    $dependencyIds += $resolvedIds
+                } else {
+                    $dependencyIds += $depName
+                }
+            }
+        }
+
+        $dependencyIds = @($dependencyIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+        $dependencyMap[$appId] = $dependencyIds
+
+    }
     
     # Add winget applications
     foreach ($app in $applications.winget_applications) {
@@ -203,6 +302,11 @@ function Show-PackageSelectionGUI {
         $row.Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { "No description available" }
         $row.Version = if ($null -ne $app.version -and $app.version -ne '') { $app.version } else { "Latest" }
         $row.Type = "Winget"
+        $depInfo = @()
+        if ($dependencyMap.ContainsKey($row.Id) -and $dependencyMap[$row.Id].Count -gt 0) {
+            $depInfo += "Depends on: $($dependencyMap[$row.Id] -join ', ')"
+        }
+        $row.Dependencies = if ($depInfo.Count -gt 0) { $depInfo -join ' | ' } else { 'None' }
         $dt.Rows.Add($row)
     }
     
@@ -218,6 +322,11 @@ function Show-PackageSelectionGUI {
         $row.Summary = if ($null -ne $app.summary -and $app.summary -ne '') { $app.summary } else { "External application" }
         $row.Version = "External"
         $row.Type = "External"
+        $depInfo = @()
+        if ($dependencyMap.ContainsKey($row.Id) -and $dependencyMap[$row.Id].Count -gt 0) {
+            $depInfo += "Depends on: $($dependencyMap[$row.Id] -join ', ')"
+        }
+        $row.Dependencies = if ($depInfo.Count -gt 0) { $depInfo -join ' | ' } else { 'None' }
         $dt.Rows.Add($row)
     }
     
@@ -268,6 +377,11 @@ function Show-PackageSelectionGUI {
             $dg.Columns[5].HeaderText = 'Type'
             $dg.Columns[5].ReadOnly = $true
             $dg.Columns[5].Width = 80
+        }
+        if ($dg.Columns.Count -gt 6) {
+            $dg.Columns[6].HeaderText = 'Dependencies'
+            $dg.Columns[6].ReadOnly = $true
+            $dg.Columns[6].Width = 360
         }
     }
     
@@ -324,6 +438,50 @@ function Show-PackageSelectionGUI {
             )
             return
         }
+
+        # Auto-select dependency-related packages to make relationships explicit.
+        $selectedIdSet = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        $queue = New-Object System.Collections.Queue
+        foreach ($row in @($selectedRows)) {
+            $rowId = [string]$row.Id
+            if (-not [string]::IsNullOrWhiteSpace($rowId) -and $selectedIdSet.Add($rowId)) {
+                [void]$queue.Enqueue($rowId)
+            }
+        }
+
+        $autoAdded = @()
+        while ($queue.Count -gt 0) {
+            $currentId = [string]$queue.Dequeue()
+            $relatedIds = @()
+
+            if ($dependencyMap.ContainsKey($currentId)) {
+                $relatedIds += @($dependencyMap[$currentId])
+            }
+
+            foreach ($relatedId in @($relatedIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)) {
+                if ($selectedIdSet.Add([string]$relatedId)) {
+                    $autoAdded += [string]$relatedId
+                    [void]$queue.Enqueue([string]$relatedId)
+                }
+            }
+        }
+
+        if ($autoAdded.Count -gt 0) {
+            foreach ($row in $dt.Rows) {
+                if ($selectedIdSet.Contains([string]$row.Id)) {
+                    $row.Check = $true
+                }
+            }
+
+            $selectedRows = $dt | Where-Object { $_.Check }
+            $autoAddedUnique = @($autoAdded | Sort-Object -Unique)
+            [System.Windows.Forms.MessageBox]::Show(
+                "Dependency handling automatically included:`n- $($autoAddedUnique -join "`n- ")",
+                'Environment Setup - Dependencies Applied',
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            )
+        }
         
         $cnt = @($selectedRows).Count
         $pkgWord = if ($cnt -eq 1) { 'package' } else { 'packages' }
@@ -375,7 +533,22 @@ function Show-UninstallGUI {
     }
     
     # Load uninstall data
-    $uninstallData = Get-Content -Path $json_uninstall_file_path -Raw | ConvertFrom-Json
+    try {
+        $jsonText = Get-Content -Path $json_uninstall_file_path -Raw
+        if ([string]::IsNullOrWhiteSpace($jsonText)) {
+            throw "uninstall.json is empty"
+        }
+        $uninstallData = $jsonText | ConvertFrom-Json
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Unable to read uninstall.json because it is invalid JSON.`n`nPath: $json_uninstall_file_path`nDetails: $($_.Exception.Message)",
+            'Environment Setup - Invalid uninstall.json',
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+        return $null
+    }
     
     # Check if there are any applications to uninstall
     $totalApps = 0
@@ -535,7 +708,7 @@ function Show-UninstallGUI {
         
         $cnt = $selectedRows.Count
         $confirm = [System.Windows.Forms.MessageBox]::Show(
-            "You are about to uninstall $cnt package(s). This action cannot be undone. Continue?",
+            "You are about to uninstall $cnt package(s). This action cannot be undone.`n`nDependency handling may also uninstall additional related packages to keep the environment consistent.`n`nContinue?",
             'Environment Setup - Confirm Uninstallation',
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Warning
