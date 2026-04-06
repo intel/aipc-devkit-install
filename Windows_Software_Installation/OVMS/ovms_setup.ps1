@@ -1,10 +1,10 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-    Simple One-Command OVMS Script - Download and Start Models (v2025.3 Compatible)
+    Simple One-Command OVMS Script - Download and Start Models (v2026.0 Compatible)
     
 .DESCRIPTION
-    Downloads OVMS v2025.3, downloads models, and starts the server in one command.
+    Downloads OVMS v2026.0, downloads models, and starts the server in one command.
     Supports GPU/CPU/NPU devices with automatic model selection and required task parameters.
     
 .PARAMETER Model
@@ -17,19 +17,19 @@
     REST API port (default: 8000)
     
 .EXAMPLE
-    .\start_ovms_simple_v2025.3.ps1
+    .\start_ovms_simple_v2026.0.ps1
     # Starts Phi-3 text model on GPU
     
 .EXAMPLE
-    .\start_ovms_simple_v2025.3.ps1 -Target NPU
+    .\start_ovms_simple_v2026.0.ps1 -Target NPU
     # Starts NPU-optimized Phi-3 on NPU
     
 .EXAMPLE
-    .\start_ovms_simple_v2025.3.ps1 -Model image
+    .\start_ovms_simple_v2026.0.ps1 -Model image
     # Starts FLUX image generation on GPU
     
 .EXAMPLE
-    .\start_ovms_simple_v2025.3.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
+    .\start_ovms_simple_v2026.0.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
     # Starts custom model on CPU
 #>
 
@@ -130,8 +130,8 @@ function Initialize-OVMS {
         return $ovmsExe
     }
     
-    Write-Info "Downloading OVMS v2025.3...."
-    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2025.3/ovms_windows_python_on.zip"
+    Write-Info "Downloading OVMS v2026.0...."
+    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.0/ovms_windows_python_on.zip"
     $ovmsZip = "ovms.zip"
     
     try {
@@ -209,17 +209,17 @@ function Start-OVMSServer {
 }
 
 # Main execution
-Write-Info "Simple OVMS Launcher (v2025.3 Compatible)"
+Write-Info "Simple OVMS Launcher (v2026.0 Compatible)"
 Write-Info "=========================================="
 
 # Show help if requested
 if ($Help) {
     Write-Host ""
-    Write-Host "Simple OVMS Launcher - One Command Setup (v2025.3 Compatible)" -ForegroundColor Yellow
+    Write-Host "Simple OVMS Launcher - One Command Setup (v2026.0 Compatible)" -ForegroundColor Yellow
     Write-Host "=============================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Green
-    Write-Host "  .\start_ovms_simple_v2025.3.ps1 [-Model <text|image|model_name>] [-Target <GPU|CPU|NPU>] [-Port <port>]" -ForegroundColor White
+    Write-Host "  .\start_ovms_simple_v2026.0.ps1 [-Model <text|image|model_name>] [-Target <GPU|CPU|NPU>] [-Port <port>]" -ForegroundColor White
     Write-Host ""
     Write-Host "PARAMETERS:" -ForegroundColor Green
     Write-Host "  -Model   : 'text' (default), 'image', or full OpenVINO model name" -ForegroundColor White
@@ -227,25 +227,25 @@ if ($Help) {
     Write-Host "  -Port    : REST API port (default: 8000)" -ForegroundColor White
     Write-Host "  -Help    : Show this help message" -ForegroundColor White
     Write-Host ""
-    Write-Host "NEW IN v2025.3:" -ForegroundColor Green
+    Write-Host "NEW IN v2026.0:" -ForegroundColor Green
     Write-Host "  • Automatic task detection (--task text_generation or --task image_generation)" -ForegroundColor White
     Write-Host "  • Enhanced model pattern recognition for task assignment" -ForegroundColor White
     Write-Host "  • Required task parameters for all model types" -ForegroundColor White
     Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Green
-    Write-Host "  .\start_ovms_simple_v2025.3.ps1" -ForegroundColor Cyan
+    Write-Host "  .\start_ovms_simple_v2026.0.ps1" -ForegroundColor Cyan
     Write-Host "    # Start Phi-3 text model on GPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Target CPU" -ForegroundColor Cyan
+    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Target CPU" -ForegroundColor Cyan
     Write-Host "    # Start Phi-3 text model on CPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Target NPU" -ForegroundColor Cyan
+    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Target NPU" -ForegroundColor Cyan
     Write-Host "    # Start NPU-optimized Phi-3 on NPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Model image" -ForegroundColor Cyan
+    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Model image" -ForegroundColor Cyan
     Write-Host "    # Start FLUX image generation on GPU with --task image_generation" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2025.3.ps1 -Model 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov' -Target NPU" -ForegroundColor Cyan
+    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Model 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov' -Target NPU" -ForegroundColor Cyan
     Write-Host "    # Start custom Mistral model on NPU with --task text_generation" -ForegroundColor Gray
     Write-Host ""
     Write-Host "DEFAULT MODELS:" -ForegroundColor Green
@@ -260,9 +260,9 @@ if ($Help) {
     Write-Host "  Text models (--task text_generation): All other models (Phi-3, Mistral, etc.)" -ForegroundColor White
     Write-Host ""
     Write-Host "BUILT-IN HELP:" -ForegroundColor Green
-    Write-Host "  Get-Help .\start_ovms_simple_v2025.3.ps1" -ForegroundColor Cyan
-    Write-Host "  Get-Help .\start_ovms_simple_v2025.3.ps1 -Examples" -ForegroundColor Cyan
-    Write-Host "  Get-Help .\start_ovms_simple_v2025.3.ps1 -Detailed" -ForegroundColor Cyan
+    Write-Host "  Get-Help .\start_ovms_simple_v2026.0.ps1" -ForegroundColor Cyan
+    Write-Host "  Get-Help .\start_ovms_simple_v2026.0.ps1 -Examples" -ForegroundColor Cyan
+    Write-Host "  Get-Help .\start_ovms_simple_v2026.0.ps1 -Detailed" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "API ACCESS:" -ForegroundColor Green
     Write-Host "  Once started, API available at: http://localhost:<port>/v3" -ForegroundColor White
