@@ -85,6 +85,7 @@ Once started, the API is available at: `http://localhost:8000/v3`
 ```bash
 (Invoke-WebRequest -Uri "http://localhost:8000/v3/chat/completions" `
  -Method POST `
+ -UseBasicParsing `
  -Headers @{ "Content-Type" = "application/json" } `
  -Body '{"model": "OpenVINO/Phi-3.5-mini-instruct-int4-ov", "max_tokens": 30, "temperature": 0, "stream": false, "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "What are the 3 main tourist attractions in Paris?"}]}').Content
  
