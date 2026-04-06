@@ -5,11 +5,22 @@ param(
     [int]$MaxRetries = 3
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 # Ensure working directory exists
 New-Item -ItemType Directory -Path $DevKitWorkingDir -ErrorAction SilentlyContinue
 Set-Location $DevKitWorkingDir
+
+# Track installation results for final summary
+$installResults = [ordered]@{
+    "OpenVINO Notebooks venv"        = "Skipped"
+    "OpenVINO GenAI C++ Samples"     = "Skipped"
+    "OpenVINO GenAI Python venv"     = "Skipped"
+    "AI PC Samples venv"             = "Skipped"
+    "LlamaCpp Python (Vulkan)"       = "Skipped"
+    "Native LlamaCpp (Vulkan)"       = "Skipped"
+    "Windows AI Foundry Samples"     = "Skipped"
+}
 
 # Function: Download With Progress and Retry
 function Start-DownloadWithRetry {
@@ -161,7 +172,7 @@ function New-PythonVenv {
 function Test-PyPIConnectivity {
     try {
         Write-Host "Checking network connectivity to PyPI..."
-        $response = Invoke-WebRequest -Uri "https://pypi.org" -Method Head -TimeoutSec 10 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "https://pypi.org" -Method Head -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
         if ($response.StatusCode -eq 200) {
             Write-Host "Network connectivity to PyPI is working" -ForegroundColor Green
             return $true
@@ -200,26 +211,67 @@ function Test-BuildEnvironment {
         Write-Host "CMake not found in PATH" -ForegroundColor Yellow
     }
     
-    # Check for Visual Studio Build Tools (look for common vcvarsall.bat locations)
-    $vcvarsPaths = @(
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
-    )
-    
-    foreach ($vcvarsPath in $vcvarsPaths) {
-        if (Test-Path $vcvarsPath) {
-            $vcvarsFound = $true
-            Write-Host "Visual Studio Build Tools found at: $vcvarsPath" -ForegroundColor Green
-            break
+    # Primary: use vswhere.exe (official VS locator, ships with VS 2017+)
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path $vswhere) {
+        try {
+            $vsInstallPath = (& $vswhere -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null) | Select-Object -First 1
+            if ($vsInstallPath) {
+                $vsInstallPath = $vsInstallPath.Trim()
+                $vcvarsPath = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+                if (Test-Path $vcvarsPath) {
+                    $vcvarsFound = $true
+                    Write-Host "Visual Studio with C++ tools found at: $vsInstallPath" -ForegroundColor Green
+                }
+            }
+            if (-not $vcvarsFound) {
+                # Also check for Build Tools without the full IDE
+                $vsInstallPath = (& $vswhere -latest -products Microsoft.VisualStudio.Product.BuildTools -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null) | Select-Object -First 1
+                if ($vsInstallPath) {
+                    $vsInstallPath = $vsInstallPath.Trim()
+                    $vcvarsPath = Join-Path $vsInstallPath "VC\Auxiliary\Build\vcvarsall.bat"
+                    if (Test-Path $vcvarsPath) {
+                        $vcvarsFound = $true
+                        Write-Host "Visual Studio Build Tools with C++ found at: $vsInstallPath" -ForegroundColor Green
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Host "vswhere.exe query failed, falling back to path scan..." -ForegroundColor Yellow
         }
     }
     
+    # Fallback: scan common install paths if vswhere not available or found nothing
     if (-not $vcvarsFound) {
-        Write-Host "Visual Studio Build Tools not found" -ForegroundColor Yellow
+        $vcvarsPaths = @(
+            "${env:ProgramFiles}\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2026\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2026\Community\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2026\Professional\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2026\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
+            "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+        foreach ($vcvarsPath in $vcvarsPaths) {
+            if (Test-Path $vcvarsPath) {
+                $vcvarsFound = $true
+                Write-Host "Visual Studio Build Tools found at: $vcvarsPath" -ForegroundColor Green
+                break
+            }
+        }
+    }
+
+    if (-not $vcvarsFound) {
+        Write-Host "Visual Studio Build Tools with C++ components not found" -ForegroundColor Yellow
+        Write-Host "Tip: Run 'vswhere.exe -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64' to diagnose" -ForegroundColor Gray
     }
     
     if (-not $cmakeFound) {
@@ -266,13 +318,11 @@ $runspacePool.Open()
 $jobs = @()
 
 # Define Repos
-$repos = @(
-    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/2025.3.zip"; File = "2025.3.zip" },
-    @{ Name = "openvino_build_deploy"; Uri = "https://github.com/openvinotoolkit/openvino_build_deploy/archive/refs/heads/master.zip"; File = "master-build_deploy.zip" },
-    @{ Name = "ollama-ipex-llm"; Uri = "https://github.com/ipex-llm/ipex-llm/releases/download/v2.3.0-nightly/ollama-ipex-llm-2.3.0b20250725-win.zip"; File = "ollama-ipex-llm.zip" },
-    @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/windows/openvino_genai_windows_2025.3.0.0_x86_64.zip"; File = "openvino_genai.zip" },
+$repos = @(    
+    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/latest.zip"; File = "openvino_notebooks-latest.zip" },
+    @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/windows/openvino_genai_windows_2026.0.0.0_x86_64.zip"; File = "openvino_genai.zip" },
     @{ Name = "AI-PC-Samples"; Uri = "https://github.com/intel/AI-PC-Samples/archive/refs/heads/main.zip"; File = "ai-pc-samples.zip" },
-    @{ Name = "open_model_zoo"; Uri = "https://github.com/openvinotoolkit/open_model_zoo/archive/refs/tags/2024.4.0.zip"; File = "2024.4.0.zip" }
+    @{ Name = "Microsoft-Build2025-Samples"; Uri = "https://github.com/intel/Microsoft-Build2025-Samples/archive/refs/heads/main.zip"; File = "microsoft-build2025-samples.zip" }
 )
 
 # Launch jobs
@@ -426,14 +476,8 @@ foreach ($result in $downloadResults) {
 
         switch ($name) {
             "openvino_notebooks"     { 
-                # FIXED: Updated from 2025.2 to 2025.3
-                if (Test-Path "openvino_notebooks-2025.3") {
-                    Rename-Item "openvino_notebooks-2025.3" $name 
-                }
-            }
-            "openvino_build_deploy"  { 
-                if (Test-Path "openvino_build_deploy-master") {
-                    Rename-Item "openvino_build_deploy-master" $name 
+                if (Test-Path "openvino_notebooks-latest") {
+                    Rename-Item "openvino_notebooks-latest" $name 
                 }
             }
             "webnn_workshop"         { 
@@ -447,43 +491,14 @@ foreach ($result in $downloadResults) {
                 }
             }
             "openvino_genai"         { 
-                # FIXED: Updated from 2025.2.0.0 to 2025.3.0.0
-                if (Test-Path "openvino_genai_windows_2025.3.0.0_x86_64") {
-                    Rename-Item "openvino_genai_windows_2025.3.0.0_x86_64" $name 
+                # Updated to 2026.0.0.0
+                if (Test-Path "openvino_genai_windows_2026.0.0.0_x86_64") {
+                    Rename-Item "openvino_genai_windows_2026.0.0.0_x86_64" $name 
                 }
             }
-            "ollama-ipex-llm"        { 
-                # This ZIP extracts files directly to the current directory, not into a subdirectory
-                # We need to create the target directory and move the files there
-                Write-Host "Creating $name directory and moving extracted files..." -ForegroundColor Magenta
-                
-                # Get a list of all files that were likely extracted from this ZIP
-                $ollamaFiles = Get-ChildItem -Path $DevKitWorkingDir -File | Where-Object { 
-                    $_.Name -like "*ollama*" -or 
-                    $_.Name -like "*llama*" -or 
-                    $_.Name -like "*.dll" -or 
-                    $_.Name -like "*.exe" -or 
-                    $_.Name -like "*.bat" -or 
-                    $_.Name -like "*.txt"
-                }
-                
-                if ($ollamaFiles.Count -gt 0) {
-                    # Create the target directory
-                    New-Item -ItemType Directory -Path $name -Force | Out-Null
-                    
-                    # Move all the extracted files to the new directory
-                    foreach ($file in $ollamaFiles) {
-                        Move-Item -Path $file.FullName -Destination $name -Force
-                    }
-                    
-                    Write-Host "Moved $($ollamaFiles.Count) files to $name directory" -ForegroundColor Magenta
-                } else {
-                    Write-Host "No ollama/llama files found to move" -ForegroundColor Yellow
-                }
-            }
-            "open_model_zoo"         { 
-                if (Test-Path "open_model_zoo-2024.4.0") {
-                    Rename-Item "open_model_zoo-2024.4.0" $name 
+            "Microsoft-Build2025-Samples" { 
+                if (Test-Path "Microsoft-Build2025-Samples-main") {
+                    Rename-Item "Microsoft-Build2025-Samples-main" $name 
                 }
             }
             Default {}
@@ -511,34 +526,20 @@ if (Test-Path "openvino_notebooks") {
             $success = Install-PipPackages -VenvPath $venvPath -RequirementsFile $requirementsPath
             if ($success) {
                 Install-JupyterKernel -VenvPath $venvPath -KernelName "openvino_notebooks" -DisplayName "OpenVINO Notebooks"
+                $installResults["OpenVINO Notebooks venv"] = "Success"
             } else {
+                $installResults["OpenVINO Notebooks venv"] = "Failed"
                 Write-Host "Manual command: cd `"$DevKitWorkingDir\openvino_notebooks`"; .\venv\Scripts\activate; pip install -r requirements.txt" -ForegroundColor Yellow
             }
+        } else {
+            $installResults["OpenVINO Notebooks venv"] = "Failed (requirements.txt not found)"
         }
+    } else {
+        $installResults["OpenVINO Notebooks venv"] = "Failed (venv creation error)"
     }
 }
 
-# 2. OpenVINO Build Deploy (MSBuild2025 Workshop)
-if (Test-Path "openvino_build_deploy") {
-    Write-Host "`nSetting up MSBuild2025 Workshop environment..." -ForegroundColor Cyan
-    $workshopPath = "$DevKitWorkingDir\openvino_build_deploy\workshops\MSBuild2025"
-    if (Test-Path $workshopPath) {
-        $venvPath = New-PythonVenv -Path $workshopPath
-        if ($venvPath) {
-            Write-Host "Installing OpenVINO and Ultralytics packages..."
-            # UPDATED: Changed from 2025.1.0 to 2025.3.0 to match the current version
-            $packages = @("openvino==2025.3.0", "ultralytics==8.3.120")
-            $success = Install-PipPackages -VenvPath $venvPath -Packages $packages
-            if ($success) {
-                Install-JupyterKernel -VenvPath $venvPath -KernelName "msbuild2025_workshop" -DisplayName "MSBuild2025 Workshop"
-            } else {
-                Write-Host "Manual command: cd `"$workshopPath`"; .\venv\Scripts\activate; pip install openvino==2025.3.0 ultralytics==8.3.120" -ForegroundColor Yellow
-            }
-        }
-    }
-}
-
-# 3. OpenVINO GenAI
+# 2. OpenVINO GenAI
 if (Test-Path "openvino_genai") {
     Write-Host "`nSetting up OpenVINO GenAI environment..." -ForegroundColor Cyan
     $genaiPath = "$DevKitWorkingDir\openvino_genai"
@@ -592,9 +593,11 @@ if (Test-Path "openvino_genai") {
                     
                     if ($LASTEXITCODE -eq 0) {
                         Write-Host "C++ samples built successfully" -ForegroundColor Green
+                        $installResults["OpenVINO GenAI C++ Samples"] = "Success"
                     } else {
                         Write-Host "Build completed with warnings/errors (exit code: $LASTEXITCODE)" -ForegroundColor Yellow
                         Write-Host "This is common with OpenVINO GenAI samples and may not prevent usage" -ForegroundColor Yellow
+                        $installResults["OpenVINO GenAI C++ Samples"] = "Completed with warnings"
                     }
                 }
                 catch {
@@ -624,6 +627,7 @@ if (Test-Path "openvino_genai") {
                     }
                     catch {
                         Write-Host "Direct CMake approach also failed: $_" -ForegroundColor Yellow
+                        $installResults["OpenVINO GenAI C++ Samples"] = "Failed"
                         # Ensure we return to the correct location even on error
                         try { Pop-Location } catch { }
                     }
@@ -638,10 +642,11 @@ if (Test-Path "openvino_genai") {
         } else {
             Write-Host "Warning: Build environment not properly configured. Skipping C++ samples build." -ForegroundColor Yellow
             Write-Host "Requirements for C++ sample compilation:" -ForegroundColor Yellow
-            Write-Host "1. Install Visual Studio Build Tools 2022 or Visual Studio Community 2022" -ForegroundColor White
+            Write-Host "1. Install Visual Studio Build Tools 2026 or Visual Studio 2026" -ForegroundColor White
             Write-Host "2. Install CMake 3.5+ and add to PATH" -ForegroundColor White
             Write-Host "3. Run: cd `"$cppSamplesPath`"; .\build_samples.ps1" -ForegroundColor White
             Write-Host "Alternative: Use pre-built Python samples instead" -ForegroundColor White
+            $installResults["OpenVINO GenAI C++ Samples"] = "Skipped (build environment not configured)"
         }
         
         # Return to the original location
@@ -660,10 +665,16 @@ if (Test-Path "openvino_genai") {
                 $success = Install-PipPackages -VenvPath $venvPath -RequirementsFile $requirementsPath
                 if ($success) {
                     Install-JupyterKernel -VenvPath $venvPath -KernelName "openvino_genai" -DisplayName "OpenVINO GenAI"
+                    $installResults["OpenVINO GenAI Python venv"] = "Success"
                 } else {
+                    $installResults["OpenVINO GenAI Python venv"] = "Failed"
                     Write-Host "Manual command: cd `"$samplesPath`"; .\venv\Scripts\activate; pip install -r requirements.txt" -ForegroundColor Yellow
                 }
+            } else {
+                $installResults["OpenVINO GenAI Python venv"] = "Failed (requirements.txt not found)"
             }
+        } else {
+            $installResults["OpenVINO GenAI Python venv"] = "Failed (venv creation error)"
         }
     }
 }
@@ -685,8 +696,9 @@ if (Test-Path "AI-PC-Samples") {
             $success = Install-PipPackages -VenvPath $venvPath -RequirementsFile $requirementsPath
             if ($success) {
                 Install-JupyterKernel -VenvPath $venvPath -KernelName "ai_pc_samples" -DisplayName "AI PC Samples"
+                $installResults["AI PC Samples venv"] = "Success"
                 
-                # Install LlamaCpp Python with Vulkan support
+                # Install LlamaCpp Python with Vulkan support (try latest, fall back to v0.3.8)
                 Write-Host "Installing LlamaCpp Python with Vulkan support..." -ForegroundColor Cyan
                 $pipExe = Join-Path $venvPath "Scripts\pip.exe"
                 try {
@@ -694,17 +706,27 @@ if (Test-Path "AI-PC-Samples") {
                     $env:CMAKE_ARGS = "-DGGML_VULKAN=on"
                     $env:FORCE_CMAKE = "1"
                     
-                    Write-Host "Compiling llama-cpp-python with Vulkan support (this may take several minutes)..." -ForegroundColor Yellow
-                    & $pipExe install llama-cpp-python==0.3.8 -U --force --no-cache-dir --verbose
+                    Write-Host "Trying latest llama-cpp-python (no version pin)..." -ForegroundColor Yellow
+                    & $pipExe install llama-cpp-python -U --force --no-cache-dir
                     
                     if ($LASTEXITCODE -eq 0) {
-                        Write-Host "LlamaCpp Python with Vulkan compiled successfully!" -ForegroundColor Green
+                        Write-Host "LlamaCpp Python (latest) with Vulkan compiled successfully!" -ForegroundColor Green
+                        $installResults["LlamaCpp Python (Vulkan)"] = "Success"
                     } else {
-                        Write-Host "LlamaCpp Python compilation failed, continuing with standard installation..." -ForegroundColor Yellow
+                        Write-Host "Latest failed, falling back to llama-cpp-python==0.3.8..." -ForegroundColor Yellow
+                        & $pipExe install llama-cpp-python==0.3.8 -U --force --no-cache-dir
+                        if ($LASTEXITCODE -eq 0) {
+                            Write-Host "LlamaCpp Python v0.3.8 with Vulkan compiled successfully!" -ForegroundColor Green
+                            $installResults["LlamaCpp Python (Vulkan)"] = "Success (v0.3.8 fallback)"
+                        } else {
+                            Write-Host "LlamaCpp Python compilation failed for both latest and v0.3.8" -ForegroundColor Yellow
+                            $installResults["LlamaCpp Python (Vulkan)"] = "Failed"
+                        }
                     }
                 }
                 catch {
                     Write-Host "Exception during LlamaCpp Python compilation: $_" -ForegroundColor Yellow
+                    $installResults["LlamaCpp Python (Vulkan)"] = "Failed (exception)"
                 }
                 finally {
                     # Clean up environment variables
@@ -714,6 +736,7 @@ if (Test-Path "AI-PC-Samples") {
                 
 
             } else {
+                $installResults["AI PC Samples venv"] = "Failed"
                 Write-Host "Manual command: cd `"$DevKitWorkingDir\AI-PC-Samples`"; .\venv\Scripts\activate; pip install -r AI-Travel-Agent\requirements.txt" -ForegroundColor Yellow
             }
         } else {
@@ -723,8 +746,9 @@ if (Test-Path "AI-PC-Samples") {
             $success = Install-PipPackages -VenvPath $venvPath -Packages $packages
             if ($success) {
                 Install-JupyterKernel -VenvPath $venvPath -KernelName "ai_pc_samples" -DisplayName "AI PC Samples"
+                $installResults["AI PC Samples venv"] = "Success"
                 
-                # Install LlamaCpp Python with Vulkan support (same as above)
+                # Install LlamaCpp Python with Vulkan support (try latest, fall back to v0.3.8)
                 Write-Host "Installing LlamaCpp Python with Vulkan support..." -ForegroundColor Cyan
                 $pipExe = Join-Path $venvPath "Scripts\pip.exe"
                 try {
@@ -732,23 +756,35 @@ if (Test-Path "AI-PC-Samples") {
                     $env:CMAKE_ARGS = "-DGGML_VULKAN=on"
                     $env:FORCE_CMAKE = "1"
                     
-                    Write-Host "Compiling llama-cpp-python with Vulkan support (this may take several minutes)..." -ForegroundColor Yellow
-                    & $pipExe install llama-cpp-python==0.3.8 -U --force --no-cache-dir --verbose
+                    Write-Host "Trying latest llama-cpp-python (no version pin)..." -ForegroundColor Yellow
+                    & $pipExe install llama-cpp-python -U --force --no-cache-dir
                     
                     if ($LASTEXITCODE -eq 0) {
-                        Write-Host "LlamaCpp Python with Vulkan compiled successfully!" -ForegroundColor Green
+                        Write-Host "LlamaCpp Python (latest) with Vulkan compiled successfully!" -ForegroundColor Green
+                        $installResults["LlamaCpp Python (Vulkan)"] = "Success"
                     } else {
-                        Write-Host "LlamaCpp Python compilation failed, continuing..." -ForegroundColor Yellow
+                        Write-Host "Latest failed, falling back to llama-cpp-python==0.3.8..." -ForegroundColor Yellow
+                        & $pipExe install llama-cpp-python==0.3.8 -U --force --no-cache-dir
+                        if ($LASTEXITCODE -eq 0) {
+                            Write-Host "LlamaCpp Python v0.3.8 with Vulkan compiled successfully!" -ForegroundColor Green
+                            $installResults["LlamaCpp Python (Vulkan)"] = "Success (v0.3.8 fallback)"
+                        } else {
+                            Write-Host "LlamaCpp Python compilation failed for both latest and v0.3.8" -ForegroundColor Yellow
+                            $installResults["LlamaCpp Python (Vulkan)"] = "Failed"
+                        }
                     }
                 }
                 catch {
                     Write-Host "Exception during LlamaCpp Python compilation: $_" -ForegroundColor Yellow
+                    $installResults["LlamaCpp Python (Vulkan)"] = "Failed (exception)"
                 }
                 finally {
                     # Clean up environment variables
                     Remove-Item env:CMAKE_ARGS -ErrorAction SilentlyContinue
                     Remove-Item env:FORCE_CMAKE -ErrorAction SilentlyContinue
                 }
+            } else {
+                $installResults["AI PC Samples venv"] = "Failed"
             }
         }
     }
@@ -779,20 +815,24 @@ if (-not (Test-Path $llamacppPath)) {
                     
                     if ($LASTEXITCODE -eq 0) {
                         Write-Host "Native LlamaCpp built successfully in: $llamacppPath" -ForegroundColor Green
+                        $installResults["Native LlamaCpp (Vulkan)"] = "Success"
                     } else {
                         Write-Host "Native LlamaCpp build completed with warnings" -ForegroundColor Yellow
+                        $installResults["Native LlamaCpp (Vulkan)"] = "Completed with warnings"
                     }
                 } else {
                     Write-Host "CMake configuration failed for native LlamaCpp" -ForegroundColor Yellow
+                    $installResults["Native LlamaCpp (Vulkan)"] = "Failed (CMake config error)"
                 }
             } else {
                 Write-Host "Build environment not available, skipping native LlamaCpp compilation" -ForegroundColor Yellow
-                Write-Host "Requirements: Visual Studio Build Tools 2022 + CMake 3.5+" -ForegroundColor White
+                Write-Host "Requirements: Visual Studio Build Tools 2026 + CMake 3.5+" -ForegroundColor White
             }
         }
     }
     catch {
         Write-Host "Failed to clone or build native LlamaCpp: $_" -ForegroundColor Yellow
+        $installResults["Native LlamaCpp (Vulkan)"] = "Failed (clone/build error)"
     }
     finally {
         Set-Location $DevKitWorkingDir
@@ -801,35 +841,17 @@ if (-not (Test-Path $llamacppPath)) {
     Write-Host "Native LlamaCpp already exists at: $llamacppPath, skipping..." -ForegroundColor Yellow
 }
 
-# 6. Open Model Zoo
-if (Test-Path "open_model_zoo") {
-    Write-Host "`nSetting up Open Model Zoo environment..." -ForegroundColor Cyan
-    $venvPath = New-PythonVenv -Path "$DevKitWorkingDir\open_model_zoo"
-    if ($venvPath) {
-        $requirementsPath = Join-Path "$DevKitWorkingDir\open_model_zoo" "requirements.txt"
-        if (Test-Path $requirementsPath) {
-            Write-Host "Installing Open Model Zoo requirements..."
-            $success = Install-PipPackages -VenvPath $venvPath -RequirementsFile $requirementsPath
-            if ($success) {
-                Install-JupyterKernel -VenvPath $venvPath -KernelName "open_model_zoo" -DisplayName "Open Model Zoo"
-            } else {
-                Write-Host "Manual command: cd `"$DevKitWorkingDir\open_model_zoo`"; .\venv\Scripts\activate; pip install -r requirements.txt" -ForegroundColor Yellow
-            }
-        } else {
-            # If no requirements.txt, install basic OpenVINO packages
-            Write-Host "Installing basic packages for Open Model Zoo..."
-            $packages = @("openvino", "opencv-python", "numpy", "matplotlib", "jupyter", "ipywidgets")
-            $success = Install-PipPackages -VenvPath $venvPath -Packages $packages
-            if ($success) {
-                Install-JupyterKernel -VenvPath $venvPath -KernelName "open_model_zoo" -DisplayName "Open Model Zoo"
-            }
-        }
-    }
+# 6. Windows AI Foundry Samples (no venv required)
+if (Test-Path "Microsoft-Build2025-Samples") {
+    Write-Host "`nWindows AI Foundry Samples downloaded successfully at: $DevKitWorkingDir\Microsoft-Build2025-Samples" -ForegroundColor Green
+    $installResults["Windows AI Foundry Samples"] = "Success"
+} else {
+    $installResults["Windows AI Foundry Samples"] = "Skipped (directory not found)"
 }
 
 # Clean up any remaining zip files - UPDATED ZIP FILE NAMES
 Write-Host "`nCleaning up downloaded zip files..." -ForegroundColor Cyan
-$zipFiles = @("2025.3.zip", "master-build_deploy.zip", "ollama-ipex-llm.zip", "openvino_genai.zip", "ai-pc-samples.zip", "2024.4.0.zip")
+$zipFiles = @("openvino_notebooks-latest.zip", "openvino_genai.zip", "ai-pc-samples.zip", "microsoft-build2025-samples.zip")
 foreach ($zipFile in $zipFiles) {
     if (Test-Path $zipFile) {
         Remove-Item $zipFile -Force
@@ -844,10 +866,8 @@ Write-Host "Installation directory: $DevKitWorkingDir" -ForegroundColor Green
 
 Write-Host "`nJupyter Kernels Created:" -ForegroundColor Yellow
 Write-Host "- openvino_notebooks (OpenVINO Notebooks)" -ForegroundColor White
-Write-Host "- msbuild2025_workshop (MSBuild2025 Workshop)" -ForegroundColor White
 Write-Host "- openvino_genai (OpenVINO GenAI)" -ForegroundColor White
 Write-Host "- ai_pc_samples (AI PC Samples)" -ForegroundColor White
-Write-Host "- open_model_zoo (Open Model Zoo)" -ForegroundColor White
 
 Write-Host "`nTo use Jupyter kernels:" -ForegroundColor Yellow
 Write-Host "1. Start Jupyter: jupyter lab" -ForegroundColor White
@@ -855,13 +875,45 @@ Write-Host "2. Select kernel from the dropdown menu when creating/opening notebo
 
 Write-Host "`nTo activate virtual environments:" -ForegroundColor Yellow
 Write-Host "OpenVINO Notebooks: cd `"$DevKitWorkingDir\openvino_notebooks`"; .\venv\Scripts\activate" -ForegroundColor White
-Write-Host "MSBuild2025 Workshop: cd `"$DevKitWorkingDir\openvino_build_deploy\workshops\MSBuild2025`"; .\venv\Scripts\activate" -ForegroundColor White
 Write-Host "OpenVINO GenAI: cd `"$DevKitWorkingDir\openvino_genai\samples`"; .\venv\Scripts\activate" -ForegroundColor White
 Write-Host "AI PC Samples: cd `"$DevKitWorkingDir\AI-PC-Samples`"; .\venv\Scripts\activate" -ForegroundColor White
-Write-Host "Open Model Zoo: cd `"$DevKitWorkingDir\open_model_zoo`"; .\venv\Scripts\activate" -ForegroundColor White
+
+Write-Host "`nWindows AI Foundry Samples:" -ForegroundColor Yellow
+Write-Host "Location: $DevKitWorkingDir\Microsoft-Build2025-Samples" -ForegroundColor White
 
 Write-Host "`nNative Tools Built:" -ForegroundColor Yellow
 Write-Host "LlamaCpp with Vulkan: $DevKitWorkingDir\llama.cpp\build" -ForegroundColor White
 Write-Host "OpenVINO GenAI C++ Samples: $DevKitWorkingDir\openvino_genai\samples\cpp\build" -ForegroundColor White
 
-Write-Host "`nScript completed successfully!" -ForegroundColor Green
+# Component-level installation results
+Write-Host "`n=== COMPONENT INSTALLATION RESULTS ==="  -ForegroundColor Magenta
+$succeeded = @()
+$failed = @()
+$skippedItems = @()
+foreach ($key in $installResults.Keys) {
+    $val = $installResults[$key]
+    $color = switch -Wildcard ($val) {
+        "Success"                  { "Green" }
+        "Completed with warnings"  { "Yellow" }
+        "Skipped*"                 { "Gray" }
+        default                    { "Red" }
+    }
+    Write-Host ("  {0,-40} {1}" -f $key, $val) -ForegroundColor $color
+    if ($val -eq "Success" -or $val -eq "Completed with warnings") { $succeeded += $key }
+    elseif ($val -like "Skipped*")                                  { $skippedItems += $key }
+    else                                                            { $failed += $key }
+}
+
+Write-Host ""
+if ($failed.Count -eq 0) {
+    Write-Host "All components installed successfully!" -ForegroundColor Green
+} else {
+    Write-Host "$($succeeded.Count) component(s) succeeded, $($failed.Count) component(s) failed:" -ForegroundColor Yellow
+    foreach ($f in $failed) {
+        Write-Host "  - $f : $($installResults[$f])" -ForegroundColor Red
+    }
+    Write-Host ""
+    Write-Host "Review the output above for manual remediation steps." -ForegroundColor Yellow
+}
+
+Write-Host "`nScript completed!" -ForegroundColor Green
