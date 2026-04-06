@@ -61,6 +61,15 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 .\Setup_1.ps1 uninstall
 ```
 
+### ⚠️ Important: Uninstall Requires Manual Intervention
+**Uninstall is NOT completely silent.** Many applications do not support fully automated silent uninstallation, even with command-line flags. You may encounter:
+- **Interactive prompts** from application uninstallers requiring user confirmation
+- **Dialog boxes** asking to confirm removal
+- **Restart requirements** for some applications
+- **Per-application uninstall experiences** that cannot be suppressed
+
+**Recommendation:** Monitor the uninstall process and be prepared to click "OK" or "Confirm" buttons when prompted. The system logs uninstall operations to `C:\temp\logs\uninstall\uninstall.txt` and also copies a snapshot to your desktop as `uninstall_logs.txt`.
+
 ---
 
 ## 🛠️ Available Tools
@@ -75,6 +84,9 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 - ✅ **Smart Tracking**: Maintains history of installed packages for easy removal
 - ✅ **Bidirectional Compatibility**: Install via GUI or command line, uninstall via either method
 - ✅ **Error Handling**: Robust error reporting and retry mechanisms
+- ✅ **Post-Install Commands**: Execute custom commands after app installation
+- ✅ **Persistent Environment Variables**: Set and cleanup system/user environment variables
+- ✅ **Automatic Cleanup**: Environment variables removed on uninstall
 
 **Usage:**
 ```powershell
@@ -149,8 +161,11 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 5. **Uninstall Software**:
    - Click "Uninstall Software" 
    - Select packages to remove
+   - **Be ready to interact with uninstall dialogs** - not all apps support completely silent uninstall
+   - Monitor progress and respond to any prompts
    - Confirm uninstallation
    - Tracking file automatically updated
+   - Environment variables automatically removed from system registry
 
 #### Package Categories
 - **Development Tools**: Git, Visual Studio Code, Visual Studio Community
@@ -202,6 +217,19 @@ C:\Intel\
 
 The GUI installer uses JSON configuration files for package management:
 
+#### Global Install and Uninstall Flags
+Both `global_install_flags` and `global_uninstall_flags` are defined at the top of `applications.json`. They apply to **every** package unless a per-app override is present. This is the **single source of truth** for these flags — `uninstall.json` copies them from here at creation time, and `Append-ToJson.ps1` reads from here whenever it initialises a new `uninstall.json`.
+
+```json
+{
+  "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity --force",
+  "global_uninstall_flags": "--purge --accept-source-agreements --silent --disable-interactivity --force",
+  "winget_applications": [ ... ]
+}
+```
+
+To change how **all** apps are uninstalled, edit `global_uninstall_flags` here. No other files need to be touched.
+
 #### Adding Winget Applications
 ```json
 {
@@ -216,6 +244,30 @@ The GUI installer uses JSON configuration files for package management:
   "skip_install": "no"
 }
 ```
+
+#### Per-App Uninstall Override Flags
+Use `uninstall_override_flags` on a specific entry to **replace** the global uninstall flags for that app. This is useful for applications whose uninstallers use a different silent flag convention.
+
+Note: these flags are applied only when the local winget build supports uninstall `--override`; otherwise the framework logs this and continues with global uninstall flags.
+
+**Example — Vulkan SDK (NSIS installer uses `/S`):**
+```json
+{
+  "id": "KhronosGroup.VulkanSDK",
+  "friendly_name": "Vulkan SDK",
+  "summary": "Next-generation graphics and compute API",
+  "override_flags": null,
+  "skip_install": "no",
+  "uninstall_override_flags": "/S"
+}
+```
+
+| Installer Type | Silent Uninstall Flag | Notes |
+|---|---|---|
+| MSI / WiX (e.g. CMake) | Global flags (`--silent`) | Reliable — winget maps to `/quiet` |
+| NSIS EXE (e.g. Vulkan SDK) | `/S` via `uninstall_override_flags` | Must override; global flags insufficient |
+| Inno Setup EXE | `/VERYSILENT /SUPPRESSMSGBOXES` | Override if needed |
+| Custom EXE | Vendor-specific | Set `uninstall_command` on external apps |
 
 #### Adding External Applications  
 ```json
@@ -232,14 +284,98 @@ The GUI installer uses JSON configuration files for package management:
 }
 ```
 
+### Post-Installation Configuration
+
+#### Post-Install Commands
+Execute arbitrary commands after an application installs successfully. Commands are executed in sequence via PowerShell.
+
+**Example - NuGet Installation Steps:**
+```json
+{
+   "name": "nuget-installation",
+   "friendly_name": "NuGet Installation",
+  "summary": "Complete final setup and configuration",
+   "install_command": "echo NuGet installation steps",
+  "post_install_commands": [
+    "dotnet nuget locals all --clear",
+      "if (-not ((dotnet nuget list source | Out-String) -match '(?im)^\\s*\\d+\\.\\s+nuget\\.org\\b')) { dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org } else { Write-Host 'NuGet source nuget.org already configured. Skipping add source step.' }",
+    "dotnet nuget list source"
+  ],
+  "skip_install": "no"
+}
+```
+
+**Supported for:**
+- Winget applications (any field)
+- External applications (any field)
+
+**Execution Context:**
+- Commands run after successful installation
+- Executed via PowerShell in the current user context
+- All output is logged to the installation log file
+
+#### Persistent Environment Variables
+Set environment variables that survive system reboot and user logouts (Machine scope) or persist for the user profile (User scope).
+
+**Example - Ollama with Vulkan Support:**
+```json
+{
+  "id": "Ollama.Ollama",
+  "friendly_name": "Ollama",
+  "summary": "Run local LLMs with Ollama",
+  "override_flags": null,
+  "skip_install": "no",
+  "post_install_environment_variables": {
+    "OLLAMA_VULKAN": "1"
+  }
+}
+```
+
+**Variable Scope Behavior:**
+- **Installation**: Sets in Machine scope (system-wide, requires admin)
+  - Falls back to User scope if Machine scope fails
+  - Also sets Process scope for immediate session availability
+- **Uninstallation**: Removes from both Machine and User scopes (whichever exists)
+  - Cleans up environment registry entries
+  - Preserves other environment variables
+
+**Multiple Variables Example:**
+```json
+{
+  "post_install_environment_variables": {
+    "VARIABLE_ONE": "value1",
+    "VARIABLE_TWO": "value2",
+    "VARIABLE_THREE": "value3"
+  }
+}
+```
+
+**Verification After Installation:**
+```powershell
+# Check Machine scope
+Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "OLLAMA_VULKAN"
+
+# Check User scope
+Get-ItemProperty -Path "HKCU:\Environment" -Name "OLLAMA_VULKAN"
+
+# Check current session (Process scope)
+$env:OLLAMA_VULKAN
+```
+
+**Verification After Uninstallation:**
+```powershell
+# Should return nothing if successfully removed
+Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Name "OLLAMA_VULKAN" -ErrorAction SilentlyContinue
+Get-ItemProperty -Path "HKCU:\Environment" -Name "OLLAMA_VULKAN" -ErrorAction SilentlyContinue
+```
+
 ### File Structure
 ```
 Windows_Software_Installation/
 ├── README.md                              # This file
 └── WingetGUI_Installer/
-    ├── README.md                          # GUI installer documentation
-    ├── Setup_1.ps1                        # Main installer script (GUI/CLI package manager)
-    ├── Setup_2.ps1                        # Repository downloader script
+   ├── Setup_1.ps1                        # Main installer script (GUI/CLI package manager)
+   ├── Setup_2.ps1                        # Repository downloader script
     ├── JSON/
     │   ├── install/
     │   │   └── applications.json          # Package definitions
@@ -248,11 +384,51 @@ Windows_Software_Installation/
     ├── logs/                              # Installation logs
     └── Public/                            # Core functionality modules
         ├── GUI.ps1                        # GUI interface
-        ├── Install.ps1                    # Installation functions
-        ├── Uninstall.ps1                  # Uninstallation functions
-        ├── Append-ToJson.ps1              # JSON management
+        ├── Install.ps1                    # Installation & post-install functions
+        ├── Uninstall.ps1                  # Uninstallation functions (with env var cleanup)
+        ├── Append-ToJson.ps1              # JSON management (reads global_uninstall_flags from applications.json)
         └── Write_ToLog.ps1                # Logging utilities
 ```
+
+### Installation and Uninstallation Workflow
+
+#### Installation Sequence
+1. **Application Installation**
+   - Winget: `winget install` with configured flags
+   - External: Download installer and execute with flags or direct `install_command`
+   
+2. **Success Verification** (via `Test-InstallationSuccess`)
+   - Check exit codes (0, 3010, 1641 are success)
+   - Log success/failure status
+
+3. **Post-Installation Actions** (via `Invoke-PostInstallActions`)
+   - Execute `post_install_commands` if defined
+   - Apply `post_install_environment_variables` if defined
+
+4. **Tracking Update**
+   - Write installation details to `uninstall.json` for later removal
+
+#### Uninstallation Sequence
+1. **Application Uninstallation**
+   - Winget: `winget uninstall` with flags resolved in priority order:
+     1. Per-app `uninstall_override_flags` (takes precedence if set)
+     2. `global_uninstall_flags` from `uninstall.json` (sourced from `applications.json`)
+     3. Hardcoded fallback if JSON is unavailable
+    - External: Resolve app from `applications.json` and execute its `uninstall_command`
+       - If `uninstall_command` is missing/empty, uninstall is marked failed and tracking is retained
+
+2. **Success Verification** (via `Test-UninstallationSuccess`)
+   - Check exit codes
+   - Log success/failure status
+
+3. **Environment Variable Cleanup** (via `Remove-PersistentEnvironmentVariables`)
+   - Remove variables from Machine scope (admin required)
+   - Fallback to User scope if Machine scope not available
+   - Log all removal operations
+
+4. **Tracking Update**
+   - Remove application from `uninstall.json`
+   - Delete file if all apps removed
 
 ---
 
@@ -270,6 +446,8 @@ Windows_Software_Installation/
 - **GUI doesn't show packages for uninstall**: No packages installed through this system yet
 - **Script hangs on startup**: Check for UAC dialog waiting for user response
 - **Installation shows as failed but package is installed**: Check logs for specific exit codes
+- **Environment variables not persisting**: Verify installation completed successfully; restart PowerShell or system to see changes
+- **Environment variable not removed on uninstall**: Check application logs for scope (Machine vs User); admin privileges may be required for Machine scope removal
 
 ### Exit Code Reference
 
@@ -303,4 +481,24 @@ For technical assistance or feature requests:
 
 ## 📄 License
 
-This script collection is provided as-is for Intel AI Dev Kit setup. Individual repositories and packages have their own licenses.
+MIT License
+
+Copyright (c) 2025 Intel
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

@@ -22,6 +22,19 @@ function Append-ToJson {
     
     while ($retryCount -lt $maxRetries -and -not $success) {
         try {
+            # Read global_uninstall_flags from applications.json (single source of truth)
+            $_appJsonPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'JSON\install\applications.json'
+            $_globalUninstallFlags = "--purge --accept-source-agreements --silent --disable-interactivity --force"
+            if (Test-Path -Path $_appJsonPath) {
+                try {
+                    $_appJson = Get-Content -Path $_appJsonPath -Raw | ConvertFrom-Json
+                    if ($_appJson.PSObject.Properties.Name -contains "global_uninstall_flags" -and
+                        -not [string]::IsNullOrWhiteSpace($_appJson.global_uninstall_flags)) {
+                        $_globalUninstallFlags = $_appJson.global_uninstall_flags
+                    }
+                } catch {}
+            }
+
             # Check if the JSON file exists
             if (-not (Test-Path -Path $jsonFilePath)) {
                 # Create the directory if it doesn't exist
@@ -32,6 +45,7 @@ function Append-ToJson {
                 
                 # Create a new JSON file with empty arrays
                 $baseJson = @{
+                    "global_uninstall_flags" = $_globalUninstallFlags
                     "winget_applications" = @()
                     "external_applications" = @()
                 }
@@ -45,6 +59,7 @@ function Append-ToJson {
                 if ([string]::IsNullOrWhiteSpace($jsonText)) {
                     # Empty file, create default structure
                     $jsonContent = @{
+                        "global_uninstall_flags" = $_globalUninstallFlags
                         "winget_applications" = @()
                         "external_applications" = @()
                     }
@@ -56,6 +71,7 @@ function Append-ToJson {
                 Write-Warning "JSON file appears to be corrupted. Creating new file."
                 # Create a new JSON file with empty arrays
                 $jsonContent = @{
+                    "global_uninstall_flags" = $_globalUninstallFlags
                     "winget_applications" = @()
                     "external_applications" = @()
                 }
@@ -332,17 +348,20 @@ function Remove-FromJsonById {
         }
     }
 
-    # Remove the entry by id (case-insensitive, trimmed)
+    # Remove by id or name (case-insensitive, trimmed) so external apps are handled correctly.
+    $target = $id.Trim()
+    $removedCount = 0
     $filteredArray = @()
     foreach ($item in $flatArray) {
-        $itemId = ""
-        if ($item.PSObject.Properties.Name -contains "id") {
-            $itemId = ($item.id | Out-String).Trim()
-        }
-        if ($itemId -ieq $id.Trim()) {
-            Write-Host "Match found: Removing item.id '$itemId' (target id: '$($id.Trim())')" -ForegroundColor DarkYellow
+        $itemId = if ($item.PSObject.Properties.Name -contains "id" -and $null -ne $item.id) { ($item.id | Out-String).Trim() } else { "" }
+        $itemName = if ($item.PSObject.Properties.Name -contains "name" -and $null -ne $item.name) { ($item.name | Out-String).Trim() } else { "" }
+
+        if (($itemId -ieq $target) -or ($itemName -ieq $target)) {
+            Write-Host "Match found: Removing item (id='$itemId', name='$itemName', target='$target')" -ForegroundColor DarkYellow
+            $removedCount++
             # Do not add to filteredArray, i.e., remove it
-        } else {
+        }
+        else {
             $filteredArray += $item
         }
     }
@@ -360,6 +379,11 @@ function Remove-FromJsonById {
         # Save the updated JSON
         $jsonString = $jsonContent | ConvertTo-Json -Depth 5
         Set-Content -Path $jsonFilePath -Value $jsonString -Encoding UTF8
-        Write-Host "Removed application from $section by id: $id" -ForegroundColor Yellow
+        if ($removedCount -gt 0) {
+            Write-Host "Removed $removedCount application(s) from $section using key: $id" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "No matching application found in $section for key: $id" -ForegroundColor Yellow
+        }
     }
 }

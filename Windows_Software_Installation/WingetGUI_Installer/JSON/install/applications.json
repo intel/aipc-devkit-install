@@ -1,17 +1,7 @@
 {
   "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity --force",
+  "global_uninstall_flags": "--purge --accept-source-agreements --silent --disable-interactivity --force",
   "winget_applications": [
-    {
-      "id": "Microsoft.NuGet",
-      "friendly_name": "NuGet Package Manager",
-      "summary": "Package manager for .NET",
-      "override_flags": null,
-      "install_location": null,
-      "version": null,
-      "version_check": null,
-      "dependencies": null,
-      "skip_install": "no"
-    },
     {
       "id": "Microsoft.VisualStudioCode",
       "friendly_name": "Visual Studio Code",
@@ -24,13 +14,13 @@
       "skip_install": "no"
     },
     {
-      "id": "Microsoft.VisualStudio.2022.Community",
-      "friendly_name": "Visual Studio 2022 Community",
+      "id": "Microsoft.VisualStudio.Community",
+      "friendly_name": "Visual Studio Community 2026 Edition",
       "summary": "Integrated development environment",
       "override_flags": "--add Microsoft.VisualStudio.Workload.ManagedDesktop;includeRecommended --add Microsoft.VisualStudio.Workload.NativeDesktop;includeRecommended --quiet --norestart --includeRecommended --wait",
-
+      "uninstall_override_flags": "--quiet --wait --norestart --force",
       "install_location": null,
-      "version": null,
+      "version": "18.4.2",
       "version_check": null,
       "dependencies": null,
       "skip_install": "no",
@@ -51,17 +41,6 @@
       "id": "chrisant996.Clink",
       "friendly_name": "Clink",
       "summary": "Command line editing enhancements for cmd.exe",
-      "override_flags": null,
-      "install_location": null,
-      "version": null,
-      "version_check": null,
-      "dependencies": null,
-      "skip_install": "no"
-    },
-    {
-      "id": "Google.Chrome.Canary",
-      "friendly_name": "Chrome Canary",
-      "summary": "Next-gen Chrome",
       "override_flags": null,
       "install_location": null,
       "version": null,
@@ -117,24 +96,109 @@
       "version_check": null,
       "dependencies": null,
       "skip_install": "no"
+    },
+    {
+      "id": "OpenJS.NodeJS.LTS",
+      "friendly_name": "Node.js LTS",
+      "summary": "JavaScript runtime built on Chrome's V8 engine (LTS)",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": "node --version",
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Microsoft.FoundryLocal",
+      "friendly_name": "Foundry Local",
+      "summary": "Microsoft Foundry Local for running AI models on-device",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "id": "Ollama.Ollama",
+      "friendly_name": "Ollama",
+      "summary": "Run local LLMs with Ollama",
+      "override_flags": null,
+      "install_location": null,
+      "version": null,
+      "version_check": null,
+      "dependencies": null,
+      "skip_install": "no",
+      "post_install_environment_variables": {
+        "OLLAMA_VULKAN": "1"
+      }
     }
   ],
   "external_applications": [
     {
-      "name": "one_api_base_toolkit",
-      "friendly_name": "Intel oneAPI Base Toolkit",
-      "summary": "Intel's comprehensive suite of development tools",
-      "source": "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ae29263e-38b9-4d43-86c3-376d6e0668e7/intel-oneapi-base-toolkit-2025.0.1.47_offline.exe",
-      "install_flags": "-a --silent --eula accept",
-      "download_location": ".\\One_API",
-      "uninstall_command": "C:\\Program Files (x86)\\Intel\\oneAPI\\Installer\\installer.exe -s --action remove --product-id intel.oneapi.win.basekit.product --product-ver 2025.0.1+44",
+      "name": "vscode-extension-continue",
+      "friendly_name": "Continue (VS Code Extension)",
+      "summary": "AI code assistant extension for Visual Studio Code",
+      "source": null,
+      "install_flags": null,
+      "install_command": "code --install-extension Continue.continue --force",
+      "uninstall_command": "code --uninstall-extension Continue.continue --force",
+      "download_location": null,
       "dependencies": [
         {
-          "name": "Microsoft.VisualStudio.2022.Community",
-          "version": "1.100.2"
+          "name": "Microsoft.VisualStudioCode",
+          "version": null
         }
       ],
-      "skip_install": "yes"
+      "skip_install": "no"
+    },
+    {
+      "name": "npm",
+      "friendly_name": "npm (Node Package Manager)",
+      "summary": "Package manager for Node.js",
+      "source": null,
+      "install_flags": null,
+      "install_command": "npm install -g npm --silent",
+      "download_location": null,
+      "uninstall_command": "npm uninstall -g npm",
+      "dependencies": [
+        {
+          "name": "OpenJS.NodeJS.LTS",
+          "version": null
+        }
+      ],
+      "skip_install": "no"
+    },
+    {
+      "name": "Intel AI Playground",
+      "friendly_name": "Intel AI Playground",
+      "summary": "AI Playground installer package",
+      "source": "https://github.com/intel/ai-playground/releases/latest/download/AI-Playground-installer.exe",
+      "install_flags": "/currentuser /S",
+      "install_location": "%LOCALAPPDATA%\\Programs\\AI Playground\\AI Playground.exe",
+      "uninstall_command": "\"%LOCALAPPDATA%\\Programs\\AI Playground\\Uninstall AI Playground.exe\" /currentuser /S",
+      "dependencies": null,
+      "skip_install": "no"
+    },
+    {
+      "name": "nuget-installation",
+      "friendly_name": "NuGet Installation",
+      "summary": "Complete NuGet installation configuration",
+      "install_command": "echo NuGet installation steps",
+      "uninstall_command": "dotnet nuget remove source nuget.org",
+      "dependencies": [
+        {
+          "name": "Microsoft.VisualStudio.Community",
+          "version": null
+        }
+      ],
+      "skip_install": "no",
+      "post_install_commands": [
+        "dotnet nuget locals all --clear",
+        "if (-not ((dotnet nuget list source | Out-String) -match '(?im)^\\s*\\d+\\.\\s+nuget\\.org\\b')) { dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org } else { Write-Host 'NuGet source nuget.org already configured. Skipping add source step.' }",
+        "dotnet nuget list source"
+      ]
     }
   ]
 }
+
