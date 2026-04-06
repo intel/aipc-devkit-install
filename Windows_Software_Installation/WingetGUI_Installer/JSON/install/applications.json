@@ -174,7 +174,8 @@
       "friendly_name": "Intel AI Playground",
       "summary": "AI Playground installer package",
       "source": "https://github.com/intel/ai-playground/releases/latest/download/AI-Playground-installer.exe",
-      "install_flags": "/S",      
+      "install_flags": "/currentuser /S",
+      "install_location": "%LOCALAPPDATA%\\Programs\\AI Playground\\AI Playground.exe",
       "uninstall_command": "\"%LOCALAPPDATA%\\Programs\\AI Playground\\Uninstall AI Playground.exe\" /currentuser /S",
       "dependencies": null,
       "skip_install": "no"

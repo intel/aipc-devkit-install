@@ -632,9 +632,18 @@ function Install-ExternalApplication {
             }
         }
 
-        # Some EXE installers can report a crash-like code even when installation actually succeeded.
-        # For source-based installers, validate install presence before deciding failure.
+        # Some EXE installers can report inconsistent success states.
+        # For source-based installers, validate install presence when needed before deciding final status.
+        $shouldVerifyInstallEvidence = $false
         if ((-not $success) -and $app.source -and (-not $app.install_command)) {
+            $shouldVerifyInstallEvidence = $true
+        }
+        # Always verify AI Playground explicitly because its installer can return success without completed setup.
+        if ($app.source -and (-not $app.install_command) -and $app.PSObject.Properties.Name -contains "name" -and ([string]$app.name -eq "Intel AI Playground")) {
+            $shouldVerifyInstallEvidence = $true
+        }
+
+        if ($shouldVerifyInstallEvidence -and $app.source -and (-not $app.install_command)) {
             $installedEvidenceFound = $false
             $resolvedUninstallCommand = [Environment]::ExpandEnvironmentVariables([string]$app.uninstall_command)
             $uninstallRegex = '^\s*"?([^"]+\.exe)"?\s*(.*)$'
@@ -748,8 +757,11 @@ function Install-ExternalApplication {
 
             if ($installedEvidenceFound) {
                 $success = $true
-                Write-Host "Installer returned exit code $exit_code for $appDisplayName, but install verification passed. Treating as success." -ForegroundColor Yellow
-                Write-ToLog -message "Installer returned non-success exit code $exit_code for $appDisplayName, but install verification passed. Treating as success." -log_file $log_file
+                Write-Host "Install verification passed for $appDisplayName. Marking installation successful despite installer exit code $exit_code." -ForegroundColor Yellow
+                Write-ToLog -message "Install verification passed for $appDisplayName. Marked installation successful despite installer exit code $exit_code." -log_file $log_file
+            } else {
+                $success = $false
+                Write-ToLog -message "Install verification failed for $appDisplayName. Expected install evidence was not found." -log_file $log_file
             }
         }
 
