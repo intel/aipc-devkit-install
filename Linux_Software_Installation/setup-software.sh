@@ -21,7 +21,7 @@ install_packages(){
     for PACKAGE in "${PACKAGES[@]}"; do
         INSTALLED_VERSION=$(dpkg-query -W -f='${Version}' "$PACKAGE" 2>/dev/null || true)
         LATEST_VERSION=$(apt-cache policy "$PACKAGE" | grep Candidate | awk '{print $2}')
-        
+
         if [ -z "$INSTALLED_VERSION" ] || [ "$INSTALLED_VERSION" != "$LATEST_VERSION" ]; then
             echo "$PACKAGE is not installed or not the latest version."
             INSTALL_REQUIRED=1
@@ -37,14 +37,14 @@ install_vulkan_sdk(){
     echo -e "\n# Installing Vulkan SDK"
     # Add Vulkan repository key
     wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-    
+
     # Add Vulkan repository for Ubuntu 24.04 (Noble)
     sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
-    
+
     # Update package list and install Vulkan SDK
     sudo apt update
     sudo apt install -y vulkan-sdk
-    
+
     echo "$S_VALID Vulkan SDK installed"
 }
 
@@ -108,7 +108,8 @@ install_openvino_notebook2(){
     if [ ! -d "./openvino_build_deploy" ]; then
         cd ~/intel
         git clone https://github.com/openvinotoolkit/openvino_build_deploy.git
-        cd openvino_build_deploy/workshops/MSBuild2025 
+        git checkout -b checkout_de158fcc8 de158fcc8 # checkout to the latest commit with the workshops folder.
+        cd openvino_build_deploy/workshops/MSBuild2025
         python3 -m venv venv
         source venv/bin/activate
         pip install openvino==2025.3.0 ultralytics==8.3.120
@@ -143,37 +144,37 @@ install_openvino_genai(){
 
 install_llamacpp(){
     echo -e "\n# Install llama.cpp with Vulkan support"
-    
+
     cd ~/intel
     if [ ! -d "./llama.cpp" ]; then
         # Check Vulkan support
         echo "Checking Vulkan support..."
         vulkaninfo
-        
+
         # Clone and build llama.cpp with Vulkan support
         git clone https://github.com/ggerganov/llama.cpp.git
         cd llama.cpp
-        
+
         # Build with Vulkan support
         cmake -B build -DGGML_VULKAN=1 -DLLAMA_CURL=OFF
         cmake --build build --config Release
-        
+
         echo "$S_VALID llama.cpp native built with Vulkan support"
     else
         echo "llama.cpp already exists"
     fi
-    
+
     # Install llama-cpp-python with Vulkan support
     echo -e "\n# Installing llama-cpp-python with Vulkan support"
     if [ ! -d "./llamacpp_python_env" ]; then
         cd ~/intel
         python3 -m venv llamacpp_python_env
         source llamacpp_python_env/bin/activate
-        
+
         # Set environment variable for Vulkan support
         export CMAKE_ARGS="-DGGML_VULKAN=ON -DLLAMA_CURL=OFF"
         pip install llama-cpp-python
-        
+
         # Create ipykernel for this environment
         pip install ipykernel
         python -m ipykernel install --user --name=llamacpp_python --display-name="LlamaCPP Python (Vulkan)"
@@ -182,7 +183,7 @@ install_llamacpp(){
     else
         echo "llamacpp_python_env already exists"
     fi
-    
+
     echo -e "\n# llama.cpp installation complete"
 }
 
@@ -190,17 +191,17 @@ install_ollama(){
 
     echo -e "\n# Install Ollama (regular version)"
     cd ~/intel
-    
+
     # Install regular Ollama using the official installer
     curl -fsSL https://ollama.com/install.sh | sh
-    
+
     # Start Ollama service
     ollama serve &
     sleep 5
-    
+
     # Pull a model for testing
     ollama pull llama3.2:1b
-    
+
     echo -e "\n# Ollama install complete"
 }
 
@@ -219,7 +220,7 @@ install_other_notebooks(){
     if [ ! -d "./AI-PC-Samples" ]; then
         cd ~/intel
         git clone https://github.com/intel/AI-PC-Samples.git
-        
+
         # Create virtual environment for AI-PC-Samples if it has requirements
         if [ -f "./AI-PC-Samples/AI-Travel-Agent/requirements.txt" ]; then
             cd AI-PC-Samples
@@ -272,11 +273,11 @@ setup() {
     echo "$S_VALID AI PC DevKit Installed"
     echo -e "\nInstalled Jupyter kernels:"
     echo "- OpenVINO Notebooks"
-    echo "- OpenVINO Build Deploy"  
+    echo "- OpenVINO Build Deploy"
     echo "- LlamaCPP Python (Vulkan)"
     echo "- AI PC Samples (if AI-Travel-Agent/requirements.txt exists)"
     echo -e "\nTo list all available kernels, run: jupyter kernelspec list"
-    
+
     echo -e "\n# Virtual Environment Activation Commands"
     echo "To activate each virtual environment, use the following commands:"
     echo ""
