@@ -145,7 +145,7 @@ Once started, the API is available at: `http://localhost:8000/v3`
  -Method POST `
  -UseBasicParsing `
  -Headers @{ "Content-Type" = "application/json" } `
- -Body '{"model": "Qwen3-Coder-30B-A3B-Instruct", "max_tokens": 300, "temperature": 0, "stream": false, "tools": [{"type": "function", "function": {"name": "run_code", "description": "Execute a code snippet and return the output", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "The code to execute"}, "language": {"type": "string", "enum": ["python", "javascript", "bash"]}}, "required": ["code", "language"]}}}], "messages": [{"role": "system", "content": "You are an expert coding assistant."}, {"role": "user", "content": "Write and run a Python function that returns the first 10 Fibonacci numbers."}]}').Content
+ -Body '{"model": "Qwen3-Coder-30B-A3B-Instruct", "max_tokens": 300, "temperature": 0, "stream": false, "tool_choice": "required", "tools": [{"type": "function", "function": {"name": "run_code", "description": "Execute a code snippet and return the output", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "The code to execute"}, "language": {"type": "string", "enum": ["python", "javascript", "bash"]}}, "required": ["code", "language"]}}}], "messages": [{"role": "system", "content": "You are an expert coding assistant."}, {"role": "user", "content": "Write and run a Python function that returns the first 10 Fibonacci numbers."}]}').Content
 ```
 
 ### Test with Python:
@@ -170,6 +170,13 @@ print(response.choices[0].message.content)
 ```python
 # Tool/function calling
 import json
+
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v3",
+    api_key="unused"
+)
 
 tools = [
     {
@@ -197,7 +204,7 @@ response = client.chat.completions.create(
 )
 
 choice = response.choices[0]
-if choice.finish_reason == "tool_calls":
+if choice.message.tool_calls:
     tool_call = choice.message.tool_calls[0]
     print(f"Function: {tool_call.function.name}")
     print(f"Args:     {tool_call.function.arguments}")
@@ -207,6 +214,14 @@ else:
 
 ```python
 # Code generation tool call (Qwen3-Coder)
+import json
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v3",
+    api_key="unused"
+)
+
 code_tools = [
     {
         "type": "function",
@@ -232,11 +247,12 @@ response = client.chat.completions.create(
         {"role": "user", "content": "Write and run a Python function that returns the first 10 Fibonacci numbers."}
     ],
     tools=code_tools,
+    tool_choice="required",   # force a tool call instead of a plain text reply
     max_tokens=300
 )
 
 choice = response.choices[0]
-if choice.finish_reason == "tool_calls":
+if choice.message.tool_calls:
     tool_call = choice.message.tool_calls[0]
     args = json.loads(tool_call.function.arguments)
     print(f"Function: {tool_call.function.name}")
