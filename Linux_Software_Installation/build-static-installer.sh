@@ -10,15 +10,45 @@ set -e
 BUILD_STATIC=false
 if [ "$1" = "--build-static" ]; then
     BUILD_STATIC=true
-    echo "=== Building Static Driver Setup Script ==="
-    echo "Will generate setup-static-drivers.sh with exact filenames"
-    echo
 fi
 
-echo "=== Intel Driver Static Installer Builder ==="
+echo "=== Intel Driver Static Installer Builder on Linux==="
 echo "This script builds a static driver installation script with compatibility checking"
 echo "No files will be downloaded or installed by this builder script"
 echo
+
+# First-run detection: show quick-start guide if setup-static-drivers.sh doesn't exist
+if [ "$BUILD_STATIC" = "false" ] && [ ! -f "setup-static-drivers.sh" ]; then
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║              👋 FIRST TIME SETUP DETECTED                   ║" 
+    echo "║                                                              ║"
+    echo "║  setup-static-drivers.sh has not been generated yet.         ║"
+    echo "║                                                              ║"
+    echo "║  Run these commands in order:                                ║"
+    echo "║                                                              ║"
+    echo "║  Step 1 - Generate the driver installer:                     ║"
+    echo "║    bash build-static-installer.sh --build-static             ║"
+    echo "║                                                              ║"
+    echo "║  Step 2 - Install the drivers (requires sudo):               ║"
+    echo "║    sudo ./setup-static-drivers.sh                            ║"
+    echo "║                                                              ║"
+    echo "║  Optional - Use a GitHub token to avoid rate limits:         ║"
+    echo "║    export GITHUB_TOKEN=your_token_here                       ║"
+    echo "║    bash build-static-installer.sh --build-static             ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo
+    echo "Continuing with verification-only mode to check GitHub API..."
+    echo
+elif [ "$BUILD_STATIC" = "true" ]; then
+    echo "=== Building Static Driver Setup Script ==="
+    echo "Will generate setup-static-drivers.sh with exact filenames"
+    echo
+elif [ -f "setup-static-drivers.sh" ]; then
+    echo "✓ setup-static-drivers.sh already exists"
+    echo "  To regenerate with latest driver versions, run:"
+    echo "    bash build-static-installer.sh --build-static"
+    echo
+fi
 
 # Check GitHub token status
 if [ -n "$GITHUB_TOKEN" ]; then
@@ -33,11 +63,48 @@ else
 fi
 echo
 
-# Check if jq is available
-if ! command -v jq &> /dev/null; then
-    echo "Error: jq is required but not installed. Install with: sudo apt install jq"
-    exit 1
+# Check and install required dependencies: curl and jq
+echo "=== Checking Required Dependencies ==="
+
+# Check curl
+if command -v curl &> /dev/null; then
+    echo "✓ curl is already installed ($(curl --version | head -1))"
+else
+    echo "✗ curl is not installed"
 fi
+
+# Check jq
+if command -v jq &> /dev/null; then
+    echo "✓ jq is already installed ($(jq --version))"
+else
+    echo "✗ jq is not installed"
+fi
+
+# Collect missing dependencies
+MISSING_DEPS=()
+command -v curl &> /dev/null || MISSING_DEPS+=("curl")
+command -v jq   &> /dev/null || MISSING_DEPS+=("jq")
+
+if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+    echo
+    echo "Installing missing dependencies: ${MISSING_DEPS[*]}"
+    sudo apt update -qq
+    sudo apt install -y "${MISSING_DEPS[@]}"
+    echo
+    # Verify installation succeeded
+    for dep in "${MISSING_DEPS[@]}"; do
+        if command -v "$dep" &> /dev/null; then
+            echo "✓ $dep installed successfully"
+        else
+            echo "ERROR: Failed to install $dep. Please install it manually: sudo apt install $dep"
+            exit 1
+        fi
+    done
+else
+    echo
+    echo "✓ All required dependencies are already installed"
+fi
+echo
 
 # Function to safely get latest release tag
 get_latest_release_tag() {
@@ -214,7 +281,7 @@ collect_asset_urls() {
         "intel/intel-graphics-compiler")
             ASSET_URLS["igc-core"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-igc-core.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["igc-opencl"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-igc-opencl.*amd64\\.deb")) | .browser_download_url' | head -1)
-            
+
             # Validate required assets were found
             if [ -z "${ASSET_URLS[igc-core]}" ] || [ "${ASSET_URLS[igc-core]}" = "null" ]; then
                 echo "ERROR: Could not find intel-igc-core asset for $repo $tag" >&2
@@ -224,6 +291,8 @@ collect_asset_urls() {
                 echo "ERROR: Could not find intel-igc-opencl asset for $repo $tag" >&2
                 return 1
             fi
+            echo "  ✓ igc-core   : $(basename ${ASSET_URLS[igc-core]})"
+            echo "  ✓ igc-opencl : $(basename ${ASSET_URLS[igc-opencl]})"
             ;;
         "intel/compute-runtime")
             ASSET_URLS["ocloc"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-ocloc_.*amd64\\.deb")) | .browser_download_url' | head -1)
@@ -234,7 +303,7 @@ collect_asset_urls() {
             ASSET_URLS["opencl-icd"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("intel-opencl-icd_.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["igdgmm"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("libigdgmm12.*amd64\\.deb")) | .browser_download_url' | head -1)
             ASSET_URLS["checksum"]=$(echo "$response" | jq -r '.assets[] | select(.name | test(".*\\.sum")) | .browser_download_url' | head -1)
-            
+
             # Validate required assets were found (checksum is optional)
             local required_assets=("ocloc" "ocloc-dbgsym" "ze-gpu-dbgsym" "ze-gpu" "opencl-icd-dbgsym" "opencl-icd" "igdgmm")
             for asset in "${required_assets[@]}"; do
@@ -242,30 +311,38 @@ collect_asset_urls() {
                     echo "ERROR: Could not find required asset '$asset' for $repo $tag" >&2
                     return 1
                 fi
+                echo "  ✓ $asset : $(basename ${ASSET_URLS[$asset]})"
             done
+            if [ -n "${ASSET_URLS[checksum]}" ] && [ "${ASSET_URLS[checksum]}" != "null" ]; then
+                echo "  ✓ checksum   : $(basename ${ASSET_URLS[checksum]})"
+            else
+                echo "  ⚠ checksum   : not found (optional, skipping verification)"
+            fi
             ;;
         "intel/linux-npu-driver")
             # NPU drivers are now packaged as tar.gz files, find the Ubuntu 24.04 version
             ASSET_URLS["npu-tarball"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("linux-npu-driver.*ubuntu2404\\.tar\\.gz")) | .browser_download_url' | head -1)
-            
+
             # Validate required asset was found
             if [ -z "${ASSET_URLS[npu-tarball]}" ] || [ "${ASSET_URLS[npu-tarball]}" = "null" ]; then
                 echo "ERROR: Could not find required NPU tarball asset for $repo $tag" >&2
                 return 1
             fi
+            echo "  ✓ npu-tarball : $(basename ${ASSET_URLS[npu-tarball]})"
             ;;
         "oneapi-src/level-zero")
             ASSET_URLS["level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("level-zero_.*u24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
-            
+
             # Validate required asset was found
             if [ -z "${ASSET_URLS[level-zero]}" ] || [ "${ASSET_URLS[level-zero]}" = "null" ]; then
                 echo "ERROR: Could not find level-zero asset for $repo $tag" >&2
                 return 1
             fi
+            echo "  ✓ level-zero  : $(basename ${ASSET_URLS[level-zero]})"
             ;;
     esac
-    
-    echo "✓ Successfully collected assets for $repo"
+
+    echo "✓ Successfully collected all assets for $repo"
     return 0
 }
 
@@ -803,14 +880,16 @@ find_compatible_igc_version() {
         return 1
     fi
     
-    echo "  Downloading package for dependency analysis..." >&2
+    echo "  Downloading package for dependency analysis (this may take a moment)..." >&2
+    echo "  → $(basename $opencl_icd_url)" >&2
     cd "$temp_dir"
-    
+
     # Download the package
-    if ! wget -q "$opencl_icd_url"; then
+    if ! wget -q --show-progress "$opencl_icd_url" 2>&1 | tail -1 >&2; then
         echo "  Failed to download package for analysis" >&2
         return 1
     fi
+    echo "  ✓ Package downloaded for analysis" >&2
     
     local deb_file=$(basename "$opencl_icd_url")
     
@@ -1011,18 +1090,22 @@ check_level_zero_compatibility() {
 collect_compatible_versions() {
     echo "=== Collecting Compatible Driver Versions ==="
     echo
-    
-    # First, get the latest compute runtime version
-    echo "📡 Getting latest compute runtime version..."
+    local step=0
+    local total=4
+
+    # Step 1: get the latest compute runtime version
+    step=$((step+1))
+    echo "[$step/$total] 📡 Getting latest compute runtime version..."
     local compute_runtime_tag=$(get_latest_release_tag "intel/compute-runtime")
     if [ $? -ne 0 ]; then
         echo "❌ Failed to get compute runtime version"
         return 1
     fi
-    echo "  Latest compute runtime: $compute_runtime_tag"
+    echo "  ✓ Latest compute runtime: $compute_runtime_tag"
     
-    # Find compatible IGC version
-    echo "🔍 Finding compatible IGC version..."
+    # Step 2: Find compatible IGC version
+    step=$((step+1))
+    echo "[$step/$total] 🔍 Finding compatible IGC version..."
     local compatible_igc_version=$(find_compatible_igc_version "$compute_runtime_tag")
     if [ $? -ne 0 ]; then
         echo "⚠️  Could not determine compatible IGC version, using latest..."
@@ -1042,11 +1125,15 @@ collect_compatible_versions() {
         fi
     fi
     
-    # Get other component versions
+    # Step 3: Get NPU and Level Zero versions
+    step=$((step+1))
     COMPATIBLE_COMPUTE_RUNTIME_TAG="$compute_runtime_tag"
-    echo "📡 Getting NPU driver and Level Zero versions..."
+    echo "[$step/$total] 📡 Getting NPU driver version..."
     COMPATIBLE_NPU_DRIVER_TAG=$(get_latest_release_tag "intel/linux-npu-driver")
+    echo "  ✓ NPU driver: $COMPATIBLE_NPU_DRIVER_TAG"
+    echo "[$step/$total] 📡 Getting Level Zero version..."
     COMPATIBLE_LEVEL_ZERO_TAG=$(get_latest_release_tag "oneapi-src/level-zero")
+    echo "  ✓ Level Zero: $COMPATIBLE_LEVEL_ZERO_TAG"
     
     echo
     echo "📋 Selected versions:"
@@ -1056,9 +1143,10 @@ collect_compatible_versions() {
     echo "  Level Zero: $COMPATIBLE_LEVEL_ZERO_TAG"
     echo
     
-    # Verify compatibility if we found a specific compatible version
+    # Step 4: Verify compatibility
+    step=$((step+1))
     if [ "$COMPATIBILITY_WARNING" = "false" ]; then
-        echo "🔍 Verifying compatibility..."
+        echo "[$step/$total] 🔍 Verifying version compatibility..."
         if check_version_compatibility "$COMPATIBLE_IGC_TAG" "$COMPATIBLE_COMPUTE_RUNTIME_TAG"; then
             # Also check Level Zero compatibility
             check_level_zero_compatibility "$COMPATIBLE_COMPUTE_RUNTIME_TAG" "$COMPATIBLE_LEVEL_ZERO_TAG"
