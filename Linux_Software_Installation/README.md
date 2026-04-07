@@ -4,6 +4,32 @@ Complete guide for setting up Intel AI PC development on Linux, including driver
 
 ---
 
+## Quick Start
+
+For a first-time Linux driver setup, run:
+
+
+# From the repository root
+cd Linux_Software_Installation
+
+# Generate the static driver installer
+./build-static-installer.sh --build-static
+
+# Install the drivers
+sudo ./setup-static-drivers.sh
+```
+
+Optional, if you want higher GitHub API limits:
+
+
+export GITHUB_TOKEN=your_token_here
+bash build-static-installer.sh --build-static
+```
+
+After the driver installation completes, reboot the machine before running `setup-software.sh`.
+
+---
+
 ## 🔧 Part 1: Driver Setup (Required First)
 
 > **⚠️ CRITICAL: Install Drivers Before AI Software**
@@ -19,6 +45,16 @@ This directory contains scripts to set up Intel GPU and NPU drivers on Ubuntu 24
 - **`setup-static-drivers.sh`**: Generated static driver installation script (no API dependencies)
 - **`Utilities/verify_connectivity.sh`**: Diagnostic tools for troubleshooting GitHub API connectivity issues
 
+### First Run Behavior (`build-static-installer.sh`)
+
+The builder now provides guided output for first-time users:
+
+- If `setup-static-drivers.sh` does not exist and you run without `--build-static`, the script shows a **first-time setup banner** with exact next commands.
+- The script checks required dependencies (`curl`, `jq`) and installs missing ones automatically using `sudo apt install`.
+- Build mode output now includes clearer progress logs (step counters and matched asset filenames).
+
+> **Note:** Even though a GitHub token is optional, you may still be prompted for your sudo password on first run if `curl`/`jq` need installation.
+
 ### Driver Installation Steps
 
 #### Step 1: Build and Run Static Installer ⭐
@@ -26,8 +62,8 @@ This directory contains scripts to set up Intel GPU and NPU drivers on Ubuntu 24
 **No GitHub token required** 
 
 ```bash
-# Navigate to driver setup directory
-cd Linux_Driver_Setup
+# Navigate to the Linux Software Installation directory
+cd Linux_Software_Installation
 
 # Step 1: Build static installer with compatibility checking
 ./build-static-installer.sh --build-static
@@ -77,7 +113,51 @@ The `verify_connectivity.sh` script performs these checks:
    - intel/linux-npu-driver
    - oneapi-src/level-zero
 
-#### Successful Output Example
+#### Successful Output Example — `build-static-installer.sh --build-static`
+
+```text
+=== Checking Required Dependencies ===
+✓ curl is already installed (curl 8.x.x ...)
+✓ jq is already installed (jq-1.x)
+
+[1/4] Getting latest compute runtime version...
+   ✓ Latest compute runtime: 26.09.37435.1
+[2/4] Finding compatible IGC version...
+[3/4] Getting NPU driver version...
+   ✓ NPU driver: v1.32.0
+[3/4] Getting Level Zero version...
+   ✓ Level Zero: v1.28.0
+[4/4] Verifying version compatibility...
+
+Collecting assets for intel/compute-runtime 26.09.37435.1...
+   ✓ ocloc : intel-ocloc_26.09.37435.1_amd64.deb
+   ✓ ze-gpu: libze-intel-gpu1_26.09.37435.1_amd64.deb
+   ⚠ checksum: not found (optional, skipping verification)
+
+=== Generating Static Setup Script ===
+=== Generating setup-static-drivers.sh ===
+Validating collected asset URLs...
+✓ All required asset URLs validated
+✓ Generated setup-static-drivers.sh
+  - IGC Version: v2.30.1
+  - Compute Runtime Version: 26.09.37435.1
+  - NPU Driver Version: v1.32.0
+  - Level Zero Version: v1.28.0
+
+Usage: sudo ./setup-static-drivers.sh
+✅ Static setup script generated: setup-static-drivers.sh
+
+Summary:
+  - IGC Version: v2.30.1
+  - Compute Runtime Version: 26.09.37435.1
+  - NPU Driver Version: v1.32.0
+  - Level Zero Version: v1.28.0
+  - ✅ Version compatibility verified
+
+Usage: sudo ./setup-static-drivers.sh
+```
+
+#### Successful Output Example — `verify_connectivity.sh`
 
 ```text
 === Simple Driver Version Test ===
@@ -91,16 +171,16 @@ The `verify_connectivity.sh` script performs these checks:
 3. Testing specific repositories...
 
 Testing intel/intel-graphics-compiler:
-   ✓ Found version: v2.12.5
+   ✓ Found version: v2.30.1
 
 Testing intel/compute-runtime:
-   ✓ Found version: 25.22.33944.8
+   ✓ Found version: 26.09.37435.1
 
 Testing intel/linux-npu-driver:
-   ✓ Found version: v1.17.0
+   ✓ Found version: v1.32.0
 
 Testing oneapi-src/level-zero:
-   ✓ Found version: v1.22.4
+   ✓ Found version: v1.28.0
 
 Test completed!
 ```
@@ -379,7 +459,7 @@ Installation logs are written to the terminal. For debugging:
 To update to newer driver versions:
 
 ```bash
-cd Linux_Driver_Setup
+cd Linux_Software_Installation
 
 # Regenerate with latest versions
 ./build-static-installer.sh --build-static
