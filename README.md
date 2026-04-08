@@ -1,4 +1,4 @@
-# AI PC Application Installer Version v2.0
+# AI PC Application Installer Version v3.0
 
 ## Introduction
 
@@ -7,18 +7,24 @@ Welcome to the AI PC Application Installer. This application is specifically des
 **Note**:-  If you have any existing applications already installed, please uninstall them first and then use this utility to install. Installing the same application in two different ways may cause conflicts and the application may not work as expected. User discretion is mandatory.
 
 **New in v2.0:**
+- **Enhanced JSON Structure**: Enhanced package sections for env variables, VS code extensions and non-winget installs- 
+- **Improved GUI***: For install and uninstall GUI interface with dependency details
+- **Exit Codes** Updated relevant error codes for better logging and debug
+- ***Updated APPs** : Includes new and updated apps as part of installer
+
+
+## Key Features
 
 - **Interactive GUI Mode**: Windows Forms interface
   
       Integrated Install: Visual interface for for visual package selection and installation
       Integrated Uninstall: Visual interface for visual package uninstall of previously installed packages
-- **Enhanced JSON Structure**: Improved package descriptions with friendly names and summaries
+
 - **Advanced Exit Code Handling**: Robust error detection and handling for both install and uninstall operations
 - **Automatic Administrator Privileges**: Smart detection and elevation requests for all operations
 - **Real-time Package Tracking**: Automatic tracking of installed packages for future uninstallation
 - **Backward Compatibility**: Works with both new and legacy JSON formats
 
-## Key Features
 
 ### Smart Package Management
 - **Automatic Tracking**: Installed packages are tracked for easy uninstallation
@@ -235,5 +241,5 @@ For detailed documentation, configuration guides, and troubleshooting:
 ## Support
 
 For technical assistance, configuration help, or feature requests:
-- Contact: Vijay - vijay.chandrashekar@intel.com
+- Contact: Vijay - vijay.chandrashekar@intel.com or  Praveen - praveen.k.kundurthy@intel.com
 
