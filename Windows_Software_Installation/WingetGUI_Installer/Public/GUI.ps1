@@ -18,6 +18,57 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+function Set-FormPersistentTopMost {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Windows.Forms.Form]$Form
+    )
+
+    $Form.TopMost = $true
+    $Form.Add_Deactivate({
+        if ($Form.Visible -and $Form.WindowState -ne [System.Windows.Forms.FormWindowState]::Minimized) {
+            $Form.TopMost = $false
+            $Form.TopMost = $true
+            $Form.Activate()
+        }
+    })
+}
+
+function Copy-MainReadmeToDesktop {
+    [CmdletBinding()]
+    param(
+        [string]$log_file
+    )
+
+    try {
+        $repoRoot = Split-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -Parent
+        $mainReadmePath = Join-Path $repoRoot "README.md"
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $destPath = Join-Path $desktopPath "README.md"
+
+        if (Test-Path -Path $mainReadmePath) {
+            Copy-Item -Path $mainReadmePath -Destination $destPath -Force
+            Write-Host "Copied main README.md to Desktop: $destPath" -ForegroundColor Green
+            if ($log_file) {
+                Write-ToLog -message "Copied main README.md to Desktop: $destPath" -log_file $log_file
+            }
+        }
+        else {
+            Write-Host "Warning: Main README.md not found at expected path: $mainReadmePath" -ForegroundColor Yellow
+            if ($log_file) {
+                Write-ToLog -message "Warning: Main README.md not found at expected path: $mainReadmePath" -log_file $log_file
+            }
+        }
+    }
+    catch {
+        Write-Host "Warning: Failed to copy main README.md to Desktop: $($_.Exception.Message)" -ForegroundColor Yellow
+        if ($log_file) {
+            Write-ToLog -message "Warning: Failed to copy main README.md to Desktop: $($_.Exception.Message)" -log_file $log_file
+        }
+    }
+}
+
 <#
     Displays the main GUI for the Environment Setup Tool.
 #>
@@ -38,6 +89,7 @@ function Show-MainGUI {
     $mainForm.StartPosition = 'CenterScreen'
     $mainForm.FormBorderStyle = 'FixedDialog'
     $mainForm.MaximizeBox = $false
+    Set-FormPersistentTopMost -Form $mainForm
     
     # Title label
     $lblTitle = New-Object System.Windows.Forms.Label
@@ -53,29 +105,38 @@ function Show-MainGUI {
     $lblDesc.Size = New-Object System.Drawing.Size(400, 20)
     $lblDesc.Location = New-Object System.Drawing.Point(50, 80)
     $lblDesc.TextAlign = 'MiddleCenter'
+
+    # Visible reminder that a reboot is required after installation.
+    $lblRestartNote = New-Object System.Windows.Forms.Label
+    $lblRestartNote.Text = 'IMPORTANT: Restart your system after installation for changes to take effect.'
+    $lblRestartNote.Font = New-Object System.Drawing.Font('Arial', 9, [System.Drawing.FontStyle]::Bold)
+    $lblRestartNote.ForeColor = [System.Drawing.Color]::DarkRed
+    $lblRestartNote.Size = New-Object System.Drawing.Size(460, 30)
+    $lblRestartNote.Location = New-Object System.Drawing.Point(20, 95)
+    $lblRestartNote.TextAlign = 'MiddleCenter'
     
     # Install button
     $btnInstall = New-Object System.Windows.Forms.Button
     $btnInstall.Text = 'Install Software'
     $btnInstall.Size = New-Object System.Drawing.Size(150, 40)
-    $btnInstall.Location = New-Object System.Drawing.Point(80, 120)
+    $btnInstall.Location = New-Object System.Drawing.Point(80, 140)
     $btnInstall.Font = New-Object System.Drawing.Font('Arial', 10)
     
     # Uninstall button
     $btnUninstall = New-Object System.Windows.Forms.Button
     $btnUninstall.Text = 'Uninstall Software'
     $btnUninstall.Size = New-Object System.Drawing.Size(150, 40)
-    $btnUninstall.Location = New-Object System.Drawing.Point(270, 120)
+    $btnUninstall.Location = New-Object System.Drawing.Point(270, 140)
     $btnUninstall.Font = New-Object System.Drawing.Font('Arial', 10)
     
     # Exit button
     $btnExit = New-Object System.Windows.Forms.Button
     $btnExit.Text = 'Exit'
     $btnExit.Size = New-Object System.Drawing.Size(100, 30)
-    $btnExit.Location = New-Object System.Drawing.Point(200, 200)
+    $btnExit.Location = New-Object System.Drawing.Point(200, 220)
     
     # Add controls to form
-    $mainForm.Controls.AddRange(@($lblTitle, $lblDesc, $btnInstall, $btnUninstall, $btnExit))
+    $mainForm.Controls.AddRange(@($lblTitle, $lblDesc, $lblRestartNote, $btnInstall, $btnUninstall, $btnExit))
     
     # Button event handlers
     $btnInstall.Add_Click({
@@ -113,6 +174,7 @@ function Show-MainGUI {
             # Copy install logs to desktop
             $username = [Environment]::UserName
             Copy-Item -Path $install_log_file -Destination "C:\Users\$username\Desktop\install_logs.txt"
+            Copy-MainReadmeToDesktop -log_file $install_log_file
             
             Show-InstallResults -installResults $installResults
         }
@@ -178,6 +240,7 @@ function Show-InstallResults {
     }
     
     $resultMessage += "`nCheck the install logs on your desktop for details."
+    $resultMessage += "`n`nIMPORTANT: RESTART YOUR SYSTEM NOW FOR ALL CHANGES TO TAKE EFFECT."
     
     # Choose appropriate icon and title based on results
     if ($installResults.FailedInstalls -eq 0) {
@@ -336,6 +399,7 @@ function Show-PackageSelectionGUI {
     $frm.Size = New-Object System.Drawing.Size(1000, 600)
     $frm.StartPosition = 'CenterScreen'
     $frm.FormBorderStyle = 'Sizable'
+    Set-FormPersistentTopMost -Form $frm
     
     # DataGridView
     $dg = New-Object System.Windows.Forms.DataGridView
@@ -613,6 +677,7 @@ function Show-UninstallGUI {
     $frm.Size = New-Object System.Drawing.Size(900, 500)
     $frm.StartPosition = 'CenterScreen'
     $frm.FormBorderStyle = 'Sizable'
+    Set-FormPersistentTopMost -Form $frm
     
     # DataGridView
     $dg = New-Object System.Windows.Forms.DataGridView

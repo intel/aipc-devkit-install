@@ -492,6 +492,15 @@ try {
         # Copy install logs to desktop
         $username = [Environment]::UserName
         Copy-Item -Path $install_log_file -Destination "C:\Users\$username\Desktop\install_logs.txt" # Copies the install log to the user's desktop
+        
+            # Copy README.md to desktop for user reference
+            $repoRoot = Split-Path (Split-Path (Split-Path $PSScriptRoot) -Parent) -Parent
+            $readmePath = Join-Path $repoRoot "README.md"
+            if (Test-Path $readmePath) {
+                Copy-Item -Path $readmePath -Destination "C:\Users\$username\Desktop\README.md" -Force
+                Write-Host "README.md copied to Desktop." -ForegroundColor Green
+                Write-ToLog -message "README.md copied to Desktop for user reference" -log_file $install_log_file
+            }
 
         # Check if uninstall.json was created and show summary
         if (Test-Path -Path $json_uninstall_file_path) {
