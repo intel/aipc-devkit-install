@@ -456,33 +456,36 @@ function Install-ExternalApplication {
             $resolvedInstallCommand = $app.install_command
 
             # Node.js may be installed moments earlier in the same run; PATH might not be refreshed yet.
-            # If this command starts with npm, resolve npm.cmd by absolute path as a fallback.
+            # If this command starts with npm, resolve npm.cmd by absolute path.
+            # IMPORTANT: Always use npm.cmd explicitly - Get-Command npm in PowerShell returns npm.ps1
+            # (PowerShell gives .ps1 priority), and cmd.exe cannot run .ps1 files silently.
             if ($resolvedInstallCommand -match '^\s*npm(\s|$)') {
                 $npmCmdPath = $null
-                try {
-                    $npmCmd = Get-Command npm -ErrorAction Stop
-                    if ($npmCmd -and $npmCmd.Source) {
-                        $npmCmdPath = $npmCmd.Source
+                # Check standard Node.js install paths for npm.cmd first
+                $candidatePaths = @(
+                    (Join-Path $env:ProgramFiles 'nodejs\npm.cmd'),
+                    (Join-Path ${env:ProgramFiles(x86)} 'nodejs\npm.cmd')
+                )
+                foreach ($candidate in $candidatePaths) {
+                    if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
+                        $npmCmdPath = $candidate
+                        break
                     }
                 }
-                catch {}
-
+                # Fallback: explicitly ask for npm.cmd (not npm, which resolves to npm.ps1 in PowerShell)
                 if (-not $npmCmdPath) {
-                    $candidatePaths = @(
-                        (Join-Path $env:ProgramFiles 'nodejs\npm.cmd'),
-                        (Join-Path ${env:ProgramFiles(x86)} 'nodejs\npm.cmd')
-                    )
-                    foreach ($candidate in $candidatePaths) {
-                        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
-                            $npmCmdPath = $candidate
-                            break
+                    try {
+                        $npmCmd = Get-Command npm.cmd -ErrorAction Stop
+                        if ($npmCmd -and $npmCmd.Source) {
+                            $npmCmdPath = $npmCmd.Source
                         }
                     }
+                    catch {}
                 }
 
                 if ($npmCmdPath) {
                     $resolvedInstallCommand = $resolvedInstallCommand -replace '^\s*npm(?=\s|$)', ('"' + $npmCmdPath + '"')
-                    Write-ToLog -message "Resolved npm command path for ${appDisplayName}: $npmCmdPath" -log_file $log_file
+                    Write-ToLog -message "Resolved npm.cmd path for ${appDisplayName}: $npmCmdPath" -log_file $log_file
                 }
             }
 
@@ -525,7 +528,7 @@ function Install-ExternalApplication {
             }
 
             Write-ToLog -message "Running install command for ${appDisplayName}: $resolvedInstallCommand" -log_file $log_file
-            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $resolvedInstallCommand) -PassThru -Wait -NoNewWindow
+            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $resolvedInstallCommand) -PassThru -Wait -WindowStyle Hidden
         } else {
             # Create a temporary directory for downloads if it doesn't exist
             $temp_dir = Join-Path $env:TEMP "EnvSetup_Downloads"
