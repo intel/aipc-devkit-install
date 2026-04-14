@@ -102,33 +102,13 @@ install_openvino_notebook(){
     echo -e "\n# Build OpenVINO™ notebook complete"
 }
 
-install_openvino_notebook2(){
-
-    echo -e "\n# Git clone OpenVINO™ notebooks 2"
-    if [ ! -d "./openvino_build_deploy" ]; then
-        cd ~/intel
-        git clone https://github.com/openvinotoolkit/openvino_build_deploy.git
-        cd openvino_build_deploy/workshops/MSBuild2025 
-        python3 -m venv venv
-        source venv/bin/activate
-        pip install openvino==2025.3.0 ultralytics==8.3.120
-        # Create ipykernel for this environment
-        pip install ipykernel
-        python -m ipykernel install --user --name=openvino_build_deploy --display-name="OpenVINO Build Deploy"
-        deactivate
-    else
-        echo "./openvino_build_deploy already exists"
-    fi
-    echo -e "\n# Build OpenVINO™ notebook2 complete"
-}
-
 install_openvino_genai(){
 
     echo -e "\n# OpenVINO™ GenAI"
-    if [ ! -d "./openvino_genai_ubuntu24_2025.3.0.0_x86_64" ]; then
+    if [ ! -d "./openvino_genai_ubuntu24_2026.0.0.0_x86_64" ]; then
         cd ~/intel
-        curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz --output openvino_genai_2025.3.0.0.tgz
-        tar -xf openvino_genai_2025.3.0.0.tgz
+        curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/linux/openvino_genai_ubuntu24_2026.0.0.0_x86_64.tar.gz --output openvino_genai_2026.0.0.0.tgz
+        tar -xf openvino_genai_2026.0.0.0.tgz
 
         cd openvino_genai_u*
         sudo -E ./install_dependencies/install_openvino_dependencies.sh
@@ -136,7 +116,7 @@ install_openvino_genai(){
         cd samples/cpp
         ./build_samples.sh
     else
-        echo "./openvino_genai_ubuntu24_2025.3.0.0_x86_64 already exists"
+        echo "./openvino_genai_ubuntu24_2026.0.0.0_x86_64 already exists"
     fi
     echo -e "\n# Build OpenVINO™ GenAI complete"
 }
@@ -194,11 +174,29 @@ install_ollama(){
     # Install regular Ollama using the official installer
     curl -fsSL https://ollama.com/install.sh | sh
     
-    # Start Ollama service
-    ollama serve &
+    # Set OLLAMA_VULKAN=1 for the current session
+    export OLLAMA_VULKAN=1
+
+    # Persist in ~/.bashrc for future interactive sessions
+    if ! grep -q 'OLLAMA_VULKAN' ~/.bashrc 2>/dev/null; then
+        echo 'export OLLAMA_VULKAN=1' >> ~/.bashrc
+    fi
+    # shellcheck disable=SC1090
+    source ~/.bashrc
+
+    # Persist system-wide in /etc/environment
+    if ! grep -q 'OLLAMA_VULKAN' /etc/environment 2>/dev/null; then
+        echo 'OLLAMA_VULKAN=1' | sudo tee -a /etc/environment
+    fi
+
+    # Set for the systemd ollama service (so the daemon picks it up too)
+    sudo mkdir -p /etc/systemd/system/ollama.service.d
+    echo -e '[Service]\nEnvironment="OLLAMA_VULKAN=1"' | sudo tee /etc/systemd/system/ollama.service.d/vulkan.conf
+    sudo systemctl daemon-reload
+    sudo systemctl restart ollama
+
+    # Wait for the systemd service to be ready, then pull a test model
     sleep 5
-    
-    # Pull a model for testing
     ollama pull llama3.2:1b
     
     echo -e "\n# Ollama install complete"
@@ -260,7 +258,6 @@ setup() {
     verify_dependencies
     install_uv
     install_openvino_notebook
-    install_openvino_notebook2
     install_openvino_genai
     install_llamacpp
     install_ollama
@@ -272,7 +269,6 @@ setup() {
     echo "$S_VALID AI PC DevKit Installed"
     echo -e "\nInstalled Jupyter kernels:"
     echo "- OpenVINO Notebooks"
-    echo "- OpenVINO Build Deploy"  
     echo "- LlamaCPP Python (Vulkan)"
     echo "- AI PC Samples (if AI-Travel-Agent/requirements.txt exists)"
     echo -e "\nTo list all available kernels, run: jupyter kernelspec list"
@@ -283,18 +279,15 @@ setup() {
     echo "1. OpenVINO Notebooks:"
     echo "   cd ~/intel/openvino_notebooks && source venv/bin/activate"
     echo ""
-    echo "2. OpenVINO Build Deploy:"
-    echo "   cd ~/intel/openvino_build_deploy/workshops/MSBuild2025 && source venv/bin/activate"
-    echo ""
-    echo "3. LlamaCPP Python (Vulkan):"
+    echo "2. LlamaCPP Python (Vulkan):"
     echo "   cd ~/intel && source llamacpp_python_env/bin/activate"
     echo ""
     if [ -d "./AI-PC-Samples" ] && [ -f "./AI-PC-Samples/AI-Travel-Agent/requirements.txt" ]; then
-        echo "4. AI PC Samples:"
+        echo "3. AI PC Samples:"
         echo "   cd ~/intel/AI-PC-Samples && source venv/bin/activate"
         echo ""
     fi
-    echo "5. OpenVINO GenAI (setup environment variables):"
+    echo "4. OpenVINO GenAI (setup environment variables):"
     echo "   cd ~/intel/openvino_genai_u* && source setupvars.sh"
     echo ""
     echo "Note: To deactivate any virtual environment, simply run: deactivate"
