@@ -665,45 +665,54 @@ function Uninstall-ExternalApplication {
         $resolvedCommandToRun = $resolvedUninstallCommand
 
         # Node.js may be uninstalled in the same flow; use absolute npm.cmd path fallback.
+        # IMPORTANT: Always use npm.cmd explicitly - Get-Command npm in PowerShell returns npm.ps1
+        # (PowerShell gives .ps1 priority), and cmd.exe cannot run .ps1 files silently.
         if ($resolvedCommandToRun -match '^\s*npm(\s|$)') {
             $npmCmdPath = $null
-            try {
-                $npmCmd = Get-Command npm -ErrorAction Stop
-                if ($npmCmd -and $npmCmd.Source) {
-                    $npmCmdPath = $npmCmd.Source
+            # Check standard Node.js install paths for npm.cmd first
+            $candidatePaths = @(
+                (Join-Path $env:ProgramFiles 'nodejs\npm.cmd'),
+                (Join-Path ${env:ProgramFiles(x86)} 'nodejs\npm.cmd')
+            )
+            foreach ($candidate in $candidatePaths) {
+                if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
+                    $npmCmdPath = $candidate
+                    break
                 }
             }
-            catch {}
-
+            # Fallback: explicitly ask for npm.cmd (not npm, which resolves to npm.ps1 in PowerShell)
             if (-not $npmCmdPath) {
-                $candidatePaths = @(
-                    (Join-Path $env:ProgramFiles 'nodejs\npm.cmd'),
-                    (Join-Path ${env:ProgramFiles(x86)} 'nodejs\npm.cmd')
-                )
-                foreach ($candidate in $candidatePaths) {
-                    if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -Path $candidate)) {
-                        $npmCmdPath = $candidate
-                        break
+                try {
+                    $npmCmd = Get-Command npm.cmd -ErrorAction Stop
+                    if ($npmCmd -and $npmCmd.Source) {
+                        $npmCmdPath = $npmCmd.Source
                     }
                 }
+                catch {}
             }
 
             if ($npmCmdPath) {
                 $resolvedCommandToRun = $resolvedCommandToRun -replace '^\s*npm(?=\s|$)', ('"' + $npmCmdPath + '"')
-                Write-ToLog -message "Resolved npm command path for ${appDisplayName}: $npmCmdPath" -log_file $log_file
+                Write-ToLog -message "Resolved npm.cmd path for ${appDisplayName}: $npmCmdPath" -log_file $log_file
             }
         }
 
         Write-ToLog -message "Running uninstall command via cmd for ${appDisplayName}: $resolvedCommandToRun" -log_file $log_file
         try {
-            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $resolvedCommandToRun) -PassThru -Wait -NoNewWindow
+            $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $resolvedCommandToRun) -PassThru -Wait -WindowStyle Hidden
             $exit_code = $process.ExitCode
             Write-ToLog -message "Uninstall command for ${appDisplayName} completed with exit code: $exit_code" -log_file $log_file
             
-            # Define success exit codes; VS Code extension uninstall returns 1 when extension not found (treat as success)
+            # Define success exit codes; some idempotent commands return 1 when already absent.
             $successExitCodes = @(0, 3010, 1641)
             if ($resolvedCommandToRun -match '^\s*code\s+--uninstall-extension') {
                 $successExitCodes = @(0, 1, 3010, 1641)  # Exit code 1 = extension not found (expected behavior)
+            }
+            elseif ($resolvedCommandToRun -match '^\s*"?.*npm(?:\.cmd)?"?\s+uninstall\s+-g\s+npm\b|^\s*npm\s+uninstall\s+-g\s+npm\b') {
+                $successExitCodes = @(0, 1, 3010, 1641)  # Exit code 1 is expected when npm/node is already absent.
+            }
+            elseif ($resolvedCommandToRun -match '^\s*dotnet\s+nuget\s+remove\s+source\s+nuget\.org\b') {
+                $successExitCodes = @(0, 1, 3010, 1641)  # Exit code 1 is expected when source does not exist.
             }
             
             if ($successExitCodes -contains $exit_code) {
