@@ -106,6 +106,19 @@ function Uninstall-SelectedPackages {
         [string]$json_uninstall_file_path
     )
     
+    # Check if uninstall.json file exists first
+    if (-not (Test-Path -Path $json_uninstall_file_path)) {
+        Write-Host "No apps found to uninstall. No installation history available." -ForegroundColor Yellow
+        Write-ToLog -message "No apps found to uninstall. Uninstall history file does not exist at: $json_uninstall_file_path" -log_file $log_file
+        # Return empty results with TotalPackages = 0
+        return @{
+            TotalPackages = 0
+            SuccessfulUninstalls = 0
+            FailedUninstalls = 0
+            FailedPackages = @()
+        }
+    }
+
     # Prepare result tracking
     $results = @{
         TotalPackages = $selectedPackages.Count
@@ -117,7 +130,14 @@ function Uninstall-SelectedPackages {
     try {
         $jsonText = Get-Content -Path $json_uninstall_file_path -Raw
         if ([string]::IsNullOrWhiteSpace($jsonText)) {
-            throw "uninstall.json is empty"
+            Write-Host "No apps found to uninstall. Installation history is empty." -ForegroundColor Yellow
+            Write-ToLog -message "No apps found to uninstall. Uninstall history file is empty." -log_file $log_file
+            return @{
+                TotalPackages = 0
+                SuccessfulUninstalls = 0
+                FailedUninstalls = 0
+                FailedPackages = @()
+            }
         }
         $uninstallJson = $jsonText | ConvertFrom-Json
     }
@@ -446,7 +466,13 @@ function Uninstall-SelectedPackages {
         }
     }
     
-    return $results
+            # Return empty results with TotalPackages = 0
+            return @{
+                TotalPackages = 0
+                SuccessfulUninstalls = 0
+                FailedUninstalls = 0
+                FailedPackages = @()
+            }
 }
 
 # Uninstall a winget application

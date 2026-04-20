@@ -1,4 +1,232 @@
 # Install a list of selected packages (winget and external)
+
+function Get-InstalledApplicationRegistryEntry {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        [Parameter(Mandatory=$true)]
+        [string]$appName
+    )
+
+    $displayPatterns = @()
+    if ($app.PSObject.Properties['friendly_name'] -and -not [string]::IsNullOrWhiteSpace([string]$app.friendly_name)) {
+        $displayPatterns += [string]$app.friendly_name
+    }
+    if ($app.PSObject.Properties['name'] -and -not [string]::IsNullOrWhiteSpace([string]$app.name)) {
+        $displayPatterns += [string]$app.name
+    }
+    $displayPatterns += $appName
+    $displayPatterns = @($displayPatterns | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+
+    if ($displayPatterns.Count -eq 0) {
+        return $null
+    }
+
+    $registryKeys = @(
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+
+    foreach ($registryKey in $registryKeys) {
+        $entries = Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue
+        foreach ($pattern in $displayPatterns) {
+            $entry = $entries | Where-Object {
+                $_.DisplayName -and (
+                    $_.DisplayName -eq $pattern -or
+                    $_.DisplayName -like ("*" + $pattern + "*")
+                )
+            } | Select-Object -First 1
+
+            if ($entry) {
+                return $entry
+            }
+        }
+    }
+
+    return $null
+}
+
+function Test-WingetVersionCheckInstalled {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        [Parameter(Mandatory=$true)]
+        [string]$appName,
+        [Parameter(Mandatory=$true)]
+        [string]$log_file
+    )
+
+    if (-not ($app.PSObject.Properties['version_check']) -or [string]::IsNullOrWhiteSpace([string]$app.version_check)) {
+        return [PSCustomObject]@{
+            IsInstalled = $false
+            InstalledVersion = $null
+        }
+    }
+
+    try {
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $app.version_check 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $installedVersion = $null
+            if ($output) {
+                $installedVersion = (($output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ' ').Trim()
+            }
+            Write-ToLog -message "$appName is already installed (detected via version_check command: $($app.version_check)). Skipping install." -log_file $log_file
+            return [PSCustomObject]@{
+                IsInstalled = $true
+                InstalledVersion = $installedVersion
+            }
+        }
+    }
+    catch {
+        Write-ToLog -message "Warning: version_check detection failed for ${appName}: $($_.Exception.Message)" -log_file $log_file
+    }
+
+    return [PSCustomObject]@{
+        IsInstalled = $false
+        InstalledVersion = $null
+    }
+}
+
+function Test-WingetInstallLocationInstalled {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        [Parameter(Mandatory=$true)]
+        [string]$appName,
+        [Parameter(Mandatory=$true)]
+        [string]$log_file
+    )
+
+    if (-not ($app.PSObject.Properties['install_location']) -or [string]::IsNullOrWhiteSpace([string]$app.install_location)) {
+        return [PSCustomObject]@{
+            IsInstalled = $false
+            ResolvedPath = $null
+        }
+    }
+
+    $resolvedPath = [Environment]::ExpandEnvironmentVariables([string]$app.install_location)
+    if (Test-Path -Path $resolvedPath) {
+        Write-ToLog -message "$appName is already installed (detected via install_location path: $resolvedPath). Skipping install." -log_file $log_file
+        return [PSCustomObject]@{
+            IsInstalled = $true
+            ResolvedPath = $resolvedPath
+        }
+    }
+
+    return [PSCustomObject]@{
+        IsInstalled = $false
+        ResolvedPath = $resolvedPath
+    }
+}
+
+function Test-WingetPackageAlreadyInstalled {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        [Parameter(Mandatory=$true)]
+        [string]$appName,
+        [Parameter(Mandatory=$true)]
+        [string]$log_file
+    )
+
+    $packageId = if ($app.PSObject.Properties['id'] -and -not [string]::IsNullOrWhiteSpace([string]$app.id)) {
+        [string]$app.id
+    } elseif ($app.PSObject.Properties['Id'] -and -not [string]::IsNullOrWhiteSpace([string]$app.Id)) {
+        [string]$app.Id
+    } else {
+        $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($packageId)) {
+        try {
+            $installedPackage = Get-WinGetPackage -Id $packageId -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($installedPackage) {
+                $installedVersion = if ($installedPackage.Version) { [string]$installedPackage.Version } else { 'Unknown' }
+                $detectionSource = if ($installedPackage.Source) { [string]$installedPackage.Source } else { 'installed package registry' }
+                Write-ToLog -message "$appName is already installed (detected via WinGet package list, version: $installedVersion, source: $detectionSource). Skipping install." -log_file $log_file
+                return [PSCustomObject]@{
+                    IsInstalled = $true
+                    DetectionMethod = 'winget'
+                    InstalledVersion = $installedVersion
+                }
+            }
+        }
+        catch {
+            Write-ToLog -message "Warning: Failed installed-package detection via Get-WinGetPackage for ${appName}: $($_.Exception.Message)" -log_file $log_file
+        }
+    }
+
+    $versionCheckState = Test-WingetVersionCheckInstalled -app $app -appName $appName -log_file $log_file
+    if ($versionCheckState.IsInstalled) {
+        return [PSCustomObject]@{
+            IsInstalled = $true
+            DetectionMethod = 'version_check'
+            InstalledVersion = $versionCheckState.InstalledVersion
+        }
+    }
+
+    $installLocationState = Test-WingetInstallLocationInstalled -app $app -appName $appName -log_file $log_file
+    if ($installLocationState.IsInstalled) {
+        return [PSCustomObject]@{
+            IsInstalled = $true
+            DetectionMethod = 'install_location'
+            InstalledVersion = $installLocationState.ResolvedPath
+        }
+    }
+
+    $registryEntry = Get-InstalledApplicationRegistryEntry -app $app -appName $appName
+    if ($registryEntry) {
+        $displayName = if ($registryEntry.DisplayName) { [string]$registryEntry.DisplayName } else { $appName }
+        $displayVersion = if ($registryEntry.DisplayVersion) { [string]$registryEntry.DisplayVersion } else { 'Unknown' }
+        Write-ToLog -message "$appName is already installed (detected via uninstall registry entry: $displayName, version: $displayVersion). Skipping install." -log_file $log_file
+        return [PSCustomObject]@{
+            IsInstalled = $true
+            DetectionMethod = 'registry'
+            InstalledVersion = $displayVersion
+        }
+    }
+
+    return [PSCustomObject]@{
+        IsInstalled = $false
+        DetectionMethod = $null
+        InstalledVersion = $null
+    }
+}
+
+function Add-WingetApplicationTrackingEntry {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$app,
+        [Parameter(Mandatory=$true)]
+        [string]$appName,
+        [Parameter(Mandatory=$true)]
+        [string]$uninstall_json_file
+    )
+
+    $trackingApp = [PSCustomObject]@{
+        id = if ($app.id) { $app.id } elseif ($app.name) { $app.name } else { $appName }
+        name = if ($app.name) { $app.name } elseif ($app.id) { $app.id } else { $appName }
+        friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $appName }
+        version = if ($app.version) { $app.version } else { 'Latest' }
+        uninstall_override_flags = if ($app.uninstall_override_flags) { $app.uninstall_override_flags } elseif ($app.UninstallOverrideFlags) { $app.UninstallOverrideFlags } else { $null }
+        post_install_environment_variables = if ($app.post_install_environment_variables) { $app.post_install_environment_variables } else { $null }
+        installed_on = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+        last_updated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    }
+
+    Append-ToJson -jsonFilePath $uninstall_json_file -section 'winget_applications' -newObject $trackingApp
+}
+
 function Install-SelectedPackages {
     param (
         [Parameter(Mandatory=$true)]
@@ -27,6 +255,7 @@ function Install-SelectedPackages {
     $installedCount = 0
     $failedCount = 0
     $skippedCount = 0
+    $notInstalledAlreadyExistsCount = 0
     $failedPackages = @()
     $rebootRequiredPackages = @()
     # Reload the original JSON so we can merge in all properties (like override_flags)
@@ -121,6 +350,22 @@ function Install-SelectedPackages {
 
         if ($appType -eq "winget") {
             try {
+                $installedState = Test-WingetPackageAlreadyInstalled -app $app -appName $appName -log_file $log_file
+                if ($installedState.IsInstalled) {
+                    $notInstalledAlreadyExistsCount++
+                    $result.status = 'skipped'
+                    $result.message = if ($installedState.InstalledVersion) {
+                        "Skipped: already installed ($($installedState.InstalledVersion))."
+                    } else {
+                        'Skipped: already installed.'
+                    }
+                    $skipConsoleReason = if ($installedState.DetectionMethod) { "$($installedState.DetectionMethod)" } else { 'pre-check' }
+                    Write-Host "Skipping ${appName}: already installed (detected via $skipConsoleReason)." -ForegroundColor Yellow
+                    Write-ToLog -message "Skipping install for $appName because it is already available on this system. It will not be added as a new winget_application entry." -log_file $log_file
+                    $results += $result
+                    continue
+                }
+
                 Write-ToLog -message "Installing winget app: $appName" -log_file $log_file
                 $wingetArgs = @("install", "--id", $app.id, "--accept-source-agreements", "--accept-package-agreements", "-h")
                 if ($overrideFlags) {
@@ -152,18 +397,7 @@ function Install-SelectedPackages {
                     }
 
                     $installedCount++
-                    # Always add to uninstall tracking immediately, with required fields
-                    $trackingApp = [PSCustomObject]@{
-                        id = if ($app.id) { $app.id } elseif ($app.name) { $app.name } else { $appName }
-                        name = if ($app.name) { $app.name } elseif ($app.id) { $app.id } else { $appName }
-                        friendly_name = if ($app.friendly_name) { $app.friendly_name } else { $appName }
-                        version = if ($app.version) { $app.version } else { "Latest" }
-                        uninstall_override_flags = if ($app.uninstall_override_flags) { $app.uninstall_override_flags } elseif ($app.UninstallOverrideFlags) { $app.UninstallOverrideFlags } else { $null }
-                        post_install_environment_variables = if ($app.post_install_environment_variables) { $app.post_install_environment_variables } else { $null }
-                        installed_on = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-                        last_updated = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-                    }
-                    Append-ToJson -jsonFilePath $uninstall_json_file -section "winget_applications" -newObject $trackingApp
+                    Add-WingetApplicationTrackingEntry -app $app -appName $appName -uninstall_json_file $uninstall_json_file
                     $result.status = "success"
                     $result.message = "Installed and tracked."
                 } else {
@@ -214,11 +448,12 @@ function Install-SelectedPackages {
         SuccessfulInstalls = $installedCount
         FailedInstalls = $failedCount
         SkippedInstalls = $skippedCount
+        NotInstalledAlreadyExists = $notInstalledAlreadyExistsCount
         FailedPackages = if ($failedPackages -and $failedPackages.Count -gt 0) { $failedPackages -join ", " } else { "None" }
         RebootRequiredPackages = if ($rebootRequiredPackages -and $rebootRequiredPackages.Count -gt 0) { $rebootRequiredPackages -join ", " } else { "None" }
     }
-    Write-Host "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), FailedPackages: $($summary.FailedPackages)" -ForegroundColor Green
-    Write-ToLog -message "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), FailedPackages: $($summary.FailedPackages)" -log_file $log_file
+    Write-Host "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), NotInstalledAlreadyExists: $($summary.NotInstalledAlreadyExists), FailedPackages: $($summary.FailedPackages)" -ForegroundColor Green
+    Write-ToLog -message "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), NotInstalledAlreadyExists: $($summary.NotInstalledAlreadyExists), FailedPackages: $($summary.FailedPackages)" -log_file $log_file
     if ($rebootRequiredPackages.Count -gt 0) {
         Write-Host "Reboot required to complete setup for: $($summary.RebootRequiredPackages)" -ForegroundColor Yellow
         Write-ToLog -message "Reboot required to complete setup for: $($summary.RebootRequiredPackages)" -log_file $log_file
@@ -260,6 +495,10 @@ function Test-InstallationSuccess {
         -1978335212 {
             Write-ToLog -message "Package $app_name is already installed (alternative code)" -log_file $log_file
             return $true
+        }
+        -1978335226 {
+            Write-ToLog -message "WinGet returned exit code $exit_code for $app_name (0x8A150006, ShellExecute install failed). This is an installer launch failure, not an already-installed or skip condition." -log_file $log_file
+            return $false
         }
         -1978335181 {
             Write-ToLog -message "Application $app_name completed successfully but a reboot is required" -log_file $log_file
