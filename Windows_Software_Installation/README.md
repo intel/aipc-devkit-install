@@ -9,56 +9,35 @@ Comprehensive tools for setting up AI PC development applications and environmen
 - Internet connection
 - Administrative privileges (required--will attempt to auto-elevate)
 
-### ⚠️ Important: Execution Policy Requirements
-**This script must be run from an elevated PowerShell prompt.**
+### Step 1: Set Execution Policy
+Run once from an elevated PowerShell prompt:
 
-If you encounter execution policy errors preventing scripts from running, use one of these methods:
-
-**Method 1 - Run with execution policy parameter (Recommended):**
 ```powershell
-# For GUI mode
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
-
-# For command line install
-powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
 ```
 
-### Step 1: GUI Package Manager (Recommended)
-**Best for setting up complete AI development environments**
-```powershell
-# Navigate to the installer directory
-cd "Windows_Software_Installation\WingetGUI_Installer"
+### Step 2: GUI Package Manager (Recommended)
+Use this for interactive install and uninstall:
 
-# Launch the unified GUI
+```powershell
+cd "Windows_Software_Installation\WingetGUI_Installer"
 .\Setup_1.ps1 gui
 ```
 
-### Step 2: Download AI Repositories and create environments
-**Best for getting AI/ML code repositories**
+### Step 3 (Optional): Command Line Package Installation
+Use this for scripted/silent flow:
+
 ```powershell
-# Navigate to the installer directory
 cd "Windows_Software_Installation\WingetGUI_Installer"
-
-# Run with default settings (downloads to C:\Intel)
-.\Setup_2.ps1
-
-# Or specify custom directory
-.\Setup_2.ps1 -DevKitWorkingDir "C:\MyAIProjects"
+.\Setup_1.ps1 install
+.\Setup_1.ps1 uninstall
 ```
 
-### Option 3: Command Line Package Installation
-**Best for automated/scripted environments**
+If execution policy still blocks scripts, run with explicit policy parameter:
+
 ```powershell
-cd "Windows_Software_Installation\WingetGUI_Installer"
-
-# If execution policy allows scripts:
-.\Setup_1.ps1 install
-
-# If execution policy blocks scripts:
+powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
 powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
-
-# Or uninstall
-.\Setup_1.ps1 uninstall
 ```
 
 ### ⚠️ Important: Uninstall Requires Manual Intervention
@@ -114,12 +93,10 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 - ✅ **Resume Capability**: Can be run multiple times safely
 
 **Current AI Repositories:**
-1. **OpenVINO Notebooks** - Jupyter notebooks for OpenVINO toolkit
-2. **OpenVINO Build & Deploy** - Build and deployment examples  
-3. **Ollama IPEX-LLM** - Ollama with Intel Extension for PyTorch
-4. **OpenVINO GenAI** - Generative AI examples and tools
-5. **WebNN Workshop** - Web Neural Network API workshop materials
-6. **Open Model Zoo** - Pre-trained models collection
+1. **openvino_notebooks** - OpenVINO notebooks (latest branch ZIP)
+2. **openvino_genai** - OpenVINO GenAI Windows package
+3. **AI-PC-Samples** - Intel AI PC Samples repository
+4. **Microsoft-Build2025-Samples** - Intel Microsoft Build 2025 sample repository
 
 ---
 
@@ -168,10 +145,8 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
    - Environment variables automatically removed from system registry
 
 #### Package Categories
-- **Development Tools**: Git, Visual Studio Code, Visual Studio Community
-- **AI/ML Frameworks**: Python, CMake, Vulkan SDK, Intel oneAPI
-- **System Utilities**: Windows Terminal, PowerToys, Clink
-- **Developer Productivity**: Chrome, Firefox, various IDEs
+- **Winget Applications**: Visual Studio Code, Visual Studio Community 2026 Edition, Python 3.12, Clink, Git for Windows, CMake, uv, Vulkan SDK, Node.js LTS, Foundry Local, Ollama
+- **External Applications**: Continue (VS Code Extension), npm (Node Package Manager), Intel AI Playground, NuGet Installation
 
 ### Repository Downloader
 
@@ -185,16 +160,14 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 ```
 C:\Intel\
 ├── openvino_notebooks\
-├── openvino_build_deploy\  
-├── ollama-ipex-llm\
 ├── openvino_genai\
-├── webnn_workshop\
-└── open_model_zoo\
+├── AI-PC-Samples\
+└── Microsoft-Build2025-Samples\
 ```
 
 #### Adding New Repositories
 
-1. **Open `get_repos.ps1`** and locate the `$repos` array (around line 74)
+1. **Open `Setup_2.ps1`** and locate the `$repos` array
 2. **Add your repository**:
    ```powershell
    $repos = @(
@@ -435,6 +408,41 @@ Windows_Software_Installation/
 ## 🛠️ Troubleshooting
 
 ### Common Issues
+
+#### Scripts Blocked by Microsoft (Mark of the Web - MOTW)
+
+**Error You Will See:**
+```
+.\Setup_1.ps1 : File C:\Users\...\Setup_1.ps1 cannot be loaded because running scripts is disabled on 
+this system. For more information, see about_Execution_Policies at https://go.microsoft.com/fwlink/?LinkID=135170.
+```
+
+Or the script may hang/fail silently when trying to execute, even though the execution policy appears to be set correctly.
+
+**Why This Happens (MOTW Explanation):**
+When you download files from the internet (via browser, email, or GitHub), Windows automatically applies a security attribute called the "Mark of the Web" (MOTW). This is stored as a file stream property (`Zone.Identifier = 3`) that indicates the file came from an untrusted zone. Even if you set the execution policy to `RemoteSigned`, Windows still **blocks execution** of files with the MOTW attribute as a security precaution.
+
+**Solution - Unblock Downloaded Files:**
+
+Run this PowerShell command to unblock all `.ps1` files in the Windows_Software_Installation folder:
+
+```powershell
+Get-ChildItem -Path "Windows_Software_Installation" -Recurse -Include "*.ps1" | Unblock-File
+```
+
+Then verify it worked:
+```powershell
+Get-ChildItem -Path "Windows_Software_Installation" -Recurse -Include "*.ps1" | Get-Item -Stream Zone.Identifier -ErrorAction SilentlyContinue
+```
+(This command should return nothing if files are successfully unblocked)
+
+**Alternative - Unblock Files Individually:**
+```powershell
+Unblock-File -Path "Windows_Software_Installation\WingetGUI_Installer\Setup_1.ps1"
+Unblock-File -Path "Windows_Software_Installation\WingetGUI_Installer\Setup_2.ps1"
+```
+
+**Note:** This issue is most common if you downloaded the repository as a ZIP file from GitHub or email. If you cloned via Git, the MOTW attribute is typically not applied.
 
 #### Repository Downloader
 - **Download Failures**: Check internet connection and verify URLs are accessible
