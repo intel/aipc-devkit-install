@@ -183,6 +183,13 @@ function Show-MainGUI {
     
     $btnUninstall.Add_Click({
         try {
+            [System.Windows.Forms.MessageBox]::Show(
+                "All apps must be closed and not running before running un-installation.",
+                'Environment Setup - Uninstall Prerequisite',
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Warning
+            )
+
             $mainForm.Hide()
             $selectedPackages = Show-UninstallGUI -json_uninstall_file_path $json_uninstall_file_path
             
@@ -773,7 +780,7 @@ function Show-UninstallGUI {
         
         $cnt = $selectedRows.Count
         $confirm = [System.Windows.Forms.MessageBox]::Show(
-            "You are about to uninstall $cnt package(s). This action cannot be undone.`n`nDependency handling may also uninstall additional related packages to keep the environment consistent.`n`nContinue?",
+            "You are about to uninstall $cnt package(s). This action cannot be undone.`n`nAll apps must be closed and not running before running un-installation.`n`nDependency handling may also uninstall additional related packages to keep the environment consistent.`n`nContinue?",
             'Environment Setup - Confirm Uninstallation',
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Warning
