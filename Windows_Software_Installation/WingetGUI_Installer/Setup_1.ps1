@@ -532,6 +532,7 @@ try {
     }
     elseif ($command -eq "uninstall") {
         Write-Host "Running in mode: uninstall" -ForegroundColor Yellow
+        Write-Host "All apps must be closed and not running before running un-installation." -ForegroundColor Yellow
         
         # Setup uninstall logs
         Initialize-Directory $uninstall_logs_dir
