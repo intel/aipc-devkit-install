@@ -106,12 +106,43 @@ function Check-PreReq() {
         }
     } else {
         # Internal mode - install silently with error handling
+
+        # -----------------------------------------------------------------------
+        # Step 1: Bootstrap PowerShell PackageManagement's own NuGet provider.
+        # On a fresh system this provider is not registered, causing PowerShell to
+        # show an interactive prompt:
+        #   "The provider nuget 2.8.5.x is not installed. Would you like package
+        #    management to automatically download and install nuget?"
+        # -ForceBootstrap suppresses that prompt and installs silently.
+        # This MUST run before Install-Module or Install-PackageProvider so that
+        # PackageManagement itself is ready to talk to PSGallery without prompting.
+        # -----------------------------------------------------------------------
         try {
-            # Try to install NuGet package provider
+            Write-Host "Bootstrapping PackageManagement NuGet provider..." -ForegroundColor Yellow
+            # Import-PackageProvider with -ForceBootstrap silently registers the
+            # NuGet provider for PackageManagement without any interactive prompt.
+            Import-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ErrorAction Stop
+            Write-Host "PackageManagement NuGet provider bootstrapped." -ForegroundColor Green
+        } catch {
+            # Provider not yet downloaded - install it silently with ForceBootstrap
+            try {
+                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ForceBootstrap -Scope CurrentUser -ErrorAction Stop
+                Write-Host "PackageManagement NuGet provider installed." -ForegroundColor Green
+            } catch {
+                Write-Host "Warning: Could not bootstrap PackageManagement NuGet provider: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+
+        # -----------------------------------------------------------------------
+        # Step 2: Install the NuGet package provider for Install-PackageProvider
+        # (belt-and-suspenders - ensures it is registered at machine scope too)
+        # -----------------------------------------------------------------------
+        try {
             $nugetInstalled = Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue
             if (-not $nugetInstalled) {
                 Write-Host "Installing NuGet package provider..." -ForegroundColor Yellow
-                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction Stop
+                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ForceBootstrap -Scope CurrentUser -ErrorAction Stop
+                Write-Host "NuGet package provider installed." -ForegroundColor Green
             } else {
                 Write-Host "NuGet package provider already installed." -ForegroundColor Green
             }
@@ -120,11 +151,17 @@ function Check-PreReq() {
             Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
         }
         
+        # -----------------------------------------------------------------------
+        # Step 3: Install Microsoft.WinGet.Client module from PSGallery.
+        # -ForceBootstrap is a safety net - if Steps 1/2 above did not fully
+        # register the provider, this ensures PackageManagement bootstraps it
+        # silently rather than prompting the user.
+        # -----------------------------------------------------------------------
         try {
-            # Try to install Microsoft.WinGet.Client module
             if (-not (Get-InstalledModule -Name "Microsoft.WinGet.Client" -ErrorAction SilentlyContinue)) {
                 Write-Host "Installing Microsoft.WinGet.Client module..." -ForegroundColor Yellow
-                Install-Module -Name Microsoft.WinGet.Client -Force -Scope CurrentUser -ErrorAction Stop
+                Install-Module -Name Microsoft.WinGet.Client -Force -ForceBootstrap -Scope CurrentUser -ErrorAction Stop
+                Write-Host "Microsoft.WinGet.Client module installed." -ForegroundColor Green
             } else {
                 Write-Host "Microsoft.WinGet.Client module already installed." -ForegroundColor Green
             }
