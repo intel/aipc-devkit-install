@@ -313,8 +313,10 @@ try {
         # Setup logging directories and files
         Initialize-Directory $install_logs_dir
         Initialize-Directory $error_logs_dir
+        Initialize-Directory $uninstall_logs_dir
         New-File $install_log_file
         New-File $error_log_file
+        New-File $uninstall_log_file
 
         # Create JSON directory for uninstall files if it doesn't exist
         Initialize-Directory $json_uninstall_dir
@@ -445,39 +447,83 @@ try {
         # Get installed packages to check dependencies
         $winget_list = Get-WinGetPackage # Retrieves the list of installed winget packages
 
-        # Check dependencies
-        foreach ($app in $applications.winget_applications) {
+        # Check dependencies - auto-enable any skipped dependencies, warn if missing entirely
+        foreach ($app in @($applications.winget_applications)) {
             if ($null -ne $app.dependencies) {
                 foreach ($dep in $app.dependencies) {
                     $depName = $dep.name
-                    
-                    # Check if dependency is already in the list of applications to install
-                    $dependencyApp = $applications.winget_applications | Where-Object { 
-                        ($_.id -match $depName) -or ($_.name -match $depName) -or ($_.friendly_name -match $depName)
-                    }
+                    $appId = if ($app.id) { $app.id } else { $app.name }
 
-                    if ($null -eq $dependencyApp) {
-                        # Check if dependency is already installed on the system
-                        $isInstalled = $winget_list | Where-Object { $_.Name -match $depName }
+                    # Check if dependency is in the winget install list
+                    $dependencyInWinget = $applications.winget_applications | Where-Object {
+                        ($_.id -and $_.id -match [regex]::Escape($depName)) -or
+                        ($_.name -and $_.name -match [regex]::Escape($depName)) -or
+                        ($_.friendly_name -and $_.friendly_name -match [regex]::Escape($depName))
+                    } | Select-Object -First 1
+
+                    # Check if dependency is in the external install list
+                    $dependencyInExternal = $applications.external_applications | Where-Object {
+                        ($_.name -and $_.name -match [regex]::Escape($depName)) -or
+                        ($_.friendly_name -and $_.friendly_name -match [regex]::Escape($depName))
+                    } | Select-Object -First 1
+
+                    if ($dependencyInWinget) {
+                        # Dependency found in winget list - warn if it is intentionally excluded
+                        if ($dependencyInWinget.skip_install -and $dependencyInWinget.skip_install.ToString().ToLower() -eq 'yes') {
+                            Write-Host "Warning: Dependency '$depName' required by '$appId' is present in the JSON but has skip_install=yes (not in default install set). Installation of '$appId' may fail." -ForegroundColor Yellow
+                            Write-ToLog -message "Warning: Dependency '$depName' required by '$appId' has skip_install=yes - it will not be installed automatically." -log_file $install_log_file
+                        }
+                    } elseif ($dependencyInExternal) {
+                        # Dependency found in external list - warn if it is intentionally excluded
+                        if ($dependencyInExternal.skip_install -and $dependencyInExternal.skip_install.ToString().ToLower() -eq 'yes') {
+                            Write-Host "Warning: External dependency '$depName' required by '$appId' is present in the JSON but has skip_install=yes (not in default install set). Installation of '$appId' may fail." -ForegroundColor Yellow
+                            Write-ToLog -message "Warning: External dependency '$depName' required by '$appId' has skip_install=yes - it will not be installed automatically." -log_file $install_log_file
+                        }
+                    } else {
+                        # Dependency not in JSON at all - check if already installed on system
+                        $isInstalled = $winget_list | Where-Object {
+                            ($_.Name -and $_.Name -match [regex]::Escape($depName)) -or
+                            ($_.Id -and $_.Id -match [regex]::Escape($depName))
+                        } | Select-Object -First 1
 
                         if ($null -eq $isInstalled) {
-                            Write-Host "Dependency $depName required for $app_id is not installed and not in the install list. Skipping $app_id" -ForegroundColor Yellow
-                            # Remove the application from the list if its dependency can't be met
-                            $applications.winget_applications = $applications.winget_applications | Where-Object { 
-                                ($_.id -ne $app_id) -and ($_.name -ne $app_id)
-                            }
-                        } 
+                            Write-Host "Warning: Dependency '$depName' required for '$appId' is not in the install list and not installed on this system." -ForegroundColor Yellow
+                            Write-ToLog -message "Warning: Dependency '$depName' required by '$appId' is not found. Installation of '$appId' may fail." -log_file $install_log_file
+                        } else {
+                            Write-Host "Dependency '$depName' required by '$appId' is already installed on this system." -ForegroundColor Green
+                            Write-ToLog -message "Dependency '$depName' for '$appId' already installed - OK." -log_file $install_log_file
+                        }
                     }
                 }
             }
         }
 
     # Invoke the installation process (per-app tracking, pass loaded app arrays)
+    # Accumulate results across both batches to produce a unified summary
+    $combinedResults = @{
+        TotalPackages      = 0
+        SuccessfulInstalls = 0
+        FailedInstalls     = 0
+        SkippedInstalls    = 0
+        NotInstalledAlreadyExists = 0
+        FailedPackages     = "None"
+        RebootRequiredPackages = "None"
+    }
+
     # Install winget applications
     if ($applications.winget_applications) {
         $wingetToInstall = $applications.winget_applications | Where-Object { -not $_.skip_install -or $_.skip_install.ToString().ToLower() -ne 'yes' }
         if ($wingetToInstall.Count -gt 0) {
-            Install-SelectedPackages -selectedPackages $wingetToInstall -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+            $wingetResults = Install-SelectedPackages -selectedPackages $wingetToInstall -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+            $combinedResults.TotalPackages      += $wingetResults.TotalPackages
+            $combinedResults.SuccessfulInstalls += $wingetResults.SuccessfulInstalls
+            $combinedResults.FailedInstalls     += $wingetResults.FailedInstalls
+            $combinedResults.SkippedInstalls    += $wingetResults.SkippedInstalls
+            $combinedResults.NotInstalledAlreadyExists += $wingetResults.NotInstalledAlreadyExists
+            $combinedResults.FailedPackages      = (@($combinedResults.FailedPackages, $wingetResults.FailedPackages) | Where-Object { $_ -ne 'None' }) -join ', '
+            if (-not $combinedResults.FailedPackages) { $combinedResults.FailedPackages = 'None' }
+            $combinedResults.RebootRequiredPackages = (@($combinedResults.RebootRequiredPackages, $wingetResults.RebootRequiredPackages) | Where-Object { $_ -ne 'None' }) -join ', '
+            if (-not $combinedResults.RebootRequiredPackages) { $combinedResults.RebootRequiredPackages = 'None' }
         }
     }
 
@@ -485,9 +531,35 @@ try {
     if ($applications.external_applications) {
         $externalToInstall = $applications.external_applications | Where-Object { -not $_.skip_install -or $_.skip_install.ToString().ToLower() -ne 'yes' }
         if ($externalToInstall.Count -gt 0) {
-            Install-SelectedPackages -selectedPackages $externalToInstall -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+            $externalResults = Install-SelectedPackages -selectedPackages $externalToInstall -log_file $install_log_file -uninstall_json_file $json_uninstall_file_path
+            $combinedResults.TotalPackages      += $externalResults.TotalPackages
+            $combinedResults.SuccessfulInstalls += $externalResults.SuccessfulInstalls
+            $combinedResults.FailedInstalls     += $externalResults.FailedInstalls
+            $combinedResults.SkippedInstalls    += $externalResults.SkippedInstalls
+            $combinedResults.NotInstalledAlreadyExists += $externalResults.NotInstalledAlreadyExists
+            $combinedResults.FailedPackages      = (@($combinedResults.FailedPackages, $externalResults.FailedPackages) | Where-Object { $_ -ne 'None' }) -join ', '
+            if (-not $combinedResults.FailedPackages) { $combinedResults.FailedPackages = 'None' }
+            $combinedResults.RebootRequiredPackages = (@($combinedResults.RebootRequiredPackages, $externalResults.RebootRequiredPackages) | Where-Object { $_ -ne 'None' }) -join ', '
+            if (-not $combinedResults.RebootRequiredPackages) { $combinedResults.RebootRequiredPackages = 'None' }
         }
     }
+
+    # Print install results summary (mirrors GUI's Show-InstallResults dialog)
+    Write-Host ""
+    Write-Host "=== INSTALLATION SUMMARY ===" -ForegroundColor Magenta
+    Write-Host "Total packages processed : $($combinedResults.TotalPackages)" -ForegroundColor Cyan
+    Write-Host "Successfully installed   : $($combinedResults.SuccessfulInstalls)" -ForegroundColor Green
+    Write-Host "Already installed/skipped: $($combinedResults.NotInstalledAlreadyExists)" -ForegroundColor Yellow
+    Write-Host "Failed installations     : $($combinedResults.FailedInstalls)" -ForegroundColor $(if ($combinedResults.FailedInstalls -gt 0) { 'Red' } else { 'Green' })
+    if ($combinedResults.FailedPackages -ne 'None') {
+        Write-Host "Failed packages          : $($combinedResults.FailedPackages)" -ForegroundColor Red
+    }
+    if ($combinedResults.RebootRequiredPackages -ne 'None') {
+        Write-Host "Reboot required for      : $($combinedResults.RebootRequiredPackages)" -ForegroundColor Yellow
+        Write-Host "IMPORTANT: RESTART YOUR SYSTEM NOW FOR ALL CHANGES TO TAKE EFFECT." -ForegroundColor Yellow
+    }
+    Write-Host "============================" -ForegroundColor Magenta
+    Write-ToLog -message "Installation Summary - Total: $($combinedResults.TotalPackages), Installed: $($combinedResults.SuccessfulInstalls), Failed: $($combinedResults.FailedInstalls), AlreadyPresent: $($combinedResults.NotInstalledAlreadyExists), FailedPackages: $($combinedResults.FailedPackages)" -log_file $install_log_file
 
         # Copy install logs to desktop
         $username = [Environment]::UserName
