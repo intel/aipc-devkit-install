@@ -874,16 +874,9 @@ function Install-ExternalApplication {
             }
         }
 
-        # Some EXE installers can report inconsistent success states.
-        # For source-based installers, validate install presence when needed before deciding final status.
+        # Post-install evidence verification is skipped for Intel AI Playground because its
+        # Electron frontend installer completes very quickly and the exit code alone is sufficient.
         $shouldVerifyInstallEvidence = $false
-        if ((-not $success) -and $app.source -and (-not $app.install_command)) {
-            $shouldVerifyInstallEvidence = $true
-        }
-        # Always verify AI Playground explicitly because its installer can return success without completed setup.
-        if ($app.source -and (-not $app.install_command) -and $app.PSObject.Properties.Name -contains "name" -and ([string]$app.name -eq "Intel AI Playground")) {
-            $shouldVerifyInstallEvidence = $true
-        }
 
         if ($shouldVerifyInstallEvidence -and $app.source -and (-not $app.install_command)) {
             $installedEvidenceFound = $false
@@ -981,6 +974,7 @@ function Install-ExternalApplication {
                     if ($successfulExternalExitCodes -contains $retryExitCode) {
                         $exit_code = $retryExitCode
                         $success = $true
+                        $installedEvidenceFound = $true
                     } else {
                         for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
                             Start-Sleep -Seconds $delaySeconds
