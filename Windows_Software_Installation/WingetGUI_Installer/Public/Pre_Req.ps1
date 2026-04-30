@@ -160,11 +160,14 @@ function Check-PreReq() {
         try {
             if (-not (Get-InstalledModule -Name "Microsoft.WinGet.Client" -ErrorAction SilentlyContinue)) {
                 Write-Host "Installing Microsoft.WinGet.Client module..." -ForegroundColor Yellow
-                Install-Module -Name Microsoft.WinGet.Client -Force -ForceBootstrap -Scope CurrentUser -ErrorAction Stop
+                Install-Module -Name Microsoft.WinGet.Client -Force -Scope CurrentUser -ErrorAction Stop
                 Write-Host "Microsoft.WinGet.Client module installed." -ForegroundColor Green
             } else {
                 Write-Host "Microsoft.WinGet.Client module already installed." -ForegroundColor Green
             }
+            # Import the module into the current session so Get-WinGetPackage is available
+            # without requiring a PowerShell restart.
+            Import-Module -Name Microsoft.WinGet.Client -Force -ErrorAction SilentlyContinue
         } catch {
             Write-Host "Warning: Could not install Microsoft.WinGet.Client module. Continuing anyway..." -ForegroundColor Yellow
             Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
