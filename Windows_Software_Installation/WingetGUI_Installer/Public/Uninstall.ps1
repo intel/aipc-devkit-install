@@ -465,14 +465,9 @@ function Uninstall-SelectedPackages {
             $results.FailedPackages += $appName
         }
     }
-    
-            # Return empty results with TotalPackages = 0
-            return @{
-                TotalPackages = 0
-                SuccessfulUninstalls = 0
-                FailedUninstalls = 0
-                FailedPackages = @()
-            }
+
+    # Return the actual accumulated results so the GUI summary reflects what happened.
+    return $results
 }
 
 # Uninstall a winget application
