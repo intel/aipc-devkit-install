@@ -165,7 +165,7 @@ function Request-AdminPrivileges {
 
 Set-Location -Path $PSScriptRoot # Sets the current directory to the script's location
 $logs_dir = "C:\temp\logs" # Directory for storing log files
-$json_dir = ".\json" # Directory for storing JSON files
+$json_dir = ".\JSON" # Directory for storing JSON files
 
 # Ensure C:\temp directory exists
 if (-not (Test-Path -Path "C:\temp")) {
@@ -320,9 +320,7 @@ try {
 
         # Create JSON directory for uninstall files if it doesn't exist
         Initialize-Directory $json_uninstall_dir
-        New-File $json_uninstall_file_path
 
-        # Create the base JSON structure in the uninstall file
         # Carry global_uninstall_flags from applications.json (single source of truth)
         # Do not rely on $applications here, as it is loaded later in this branch.
         $globalUninstallFlags = "--purge --accept-source-agreements --silent --disable-interactivity --force"
@@ -338,12 +336,42 @@ try {
                 Write-ToLog -message "Warning: Unable to read global_uninstall_flags from applications.json. Using default flags. Details: $($_.Exception.Message)" -log_file $install_log_file
             }
         }
-        $json_structure = @{
-            "global_uninstall_flags" = $globalUninstallFlags
-            "winget_applications" = @()
-            "external_applications" = @()
+
+        # Preserve existing uninstall.json entries across re-runs. Only initialize the file
+        # with an empty structure when it is missing, empty, or unreadable. If it exists and
+        # is valid, keep the tracked apps as-is and only refresh global_uninstall_flags.
+        $needsInit = $true
+        if (Test-Path -Path $json_uninstall_file_path) {
+            try {
+                $existingUninstallText = Get-Content -Path $json_uninstall_file_path -Raw -Encoding UTF8
+                if (-not [string]::IsNullOrWhiteSpace($existingUninstallText)) {
+                    $existingUninstallJson = $existingUninstallText | ConvertFrom-Json
+                    $needsInit = $false
+                    # Refresh the global_uninstall_flags from applications.json without touching
+                    # the tracked winget_applications / external_applications arrays.
+                    if ($existingUninstallJson.PSObject.Properties.Name -contains "global_uninstall_flags") {
+                        $existingUninstallJson.global_uninstall_flags = $globalUninstallFlags
+                    } else {
+                        $existingUninstallJson | Add-Member -MemberType NoteProperty -Name "global_uninstall_flags" -Value $globalUninstallFlags -Force
+                    }
+                    $existingUninstallJson | ConvertTo-Json -Depth 5 | Set-Content -Path $json_uninstall_file_path -Encoding UTF8
+                    Write-ToLog -message "Preserved existing uninstall tracking file: $json_uninstall_file_path" -log_file $install_log_file
+                }
+            }
+            catch {
+                Write-ToLog -message "Existing uninstall.json is unreadable or invalid; reinitializing. Details: $($_.Exception.Message)" -log_file $install_log_file
+                $needsInit = $true
+            }
         }
-        $json_structure | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Encoding UTF8
+
+        if ($needsInit) {
+            $json_structure = @{
+                "global_uninstall_flags" = $globalUninstallFlags
+                "winget_applications" = @()
+                "external_applications" = @()
+            }
+            $json_structure | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Encoding UTF8
+        }
 
         # Check for pre-requisites
         $pre_req = Check-PreReq # Calls a function to check pre-requisites
@@ -507,6 +535,7 @@ try {
         SkippedInstalls    = 0
         NotInstalledAlreadyExists = 0
         FailedPackages     = "None"
+        AlreadyInstalledPackages = "None"
         RebootRequiredPackages = "None"
     }
 
@@ -522,6 +551,8 @@ try {
             $combinedResults.NotInstalledAlreadyExists += $wingetResults.NotInstalledAlreadyExists
             $combinedResults.FailedPackages      = (@($combinedResults.FailedPackages, $wingetResults.FailedPackages) | Where-Object { $_ -ne 'None' }) -join ', '
             if (-not $combinedResults.FailedPackages) { $combinedResults.FailedPackages = 'None' }
+            $combinedResults.AlreadyInstalledPackages = (@($combinedResults.AlreadyInstalledPackages, $wingetResults.AlreadyInstalledPackages) | Where-Object { $_ -ne 'None' }) -join ', '
+            if (-not $combinedResults.AlreadyInstalledPackages) { $combinedResults.AlreadyInstalledPackages = 'None' }
             $combinedResults.RebootRequiredPackages = (@($combinedResults.RebootRequiredPackages, $wingetResults.RebootRequiredPackages) | Where-Object { $_ -ne 'None' }) -join ', '
             if (-not $combinedResults.RebootRequiredPackages) { $combinedResults.RebootRequiredPackages = 'None' }
         }
@@ -539,6 +570,8 @@ try {
             $combinedResults.NotInstalledAlreadyExists += $externalResults.NotInstalledAlreadyExists
             $combinedResults.FailedPackages      = (@($combinedResults.FailedPackages, $externalResults.FailedPackages) | Where-Object { $_ -ne 'None' }) -join ', '
             if (-not $combinedResults.FailedPackages) { $combinedResults.FailedPackages = 'None' }
+            $combinedResults.AlreadyInstalledPackages = (@($combinedResults.AlreadyInstalledPackages, $externalResults.AlreadyInstalledPackages) | Where-Object { $_ -ne 'None' }) -join ', '
+            if (-not $combinedResults.AlreadyInstalledPackages) { $combinedResults.AlreadyInstalledPackages = 'None' }
             $combinedResults.RebootRequiredPackages = (@($combinedResults.RebootRequiredPackages, $externalResults.RebootRequiredPackages) | Where-Object { $_ -ne 'None' }) -join ', '
             if (-not $combinedResults.RebootRequiredPackages) { $combinedResults.RebootRequiredPackages = 'None' }
         }
@@ -559,7 +592,36 @@ try {
         Write-Host "IMPORTANT: RESTART YOUR SYSTEM NOW FOR ALL CHANGES TO TAKE EFFECT." -ForegroundColor Yellow
     }
     Write-Host "============================" -ForegroundColor Magenta
+
+    # ================== Per-app status report (skipped vs failed) ==================
+    Write-Host ""
+    Write-Host "------ NOTE: Apps SKIPPED (already available on this system, NOT installed by this script) ------" -ForegroundColor Yellow
+    if ($combinedResults.AlreadyInstalledPackages -ne 'None' -and -not [string]::IsNullOrWhiteSpace($combinedResults.AlreadyInstalledPackages)) {
+        foreach ($skippedAppName in ($combinedResults.AlreadyInstalledPackages -split ',\s*')) {
+            if (-not [string]::IsNullOrWhiteSpace($skippedAppName)) {
+                Write-Host "  - $skippedAppName" -ForegroundColor Yellow
+            }
+        }
+    } else {
+        Write-Host "  (none)" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "------ NOTE: Apps that FAILED to install (need attention) ------" -ForegroundColor Red
+    if ($combinedResults.FailedPackages -ne 'None' -and -not [string]::IsNullOrWhiteSpace($combinedResults.FailedPackages)) {
+        foreach ($failedAppName in ($combinedResults.FailedPackages -split ',\s*')) {
+            if (-not [string]::IsNullOrWhiteSpace($failedAppName)) {
+                Write-Host "  - $failedAppName" -ForegroundColor Red
+            }
+        }
+    } else {
+        Write-Host "  (none)" -ForegroundColor Green
+    }
+    Write-Host ""
+
     Write-ToLog -message "Installation Summary - Total: $($combinedResults.TotalPackages), Installed: $($combinedResults.SuccessfulInstalls), Failed: $($combinedResults.FailedInstalls), AlreadyPresent: $($combinedResults.NotInstalledAlreadyExists), FailedPackages: $($combinedResults.FailedPackages)" -log_file $install_log_file
+    Write-ToLog -message "------ Apps SKIPPED (already available, NOT installed by this script): $($combinedResults.AlreadyInstalledPackages) ------" -log_file $install_log_file
+    Write-ToLog -message "------ Apps that FAILED to install: $($combinedResults.FailedPackages) ------" -log_file $install_log_file
 
         # Copy install logs to desktop
         $username = [Environment]::UserName
@@ -612,52 +674,20 @@ try {
         Write-ToLog -message "Starting uninstall process" -log_file $uninstall_log_file
         
         if (-not (Test-Path -Path $json_uninstall_file_path)) {
-            $errorMessage = "No uninstall file found at: $json_uninstall_file_path. Please run installer first to create tracking file."
-            Write-Host $errorMessage -ForegroundColor Red
-            Write-ToLog -message $errorMessage -log_file $uninstall_log_file
-            Write-Host "Would you like to create an empty uninstall file to proceed? (y/n)" -ForegroundColor Yellow
-            $choice = Read-Host
-            
-            if ($choice -eq "y") {
-                try {
-                    # Create directory if it doesn't exist
-                    $uninstallDir = Split-Path -Path $json_uninstall_file_path -Parent
-                    if (-not (Test-Path -Path $uninstallDir)) {
-                        New-Item -Path $uninstallDir -ItemType Directory -Force | Out-Null
-                        Write-Host "Created directory: $uninstallDir" -ForegroundColor Green
-                    }
-                    
-                    # Create empty uninstall JSON file
-                    # Read global_uninstall_flags from applications.json (single source of truth)
-                    $globalUninstallFlagsFallback = "--purge --accept-source-agreements --silent --disable-interactivity --force"
-                    if (Test-Path -Path $json_install_file_path) {
-                        try {
-                            $installAppsJson = Get-Content -Path $json_install_file_path -Raw | ConvertFrom-Json
-                            if ($installAppsJson.PSObject.Properties.Name -contains "global_uninstall_flags" -and
-                                -not [string]::IsNullOrWhiteSpace($installAppsJson.global_uninstall_flags)) {
-                                $globalUninstallFlagsFallback = $installAppsJson.global_uninstall_flags
-                            }
-                        } catch {}
-                    }
-                    $emptyJson = @{
-                        "global_uninstall_flags" = $globalUninstallFlagsFallback
-                        "winget_applications" = @()
-                        "external_applications" = @()
-                    }
-                    $emptyJson | ConvertTo-Json -Depth 4 | Set-Content -Path $json_uninstall_file_path -Force
-                    Write-Host "Created empty uninstall file at: $json_uninstall_file_path" -ForegroundColor Green
-                    Write-ToLog -message "Created empty uninstall file" -log_file $uninstall_log_file
-                }
-                catch {
-                    Write-Host "Failed to create uninstall file: $_" -ForegroundColor Red
-                    Write-ToLog -message "Failed to create uninstall file: $_" -log_file $uninstall_log_file
-                    exit 1
-                }
-            }
-            else {
-                Write-Host "Uninstall operation cancelled" -ForegroundColor Yellow
-                exit 0
-            }
+            Write-Host ""
+            Write-Host "============================================================" -ForegroundColor Yellow
+            Write-Host " Nothing to uninstall." -ForegroundColor Yellow
+            Write-Host " No uninstall tracking file was found at:" -ForegroundColor Yellow
+            Write-Host "   $json_uninstall_file_path" -ForegroundColor Yellow
+            Write-Host " This usually means no apps have been installed by this" -ForegroundColor Yellow
+            Write-Host " script yet, or the tracking file was already removed" -ForegroundColor Yellow
+            Write-Host " after a previous successful uninstall." -ForegroundColor Yellow
+            Write-Host " Run '.\Setup_1.ps1 install' first if you want to install" -ForegroundColor Yellow
+            Write-Host " software that can later be uninstalled by this script." -ForegroundColor Yellow
+            Write-Host "============================================================" -ForegroundColor Yellow
+            Write-Host ""
+            Write-ToLog -message "Uninstall skipped: tracking file '$json_uninstall_file_path' not found. Nothing to do. Exiting gracefully." -log_file $uninstall_log_file
+            exit 0
         }
         
         # Invoke the batch uninstallation process

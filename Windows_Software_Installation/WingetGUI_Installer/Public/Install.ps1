@@ -257,6 +257,7 @@ function Install-SelectedPackages {
     $skippedCount = 0
     $notInstalledAlreadyExistsCount = 0
     $failedPackages = @()
+    $alreadyInstalledPackages = @()
     $rebootRequiredPackages = @()
     # Reload the original JSON so we can merge in all properties (like override_flags)
     $jsonPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'JSON/install/applications.json'
@@ -353,6 +354,9 @@ function Install-SelectedPackages {
                 $installedState = Test-WingetPackageAlreadyInstalled -app $app -appName $appName -log_file $log_file
                 if ($installedState.IsInstalled) {
                     $notInstalledAlreadyExistsCount++
+                    if ($alreadyInstalledPackages -notcontains $appName) {
+                        $alreadyInstalledPackages += $appName
+                    }
                     $result.status = 'skipped'
                     $result.message = if ($installedState.InstalledVersion) {
                         "Skipped: already installed ($($installedState.InstalledVersion))."
@@ -361,7 +365,7 @@ function Install-SelectedPackages {
                     }
                     $skipConsoleReason = if ($installedState.DetectionMethod) { "$($installedState.DetectionMethod)" } else { 'pre-check' }
                     Write-Host "Skipping ${appName}: already installed (detected via $skipConsoleReason)." -ForegroundColor Yellow
-                    Write-ToLog -message "Skipping install for $appName because it is already available on this system. It will not be added as a new winget_application entry." -log_file $log_file
+                    Write-ToLog -message "Skipping install for $appName because it is already available on this system. It will not be added as a new winget_application entry (existing tracking, if any, is preserved)." -log_file $log_file
                     $results += $result
                     continue
                 }
@@ -450,6 +454,7 @@ function Install-SelectedPackages {
         SkippedInstalls = $skippedCount
         NotInstalledAlreadyExists = $notInstalledAlreadyExistsCount
         FailedPackages = if ($failedPackages -and $failedPackages.Count -gt 0) { $failedPackages -join ", " } else { "None" }
+        AlreadyInstalledPackages = if ($alreadyInstalledPackages -and $alreadyInstalledPackages.Count -gt 0) { $alreadyInstalledPackages -join ", " } else { "None" }
         RebootRequiredPackages = if ($rebootRequiredPackages -and $rebootRequiredPackages.Count -gt 0) { $rebootRequiredPackages -join ", " } else { "None" }
     }
     Write-Host "Install Summary: Total: $($summary.TotalPackages), Installed: $($summary.SuccessfulInstalls), Failed: $($summary.FailedInstalls), Skipped: $($summary.SkippedInstalls), NotInstalledAlreadyExists: $($summary.NotInstalledAlreadyExists), FailedPackages: $($summary.FailedPackages)" -ForegroundColor Green
