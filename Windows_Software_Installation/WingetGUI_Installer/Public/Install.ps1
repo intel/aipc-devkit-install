@@ -638,6 +638,17 @@ function Invoke-PostInstallActions {
             return $false
         }
 
+        # Refresh PATH from machine and user registry so tools installed earlier
+        # in the same run (e.g. dotnet, code, npm) are found by post-install commands.
+        try {
+            $machinePath = [System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::Machine)
+            $userPath    = [System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::User)
+            $env:PATH    = (@($machinePath, $userPath) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ';'
+            Write-ToLog -message "Refreshed PATH from registry before running post-install commands for $appDisplayName" -log_file $log_file
+        } catch {
+            Write-ToLog -message "Warning: Could not refresh PATH before post-install commands for ${appDisplayName}: $($_.Exception.Message)" -log_file $log_file
+        }
+
         foreach ($command in $resolvedCommands) {
             Write-ToLog -message "Running post-install command for ${appDisplayName}: $command" -log_file $log_file
             try {
