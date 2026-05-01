@@ -1,21 +1,135 @@
 #!/bin/bash
 
+################################################################################
 # Intel Driver Static Installer Builder
-# This script generates a static driver installation script with compatibility-checked versions
-# Use --build-static flag to generate setup-static-drivers.sh with exact filenames and URLs
+# 
+# Purpose: Generates a static driver installation script with compatibility-checked versions
+#          Detects Ubuntu version and conditionally builds driver installation script
+#
+# Usage:
+#   bash build-static-installer.sh              # Verification mode (check GitHub API)
+#   bash build-static-installer.sh --build-static  # Generate setup-static-drivers.sh
+#   bash build-static-installer.sh --help       # Show this help message
+#
+# Environment Variables:
+#   GITHUB_TOKEN    Optional GitHub PAT for higher rate limits
+#
+# Supported Ubuntu Versions:
+#   - Ubuntu 24.04.X: Builds driver installation script
+#   - Ubuntu 26.04.X: Skips (all drivers pre-included)
+#   - Others: Warns but allows proceeding at own risk
+#
+# Requirements:
+#   - curl, jq (auto-installed if missing)
+#   - apt package manager (Ubuntu/Debian)
+#   - Internet connection
+#
+# Author: Intel Corporation
+# License: Apache-2.0
+################################################################################
 
 set -e
+
+# Helper function to display help message
+show_help() {
+    sed -n '2,/^################################################################################/p' "$0" | sed 's/^# //'
+    exit 0
+}
 
 # Parse command line arguments
 BUILD_STATIC=false
 if [ "$1" = "--build-static" ]; then
     BUILD_STATIC=true
+elif [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    show_help
+elif [ -n "${1:-}" ]; then
+    echo "ERROR: Unknown argument '$1'"
+    echo "Use '--help' for usage information"
+    exit 1
 fi
 
 echo "=== Intel Driver Static Installer Builder on Linux==="
 echo "This script builds a static driver installation script with compatibility checking"
 echo "No files will be downloaded or installed by this builder script"
 echo
+
+# Validate we're on a Debian/Ubuntu system
+validate_linux_distro() {
+    if [ ! -f /etc/os-release ]; then
+        echo "ERROR: This script requires a Linux system with /etc/os-release"
+        echo "       This script is designed for Ubuntu/Debian-based systems"
+        exit 1
+    fi
+    
+    # Source the os-release file
+    . /etc/os-release
+    
+    # Check if it's Ubuntu or Debian-based
+    if [[ ! "$ID_LIKE" =~ "debian" ]] && [ "$ID" != "ubuntu" ] && [ "$ID" != "debian" ]; then
+        echo "WARNING: This script is optimized for Ubuntu/Debian systems"
+        echo "         Detected: ${PRETTY_NAME:-Unknown}"
+        echo "         Some features may not work as expected"
+    fi
+}
+
+# Detect Ubuntu version and check compatibility
+detect_and_validate_ubuntu_version() {
+    echo "=== Detecting Ubuntu Version ==="
+    
+    if [ ! -f /etc/os-release ]; then
+        echo "ERROR: Cannot find /etc/os-release"
+        exit 1
+    fi
+    
+    # Source the os-release file to get VERSION_ID and other info
+    . /etc/os-release
+    UBUNTU_VERSION="${VERSION_ID:-unknown}"
+    UBUNTU_NAME="${PRETTY_NAME:-Unknown}"
+    
+    echo "Detected: $UBUNTU_NAME"
+    echo "Version: $UBUNTU_VERSION"
+    echo
+    
+    # Check if version is supported
+    case "$UBUNTU_VERSION" in
+        24.04*)
+            echo "✓ Ubuntu 24.04.X detected - This system has Intel drivers that need to be installed"
+            echo "  Continuing with driver installation builder..."
+            echo
+            return 0
+            ;;
+        26.04*)
+            echo "⚠ Ubuntu 26.04.X detected - All required drivers are included with this version"
+            echo
+            echo "╔══════════════════════════════════════════════════════════════╗"
+            echo "║                    NO DRIVER INSTALLATION NEEDED             ║" 
+            echo "║                                                              ║"
+            echo "║  Ubuntu 26.04.X comes with all required Intel drivers        ║"
+            echo "║  pre-installed and optimized for your system.                ║"
+            echo "║                                                              ║"
+            echo "║  Please proceed directly with the software installation      ║"
+            echo "║  script to set up your applications:                         ║"
+            echo "║                                                              ║"
+            echo "║    bash ../setup-software.sh                                 ║"
+            echo "║                                                              ║"
+            echo "║  The software installer will handle all remaining setup.     ║"
+            echo "╚══════════════════════════════════════════════════════════════╝"
+            echo
+            exit 0
+            ;;
+        *)
+            echo "⚠ WARNING: Ubuntu version $UBUNTU_VERSION is not officially tested"
+            echo "  This script is designed for Ubuntu 24.04.X"
+            echo "  If you are on Ubuntu 26.04.X, please proceed with setup-software.sh instead"
+            echo "  Otherwise, you may proceed at your own risk"
+            echo
+            return 0
+            ;;
+    esac
+}
+
+validate_linux_distro
+detect_and_validate_ubuntu_version
 
 # First-run detection: show quick-start guide if setup-static-drivers.sh doesn't exist
 if [ "$BUILD_STATIC" = "false" ] && [ ! -f "setup-static-drivers.sh" ]; then
@@ -66,37 +180,54 @@ echo
 # Check and install required dependencies: curl and jq
 echo "=== Checking Required Dependencies ==="
 
-# Check curl
-if command -v curl &> /dev/null; then
-    echo "✓ curl is already installed ($(curl --version | head -1))"
-else
-    echo "✗ curl is not installed"
+# Validate apt exists first
+if ! command -v apt &> /dev/null; then
+    echo "ERROR: 'apt' package manager not found"
+    echo "       This script requires a Debian/Ubuntu-based system"
+    exit 1
 fi
 
-# Check jq
-if command -v jq &> /dev/null; then
-    echo "✓ jq is already installed ($(jq --version))"
-else
-    echo "✗ jq is not installed"
-fi
+# Function to check and install dependencies
+check_and_install_dependency() {
+    local dep="$1"
+    local install_name="${2:-$dep}"
+    
+    if command -v "$dep" &> /dev/null; then
+        local version=$("$dep" --version 2>&1 | head -1)
+        echo "✓ $dep is already installed ($version)"
+        return 0
+    else
+        echo "✗ $dep is not installed"
+        return 1
+    fi
+}
 
-# Collect missing dependencies
-MISSING_DEPS=()
-command -v curl &> /dev/null || MISSING_DEPS+=("curl")
-command -v jq   &> /dev/null || MISSING_DEPS+=("jq")
+# Check dependencies
+declare -a MISSING_DEPS
+check_and_install_dependency "curl" || MISSING_DEPS+=("curl")
+check_and_install_dependency "jq" || MISSING_DEPS+=("jq")
 
 if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
     echo
     echo "Installing missing dependencies: ${MISSING_DEPS[*]}"
-    sudo apt update -qq
-    sudo apt install -y "${MISSING_DEPS[@]}"
+    echo "Running: sudo apt update && sudo apt install -y ${MISSING_DEPS[*]}"
+    if ! sudo apt update -qq 2>&1 | head -5; then
+        echo "ERROR: Failed to update package lists"
+        exit 1
+    fi
+    if ! sudo apt install -y "${MISSING_DEPS[@]}" 2>&1 | tail -10; then
+        echo "ERROR: Failed to install dependencies"
+        exit 1
+    fi
     echo
+    
     # Verify installation succeeded
     for dep in "${MISSING_DEPS[@]}"; do
         if command -v "$dep" &> /dev/null; then
             echo "✓ $dep installed successfully"
         else
-            echo "ERROR: Failed to install $dep. Please install it manually: sudo apt install $dep"
+            echo "ERROR: Failed to install $dep"
+            echo "Please install it manually: sudo apt install $dep"
             exit 1
         fi
     done
@@ -112,22 +243,30 @@ get_latest_release_tag() {
     echo "Checking latest release for $repo..." >&2
     
     local response
+    local curl_opts="-s --max-time 10 --connect-timeout 5"
+    
     if [ -n "$GITHUB_TOKEN" ]; then
-        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
+        response=$(curl $curl_opts -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null) || {
+            echo "ERROR: Network timeout or connection failed for $repo" >&2
+            return 1
+        }
     else
-        response=$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
+        response=$(curl $curl_opts "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null) || {
+            echo "ERROR: Network timeout or connection failed for $repo" >&2
+            return 1
+        }
     fi
     
     # Check if curl failed or returned empty response
     if [ -z "$response" ]; then
-        echo "ERROR: Failed to connect to GitHub API for $repo" >&2
+        echo "ERROR: Failed to connect to GitHub API for $repo (empty response)" >&2
         return 1
     fi
     
     # Check if response is valid JSON
     if ! echo "$response" | jq . >/dev/null 2>&1; then
         echo "ERROR: Invalid JSON response from GitHub API for $repo" >&2
-        echo "Response preview: $(echo "$response" | head -1)" >&2
+        echo "Response preview: $(echo "$response" | head -c 100)" >&2
         return 1
     fi
     
@@ -142,7 +281,7 @@ get_latest_release_tag() {
     local tag=$(echo "$response" | jq -r '.tag_name // "ERROR"')
     if [ "$tag" = "ERROR" ] || [ "$tag" = "null" ]; then
         echo "ERROR: Could not get latest release tag for $repo" >&2
-        echo "Response: $response" | head -3 >&2
+        echo "Response: $(echo "$response" | head -c 200)" >&2
         return 1
     fi
     
@@ -151,6 +290,9 @@ get_latest_release_tag() {
 }
 
 # Function to safely list release assets
+# Arguments: repo (github owner/repo), tag (release tag)
+# Returns: 0 on success, 1 on failure
+# Outputs: Lists available assets in the release
 list_release_assets() {
     local repo="$1"
     local tag="$2"
@@ -158,15 +300,23 @@ list_release_assets() {
     echo "=== Assets for $repo release $tag ==="
     
     local response
+    local curl_opts="-s --max-time 10 --connect-timeout 5"
+    
     if [ -n "$GITHUB_TOKEN" ]; then
-        response=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag")
+        response=$(curl $curl_opts -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/releases/tags/$tag") || {
+            echo "ERROR: Network timeout for $repo" >&2
+            return 1
+        }
     else
-        response=$(curl -s "https://api.github.com/repos/$repo/releases/tags/$tag")
+        response=$(curl $curl_opts "https://api.github.com/repos/$repo/releases/tags/$tag") || {
+            echo "ERROR: Network timeout for $repo" >&2
+            return 1
+        }
     fi
     
     # Check if we got rate limited
     if echo "$response" | jq -r '.message' 2>/dev/null | grep -q "rate limit"; then
-        echo "ERROR: GitHub API rate limit exceeded"
+        echo "ERROR: GitHub API rate limit exceeded" >&2
         return 1
     fi
     
@@ -174,9 +324,9 @@ list_release_assets() {
     local assets=$(echo "$response" | jq -r '.assets[]?.name // empty')
     
     if [ -z "$assets" ]; then
-        echo "ERROR: No assets found or API error"
-        echo "Response preview:" 
-        echo "$response" | head -5
+        echo "ERROR: No assets found or API error" >&2
+        echo "Response preview:" >&2
+        echo "$response" | head -5 >&2
         return 1
     fi
     
@@ -1211,10 +1361,17 @@ if [ "$remaining" -lt 10 ]; then
 fi
 echo
 
-# Repository information
+# Repository information and global variables
 REPOS=("intel/intel-graphics-compiler" "intel/compute-runtime" "intel/linux-npu-driver" "oneapi-src/level-zero")
 
 # Arrays to store discovered assets for static script generation
+# Initialize associative arrays for asset URLs and versions
+declare -A ASSET_URLS
+declare -A VERSIONS
+
+# Clear any previous values
+unset ASSET_URLS
+unset VERSIONS
 declare -A ASSET_URLS
 declare -A VERSIONS
 
