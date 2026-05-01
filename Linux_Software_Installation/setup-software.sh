@@ -59,6 +59,7 @@ verify_dependencies(){
         git
         curl
         wget
+        ninja-build
     )
     install_packages "${DEPENDENCIES_PACKAGES[@]}"
     install_vulkan_sdk
@@ -105,10 +106,10 @@ install_openvino_notebook(){
 install_openvino_genai(){
 
     echo -e "\n# OpenVINO™ GenAI"
-    if [ ! -d "./openvino_genai_ubuntu24_2026.0.0.0_x86_64" ]; then
+    if [ ! -d "./openvino_genai_ubuntu24_2026.1.0.0_x86_64" ]; then
         cd ~/intel
-        curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/linux/openvino_genai_ubuntu24_2026.0.0.0_x86_64.tar.gz --output openvino_genai_2026.0.0.0.tgz
-        tar -xf openvino_genai_2026.0.0.0.tgz
+        curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.1/linux/openvino_genai_ubuntu24_2026.1.0.0_x86_64.tar.gz --output openvino_genai_2026.1.0.0.tgz
+        tar -xf openvino_genai_2026.1.0.0.tgz
 
         cd openvino_genai_u*
         sudo -E ./install_dependencies/install_openvino_dependencies.sh
@@ -116,7 +117,7 @@ install_openvino_genai(){
         cd samples/cpp
         ./build_samples.sh
     else
-        echo "./openvino_genai_ubuntu24_2026.0.0.0_x86_64 already exists"
+        echo "./openvino_genai_ubuntu24_2026.1.0.0_x86_64 already exists"
     fi
     echo -e "\n# Build OpenVINO™ GenAI complete"
 }
@@ -135,7 +136,7 @@ install_llamacpp(){
         cd llama.cpp
         
         # Build with Vulkan support
-        cmake -B build -DGGML_VULKAN=1 -DLLAMA_CURL=OFF
+        cmake -S . -B build -G Nina -DGGML_VULKAN=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON
         cmake --build build --config Release
         
         echo "$S_VALID llama.cpp native built with Vulkan support"
