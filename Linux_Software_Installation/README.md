@@ -8,7 +8,7 @@ Complete guide for setting up Intel AI PC development on Linux, including driver
 
 For a first-time Linux driver setup, run:
 
-
+```bash
 # From the repository root
 cd Linux_Software_Installation
 
@@ -21,7 +21,7 @@ sudo ./setup-static-drivers.sh
 
 Optional, if you want higher GitHub API limits:
 
-
+```bash
 export GITHUB_TOKEN=your_token_here
 bash build-static-installer.sh --build-static
 ```
@@ -45,13 +45,21 @@ This directory contains scripts to set up Intel GPU and NPU drivers on Ubuntu 24
 - **`setup-static-drivers.sh`**: Generated static driver installation script (no API dependencies)
 - **`Utilities/verify_connectivity.sh`**: Diagnostic tools for troubleshooting GitHub API connectivity issues
 
-### First Run Behavior (`build-static-installer.sh`)
+### Features (`build-static-installer.sh`)
 
-The builder now provides guided output for first-time users:
+The builder provides intelligent setup with guided output:
 
-- If `setup-static-drivers.sh` does not exist and you run without `--build-static`, the script shows a **first-time setup banner** with exact next commands.
-- The script checks required dependencies (`curl`, `jq`) and installs missing ones automatically using `sudo apt install`.
-- Build mode output now includes clearer progress logs (step counters and matched asset filenames).
+**Version Detection:**
+- **Ubuntu 24.04.X**: Automatically builds driver installation as needed
+- **Ubuntu 26.04.X**: Skips driver installation (all drivers pre-included), directs to `setup-software.sh`
+- **Ubuntu 26.04.X Note**: `setup-software.sh` also installs `intel-opencl-icd` and ensures the current user is added to the `render` and `video` groups.
+- **Other versions**: Shows warning but allows proceeding at user's risk
+
+**User-Friendly Interface:**
+- If `setup-static-drivers.sh` does not exist and you run without `--build-static`, the script shows a **first-time setup banner** with exact next commands
+- Use `--help` flag to see comprehensive usage documentation
+- The script checks required dependencies (`curl`, `jq`) and installs missing ones automatically using `sudo apt install`
+- Build mode output now includes clearer progress logs (step counters and matched asset filenames)
 
 > **Note:** Even though a GitHub token is optional, you may still be prompted for your sudo password on first run if `curl`/`jq` need installation.
 
@@ -239,7 +247,9 @@ The script automatically downloads the latest versions, but you can check what v
 
 ### Overview
 
-The `setup-software.sh` script (located in `../Linux_Software_Installation/`) is a comprehensive automation tool that sets up a complete AI development environment optimized for Intel AI PCs. It installs and configures essential AI/ML frameworks, development tools, notebooks, and sample applications.
+The Linux software setup uses `setup-software.sh` as the primary installer entry point.
+
+It sets up a complete AI development environment optimized for Intel AI PCs by installing and configuring essential AI/ML frameworks, development tools, notebooks, and sample applications.
 
 ### What This Script Installs
 
@@ -270,11 +280,12 @@ All AI development materials are installed under `~/intel/` for organized projec
 
 #### Prerequisites
 
-- **Operating System**: Ubuntu 24.04 LTS (recommended)
+- **Operating System**: Ubuntu 24.04 LTS or newer
 - **Hardware**: Intel AI PC with compatible GPU and NPU
 - **Drivers**: Intel GPU/NPU drivers installed (Part 1 above)
 - **Memory**: At least 16GB RAM (32GB+ recommended for large models)
 - **Storage**: At least 10GB free space for all components
+- **Build Tools**: The script automatically installs: cmake, build-essential, pkg-config, ninja-build, git, curl, wget, python3-pip, python3-venv, and Vulkan SDK
 
 #### Installation Commands
 
@@ -314,7 +325,7 @@ chmod +x setup-software.sh
 
 1. **OpenVINO Notebooks**: Clones and sets up the comprehensive notebook collection
 2. **MSBuild 2025 Workshop**: Installs latest Intel AI PC workshop materials
-3. **OpenVINO GenAI**: Sets up generative AI toolkit with Intel optimizations
+3. **OpenVINO GenAI 2026.1.0.0**: Sets up generative AI toolkit with Intel optimizations (version 2026.1.0.0)
 4. **Ollama**: Installs local LLM runtime with Intel GPU acceleration
 
 #### Phase 4: Development Tools
@@ -327,11 +338,12 @@ chmod +x setup-software.sh
 
 ```text
 ~/intel/
-├── openvino_notebooks/          # Main OpenVINO tutorial notebooks
-├── MSBuild2025_NeuralChat/      # MSBuild 2025 workshop materials
-├── openvino.genai/              # OpenVINO GenAI toolkit
-├── WorkShops_BootCamp/          # Additional workshop materials
-├── llm-on-ray/                  # LLM on Ray examples
+├── openvino_notebooks/              # Main OpenVINO tutorial notebooks
+├── MSBuild2025_NeuralChat/          # MSBuild 2025 workshop materials
+├── openvino_genai_ubuntu24_2026.1.0.0_x86_64/  # OpenVINO GenAI 2026.1.0.0 toolkit
+├── WorkShops_BootCamp/              # Additional workshop materials
+├── llm-on-ray/                      # LLM on Ray examples
+├── llama.cpp/                       # llama.cpp with Vulkan support
 └── various Python virtual environments
 ```
 

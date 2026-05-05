@@ -33,6 +33,39 @@ install_packages(){
     fi
 }
 
+configure_ubuntu_2604_compute_runtime_and_groups(){
+    if [ ! -f /etc/os-release ]; then
+        return
+    fi
+
+    . /etc/os-release
+    if [[ "${VERSION_ID:-}" != 26.04* ]]; then
+        return
+    fi
+
+    echo -e "\n# Ubuntu 26.04 detected: configuring compute runtime and user groups"
+
+    install_packages intel-opencl-icd
+
+    local CURRENT_USER
+    local GROUPS_UPDATED=0
+    CURRENT_USER="$(whoami)"
+
+    for GROUP in video render; do
+        if id -nG "$CURRENT_USER" | grep -q -w "$GROUP"; then
+            echo "$S_VALID User '$CURRENT_USER' is already in '$GROUP' group"
+        else
+            echo "Adding user '$CURRENT_USER' to '$GROUP' group"
+            sudo usermod -aG "$GROUP" "$CURRENT_USER"
+            GROUPS_UPDATED=1
+        fi
+    done
+
+    if [ "$GROUPS_UPDATED" -eq 1 ]; then
+        echo "Group membership updated. Log out and back in for changes to take effect."
+    fi
+}
+
 install_vulkan_sdk(){
     echo -e "\n# Installing Vulkan SDK"
     # Add Vulkan repository key
@@ -256,6 +289,7 @@ setup() {
         echo "~/intel already exists"
     fi
     cd ~/intel
+    configure_ubuntu_2604_compute_runtime_and_groups
     verify_dependencies
     install_uv
     install_openvino_notebook
