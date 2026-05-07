@@ -311,6 +311,54 @@ Test-PyPIConnectivity
 # Step 1: Fast Parallel Downloads
 Write-Host "`n=== STEP 1: DOWNLOADING REPOSITORIES ===" -ForegroundColor Magenta
 
+# --- Sparse checkout: selected OpenVINO notebooks only ---
+$selectedNotebooks = @(
+    "bark-text-to-audio",
+    "distil-whisper-asr",
+    "hello-npu",
+    "gemma4",
+    "latent-consistency-models-image-generation",
+    "llm-agent-functioncall",
+    "llm-agent-react-langchain",
+    "llm-chatbot",
+    "llm-rag-langchain",
+    "qwen3-vl",
+    "stable-diffusion-v2-infinite-zoom",
+    "yolov11-optimization",
+    "yolov26-optimization",
+    "deepseek-ocr",
+    "image-to-image-genai",
+    "llava-next-multimodal-chatbot"
+)
+
+$ovNotebooksPath = Join-Path $DevKitWorkingDir "openvino_notebooks"
+if (Test-Path $ovNotebooksPath) {
+    Write-Host "SKIP: openvino_notebooks already exists, skipping sparse checkout." -ForegroundColor Yellow
+} else {
+    Write-Host "Cloning selected OpenVINO notebooks via sparse checkout..." -ForegroundColor Cyan
+    try {
+        & git clone --filter=blob:none --sparse https://github.com/openvinotoolkit/openvino_notebooks.git $ovNotebooksPath
+        if ($LASTEXITCODE -eq 0) {
+            Push-Location $ovNotebooksPath
+            try {
+                & git checkout latest
+                $notebookPaths = $selectedNotebooks | ForEach-Object { "notebooks/$_" }
+                & git sparse-checkout set @notebookPaths
+                Write-Host "Selected OpenVINO notebooks checked out successfully" -ForegroundColor Green
+            }
+            finally {
+                Pop-Location
+            }
+        } else {
+            Write-Host "git clone failed for openvino_notebooks" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "Failed to sparse checkout OpenVINO notebooks: $_" -ForegroundColor Yellow
+        try { Pop-Location } catch {}
+    }
+}
+
 # Setup Runspace Pool for Parallel Downloads
 $runspacePool = [runspacefactory]::CreateRunspacePool(1, 5)
 $runspacePool.Open()
@@ -318,8 +366,7 @@ $runspacePool.Open()
 $jobs = @()
 
 # Define Repos
-$repos = @(    
-    @{ Name = "openvino_notebooks"; Uri = "https://github.com/openvinotoolkit/openvino_notebooks/archive/refs/heads/latest.zip"; File = "openvino_notebooks-latest.zip" },
+$repos = @(
     @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/windows/openvino_genai_windows_2026.0.0.0_x86_64.zip"; File = "openvino_genai.zip" },
     @{ Name = "AI-PC-Samples"; Uri = "https://github.com/intel/AI-PC-Samples/archive/refs/heads/main.zip"; File = "ai-pc-samples.zip" },
     @{ Name = "Microsoft-Build2025-Samples"; Uri = "https://github.com/intel/Microsoft-Build2025-Samples/archive/refs/heads/main.zip"; File = "microsoft-build2025-samples.zip" }
@@ -475,11 +522,6 @@ foreach ($result in $downloadResults) {
         Remove-Item "$DevKitWorkingDir\$file" -Force
 
         switch ($name) {
-            "openvino_notebooks"     { 
-                if (Test-Path "openvino_notebooks-latest") {
-                    Rename-Item "openvino_notebooks-latest" $name 
-                }
-            }
             "webnn_workshop"         { 
                 if (Test-Path "webnn_workshop-main") {
                     Rename-Item "webnn_workshop-main" $name 
