@@ -429,6 +429,38 @@ foreach ($result in $downloadResults) {
                 if (Test-Path "openvino_notebooks-latest") {
                     Rename-Item "openvino_notebooks-latest" $name 
                 }
+                # Keep only the selected notebooks; remove all others to save disk space
+                $selectedNotebooks = @(
+                    "bark-text-to-audio",
+                    "distil-whisper-asr",
+                    "hello-npu",
+                    "gemma4",
+                    "latent-consistency-models-image-generation",
+                    "llm-agent-functioncall",
+                    "llm-agent-react-langchain",
+                    "llm-chatbot",
+                    "llm-rag-langchain",
+                    "qwen3-vl",
+                    "stable-diffusion-v2-infinite-zoom",
+                    "yolov11-optimization",
+                    "yolov26-optimization",
+                    "deepseek-ocr",
+                    "image-to-image-genai",
+                    "llava-next-multimodal-chatbot"
+                )
+                $notebooksDir = Join-Path $DevKitWorkingDir "$name\notebooks"
+                if (Test-Path $notebooksDir) {
+                    Write-Host "Filtering notebooks - keeping only selected notebooks..." -ForegroundColor Cyan
+                    $allNotebookDirs = Get-ChildItem -Path $notebooksDir -Directory
+                    $removed = 0
+                    foreach ($nb in $allNotebookDirs) {
+                        if ($selectedNotebooks -notcontains $nb.Name) {
+                            Remove-Item -Path $nb.FullName -Recurse -Force
+                            $removed++
+                        }
+                    }
+                    Write-Host "Kept $($selectedNotebooks.Count) selected notebooks; removed $removed unselected notebooks." -ForegroundColor Green
+                }
             }
             "openvino_build_deploy"  { 
                 if (Test-Path "openvino_build_deploy-master") {

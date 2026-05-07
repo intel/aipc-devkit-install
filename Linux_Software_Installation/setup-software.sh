@@ -89,6 +89,46 @@ install_openvino_notebook(){
         cd ~/intel
         git clone https://github.com/openvinotoolkit/openvino_notebooks.git
         cd openvino_notebooks
+
+        # Keep only the selected notebooks; remove all others to save disk space
+        SELECTED_NOTEBOOKS=(
+            "bark-text-to-audio"
+            "distil-whisper-asr"
+            "hello-npu"
+            "gemma4"
+            "latent-consistency-models-image-generation"
+            "llm-agent-functioncall"
+            "llm-agent-react-langchain"
+            "llm-chatbot"
+            "llm-rag-langchain"
+            "qwen3-vl"
+            "stable-diffusion-v2-infinite-zoom"
+            "yolov11-optimization"
+            "yolov26-optimization"
+            "deepseek-ocr"
+            "image-to-image-genai"
+            "llava-next-multimodal-chatbot"
+        )
+        if [ -d "notebooks" ]; then
+            echo "Filtering notebooks - keeping only selected notebooks..."
+            removed=0
+            for nb_path in notebooks/*/; do
+                nb_name=$(basename "$nb_path")
+                keep=0
+                for selected in "${SELECTED_NOTEBOOKS[@]}"; do
+                    if [ "$nb_name" = "$selected" ]; then
+                        keep=1
+                        break
+                    fi
+                done
+                if [ "$keep" -eq 0 ]; then
+                    rm -rf "$nb_path"
+                    removed=$((removed + 1))
+                fi
+            done
+            echo "Removed $removed unselected notebooks; kept ${#SELECTED_NOTEBOOKS[@]} selected notebooks."
+        fi
+
         python3 -m venv venv
         source venv/bin/activate
         pip install -r requirements.txt
