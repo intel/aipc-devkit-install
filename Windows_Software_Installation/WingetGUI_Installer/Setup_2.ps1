@@ -797,9 +797,29 @@ if (-not (Test-Path $llamacppPath)) {
     Set-Location $DevKitWorkingDir
     
     try {
-        Write-Host "Cloning LlamaCpp repository to C:\Intel\llama.cpp..." -ForegroundColor Cyan
-        & git clone https://github.com/ggml-org/llama.cpp.git
-        
+        $llamacppTag = "b8920"
+        $llamacppZipUrl = "https://github.com/ggml-org/llama.cpp/archive/refs/tags/$llamacppTag.zip"
+        $llamacppZip = Join-Path $DevKitWorkingDir "llama.cpp-$llamacppTag.zip"
+
+        Write-Host "Downloading LlamaCpp $llamacppTag zip..." -ForegroundColor Cyan
+        $downloadSuccess = Start-DownloadWithRetry -Uri $llamacppZipUrl -OutFile $llamacppZip -MaxRetries $MaxRetries
+
+        if ($downloadSuccess -and (Test-Path $llamacppZip)) {
+            Write-Host "Extracting LlamaCpp $llamacppTag..." -ForegroundColor Cyan
+            Expand-Archive -Path $llamacppZip -DestinationPath $DevKitWorkingDir -Force
+            Remove-Item $llamacppZip -Force -ErrorAction SilentlyContinue
+
+            # Release zips extract as llama.cpp-<tag>, rename to llama.cpp
+            $extractedDir = Join-Path $DevKitWorkingDir "llama.cpp-$llamacppTag"
+            if (Test-Path $extractedDir) {
+                Rename-Item $extractedDir $llamacppPath
+                Write-Host "LlamaCpp extracted to: $llamacppPath" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "Download failed, falling back to git clone..." -ForegroundColor Yellow
+            & git clone https://github.com/ggml-org/llama.cpp.git
+        }
+
         if (Test-Path $llamacppPath) {
             Set-Location $llamacppPath
             
