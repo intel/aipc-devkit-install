@@ -45,7 +45,7 @@ configure_ubuntu_2604_compute_runtime_and_groups(){
 
     echo -e "\n# Ubuntu 26.04 detected: configuring compute runtime and user groups"
 
-    install_packages intel-opencl-icd
+    install_packages intel-opencl-icd clinfo
 
     local CURRENT_USER
     local GROUPS_UPDATED=0
@@ -68,16 +68,45 @@ configure_ubuntu_2604_compute_runtime_and_groups(){
 
 install_vulkan_sdk(){
     echo -e "\n# Installing Vulkan SDK"
-    # Add Vulkan repository key
-    wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-    
-    # Add Vulkan repository for Ubuntu 24.04 (Noble)
-    sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
-    
-    # Update package list and install Vulkan SDK
-    sudo apt update
-    sudo apt install -y vulkan-sdk
-    
+    if [ ! -f /etc/os-release ]; then
+        echo "Unable to detect OS release information"
+        return 1
+    fi
+
+    . /etc/os-release
+    if [[ "${VERSION_ID:-}" == 26.04* ]]; then
+        local SDK_VERSION="1.4.350.0"
+        local SDK_URL="https://sdk.lunarg.com/sdk/download/${SDK_VERSION}/linux/vulkansdk-linux-x86_64-${SDK_VERSION}.tar.xz"
+        local SDK_ARCHIVE
+        local SDK_DIR
+        SDK_ARCHIVE=$(mktemp /tmp/vulkansdk-linux-x86_64-XXXXXX.tar.xz)
+        SDK_DIR=$(mktemp -d /tmp/vulkansdk-linux-x86_64-XXXXXX)
+
+        trap 'rm -f "$SDK_ARCHIVE"; rm -rf "$SDK_DIR"' RETURN
+
+        wget -qO "$SDK_ARCHIVE" "$SDK_URL"
+        tar -xJf "$SDK_ARCHIVE" -C "$SDK_DIR"
+
+        if [ -x "$SDK_DIR/vulkansdk" ]; then
+            "$SDK_DIR/vulkansdk" glslang vulkan-tools --maxjobs
+        elif [ -x "$SDK_DIR/vulkan" ]; then
+            "$SDK_DIR/vulkan" glslang vulkan-tools --maxjobs
+        else
+            echo "Could not find the Vulkan SDK installer binary in $SDK_DIR"
+            return 1
+        fi
+    else
+        # Add Vulkan repository key
+        wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+
+        # Add Vulkan repository for Ubuntu 24.04 (Noble)
+        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+
+        # Update package list and install Vulkan SDK
+        sudo apt update
+        sudo apt install -y vulkan-sdk
+    fi
+
     echo "$S_VALID Vulkan SDK installed"
 }
 
