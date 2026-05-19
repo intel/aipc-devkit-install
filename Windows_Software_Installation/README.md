@@ -41,7 +41,7 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 ```
 
 ### ⚠️ Important: Uninstall Requires Manual Intervention
-**All apps must be closed and not running before running un-installation.**
+**All apps must be closed and not running before uninstalling.**
 
 **Uninstall is NOT completely silent.** Many applications do not support fully automated silent uninstallation, even with command-line flags. You may encounter:
 - **Interactive prompts** from application uninstallers requiring user confirmation
@@ -98,7 +98,6 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 1. **openvino_notebooks** - OpenVINO notebooks (latest branch ZIP)
 2. **openvino_genai** - OpenVINO GenAI Windows package
 3. **AI-PC-Samples** - Intel AI PC Samples repository
-4. **Microsoft-Build2025-Samples** - Intel Microsoft Build 2025 sample repository
 
 ---
 
@@ -131,13 +130,13 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
    powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" gui
    ```
 
-4. **Install Software**:
+3. **Install Software**:
    - Click "Install Software"
    - Select desired packages from the list
    - Click "Install Selected"
    - Monitor real-time progress
 
-5. **Uninstall Software**:
+4. **Uninstall Software**:
    - Click "Uninstall Software" 
    - Select packages to remove
    - **Be ready to interact with uninstall dialogs** - not all apps support completely silent uninstall
@@ -163,8 +162,7 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 C:\Intel\
 ├── openvino_notebooks\
 ├── openvino_genai\
-├── AI-PC-Samples\
-└── Microsoft-Build2025-Samples\
+└── AI-PC-Samples\
 ```
 
 #### Adding New Repositories

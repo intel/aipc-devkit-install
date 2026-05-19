@@ -54,7 +54,7 @@ The `compatibility_check.sh` script:
 
 ## Integration Status
 
-✅ **Compatibility checking is now integrated** into `verify_latest_driver_names.sh --build-static`
+✅ **Compatibility checking is now integrated** into `build-static-installer.sh --build-static`
 
 This standalone script is **optional** and mainly useful for:
 - 🔧 **Development/debugging**: Testing specific version combinations

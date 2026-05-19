@@ -71,7 +71,6 @@ Linux Installation Step by Step Guide:
 
 ## Installation Guides
 
-
 For detailed, OS-specific installation steps, use:
 
 - Windows installation guide: [Windows_Software_Installation/README.md](Windows_Software_Installation/README.md)
@@ -87,7 +86,7 @@ For detailed, OS-specific installation steps, use:
 - Vijay: vijay.chandrashekar@intel.com
 - Praveen: praveen.k.kundurthy@intel.com
 
-## 📄 License
+## License
 
 MIT License
 

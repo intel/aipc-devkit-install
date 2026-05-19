@@ -1,4 +1,4 @@
-#  OVMS Launcher
+# OVMS Launcher
 
 A PowerShell script that downloads, configures, and starts OpenVINO Model Server.
 
@@ -81,8 +81,8 @@ Get-Help .\ovms_setup.ps1 -Detailed
 
 Once started, the API is available at: `http://localhost:8000/v3`
 
-### Test with curl:
-```bash
+### Test with PowerShell (Invoke-WebRequest):
+```powershell
 (Invoke-WebRequest -Uri "http://localhost:8000/v3/chat/completions" `
  -Method POST `
  -UseBasicParsing `
@@ -128,7 +128,7 @@ print(response.choices[0].message.content)
 
 - **GPU**: Fastest performance, best for production
 - **CPU**: Works everywhere, good for development
-- **NPU**: power efficient
+- **NPU**: Power efficient
 
 ## Stop Server
 

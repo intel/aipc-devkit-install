@@ -18,7 +18,6 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 # Mistral-7B on GPU — auto-downloads chat_template.jinja
 .\ovms_agentic_setup.ps1 -Model mistral -Target GPU
 
-
 # Image generation on GPU
 .\ovms_agentic_setup.ps1 -Model image -Target GPU
 ```

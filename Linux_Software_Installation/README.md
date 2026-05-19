@@ -82,9 +82,8 @@ sudo ./setup-static-drivers.sh
 
 ## Troubleshooting
 
-
 #### GitHub API Rate Limiting
-**Problem**: Installation fails with rate limit errors -- this sometimes happens if you are at a company behind a proxy and it appears that many users are sharing the same iP address.
+**Problem**: Installation fails with rate limit errors -- this sometimes happens if you are at a company behind a proxy and it appears that many users are sharing the same IP address.
 **Solution**: Set GITHUB_TOKEN environment variable
 ```bash
 export GITHUB_TOKEN=your_token_here
@@ -99,7 +98,7 @@ sudo -E ./setup-static-drivers.sh  # -E preserves environment variables
 curl https://github.com
 
 # Run full diagnostic
-./verify_connectivity.sh
+./Utilities/verify_connectivity.sh
 ```
 
 #### Permission Issues
@@ -269,7 +268,6 @@ It sets up a complete AI development environment optimized for Intel AI PCs by i
 #### Notebooks and Workshop Materials
 
 - **OpenVINO Notebooks**: Comprehensive collection of AI inference examples and tutorials
-- **MSBuild 2025 Workshop**: Latest Intel AI PC development workshop materials
 - **Additional Workshop Repositories**: Extra learning materials and sample projects
 
 #### Target Installation Directory
@@ -324,9 +322,8 @@ chmod +x setup-software.sh
 #### Phase 3: AI Framework Installation
 
 1. **OpenVINO Notebooks**: Clones and sets up the comprehensive notebook collection
-2. **MSBuild 2025 Workshop**: Installs latest Intel AI PC workshop materials
-3. **OpenVINO GenAI 2026.1.0.0**: Sets up generative AI toolkit with Intel optimizations (version 2026.1.0.0)
-4. **Ollama**: Installs local LLM runtime with Intel GPU acceleration
+2. **OpenVINO GenAI 2026.1.0.0**: Sets up generative AI toolkit with Intel optimizations (version 2026.1.0.0)
+3. **Ollama**: Installs local LLM runtime with Intel GPU acceleration
 
 #### Phase 4: Development Tools
 
@@ -339,10 +336,8 @@ chmod +x setup-software.sh
 ```text
 ~/intel/
 ├── openvino_notebooks/              # Main OpenVINO tutorial notebooks
-├── MSBuild2025_NeuralChat/          # MSBuild 2025 workshop materials
 ├── openvino_genai_ubuntu24_2026.1.0.0_x86_64/  # OpenVINO GenAI 2026.1.0.0 toolkit
 ├── WorkShops_BootCamp/              # Additional workshop materials
-├── llm-on-ray/                      # LLM on Ray examples
 ├── llama.cpp/                       # llama.cpp with Vulkan support
 └── various Python virtual environments
 ```
@@ -414,7 +409,7 @@ sudo -E ./setup-static-drivers.sh  # -E preserves environment variables
 # Test basic connectivity
 curl https://github.com
 
-# Run full diagnostic (from Linux_Driver_Setup directory)
+# Run full diagnostic (from Linux_Software_Installation directory)
 ./Utilities/verify_connectivity.sh
 ```
 
