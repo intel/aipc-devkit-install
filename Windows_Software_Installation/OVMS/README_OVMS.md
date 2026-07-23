@@ -1,6 +1,6 @@
 # OVMS Launcher
 
-A PowerShell script that downloads, configures, and starts OpenVINO Model Server.
+A PowerShell script that downloads, configures, and starts OpenVINO Model Server (v2026.2.1).
 
 ## Quick Start
 
@@ -16,6 +16,9 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 
 # Start image generation on GPU
 .\ovms_setup.ps1 -Model image
+
+# Start Qwen3.6-35B-A3B on GPU (~20GB VRAM)
+.\ovms_setup.ps1 -Model qwen3-35b -Target GPU
 
 # Start custom model
 .\ovms_setup.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target NPU
@@ -33,6 +36,11 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 ### Text Generation
 - **GPU/CPU**: `OpenVINO/Phi-3.5-mini-instruct-int4-ov`
 - **NPU**: `OpenVINO/Phi-3.5-mini-instruct-int4-cw-ov` (NPU-optimized)
+
+### Large Models (shorthand)
+| Shorthand | Model | Notes |
+|-----------|-------|-------|
+| `qwen3-35b` | `OpenVINO/Qwen3.6-35B-A3B-int4-ov` | ~20GB VRAM, MoE, `cache_interval_multiplier 64` auto-set |
 
 ### Image Generation
 - **GPU**: `OpenVINO/FLUX.1-schnell-int4-ov`
@@ -63,10 +71,13 @@ Get-Help .\ovms_setup.ps1 -Detailed
 
 ```powershell
 # Basic usage
-.\ovms_setup.ps1                                    # Phi-3 on GPU
-.\ovms_setup.ps1 -Target CPU                        # Phi-3 on CPU
-.\ovms_setup.ps1 -Target NPU                        # Phi-3 on NPU
+.\ovms_setup.ps1                                    # Phi-3.5 on GPU
+.\ovms_setup.ps1 -Target CPU                        # Phi-3.5 on CPU
+.\ovms_setup.ps1 -Target NPU                        # Phi-3.5 on NPU
 .\ovms_setup.ps1 -Model image                       # FLUX on GPU
+
+# Qwen3.6-35B-A3B (basic text generation, no tool/reasoning parsers)
+.\ovms_setup.ps1 -Model qwen3-35b -Target GPU
 
 # Custom models
 .\ovms_setup.ps1 -Model "OpenVINO/gpt-j-6b-int4-cw-ov" -Target NPU
@@ -83,12 +94,21 @@ Once started, the API is available at: `http://localhost:8000/v3`
 
 ### Test with PowerShell (Invoke-WebRequest):
 ```powershell
+# Phi-3.5 text generation (default)
 (Invoke-WebRequest -Uri "http://localhost:8000/v3/chat/completions" `
  -Method POST `
  -UseBasicParsing `
  -Headers @{ "Content-Type" = "application/json" } `
  -Body '{"model": "OpenVINO/Phi-3.5-mini-instruct-int4-ov", "max_tokens": 30, "temperature": 0, "stream": false, "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "What are the 3 main tourist attractions in Paris?"}]}').Content
- 
+```
+
+```powershell
+# Qwen3.6-35B-A3B text generation
+(Invoke-WebRequest -Uri "http://localhost:8000/v3/chat/completions" `
+ -Method POST `
+ -UseBasicParsing `
+ -Headers @{ "Content-Type" = "application/json" } `
+ -Body '{"model": "OpenVINO/Qwen3.6-35B-A3B-int4-ov", "max_tokens": 200, "temperature": 0, "stream": false, "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Explain the difference between MoE and dense transformer architectures."}]}').Content
 ```
 
 ### Test with Python:
@@ -100,18 +120,41 @@ client = OpenAI(
     api_key="unused"
 )
 
+# Phi-3.5 (default model)
 response = client.chat.completions.create(
     model="OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=50
 )
-
 print(response.choices[0].message.content)
 ```
 
+```python
+# Qwen3.6-35B-A3B — basic text generation (no tool/reasoning parsers in this script)
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v3",
+    api_key="unused"
+)
+
+response = client.chat.completions.create(
+    model="OpenVINO/Qwen3.6-35B-A3B-int4-ov",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user",   "content": "Explain the difference between MoE and dense transformer architectures."}
+    ],
+    max_tokens=300,
+    temperature=0
+)
+print(response.choices[0].message.content)
+```
+
+> **Note**: For Qwen3.6-35B with tool calling and reasoning parser support, use `ovms_agentic_setup.ps1` instead.
+
 ## What It Does
 
-1. **Downloads OVMS**: Automatically downloads OpenVINO Model Server v2025.2.1 if not present
+1. **Downloads OVMS**: Automatically downloads OpenVINO Model Server v2026.2.1 if not present
 2. **Initializes Environment**: Runs setupvars.ps1 to properly configure OpenVINO environment
 3. **Selects Model**: Chooses the best model for your target device
 4. **Downloads Model**: Downloads the model from Hugging Face Hub automatically

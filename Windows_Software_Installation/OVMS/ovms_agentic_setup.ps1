@@ -1,10 +1,10 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-    AI PC Dev Kit OVMS Agentic Launcher - Tool-Calling & Reasoning Support (v2026.0)
+    AI PC Dev Kit OVMS Agentic Launcher - Tool-Calling & Reasoning Support (v2026.2.1)
 
 .DESCRIPTION
-    Downloads OVMS v2026.0, configures models with tool/function calling and reasoning
+    Downloads OVMS v2026.2.1, configures models with tool/function calling and reasoning
     parser support, and starts the server in one command.
     Supports GPU/CPU/NPU with automatic tool_parser, reasoning_parser, and
     device-optimized model selection.
@@ -17,6 +17,7 @@
       image            - Device-default image model
       qwen3-8b         - OpenVINO/Qwen3-8B-int4-ov (GPU/CPU) or -cw-ov (NPU)
       qwen3-4b         - OpenVINO/Qwen3-4B-int4-ov
+      qwen3-35b        - OpenVINO/Qwen3.6-35B-A3B-int4-ov (~20GB VRAM)
       phi4             - OpenVINO/Phi-4-mini-instruct-int4-ov
       mistral          - OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov
       qwen3-coder-int4 - OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov (~19GB VRAM)
@@ -43,7 +44,7 @@
 
 .EXAMPLE
     .\ovms_agentic_setup.ps1
-    # Qwen3-8B on GPU with hermes3 tool parser + qwen3 reasoning parser
+    # Qwen3.6-35B-A3B on GPU with qwen3coder tool parser + qwen3 reasoning parser (default)
 
 .EXAMPLE
     .\ovms_agentic_setup.ps1 -Model phi4 -Target CPU
@@ -68,6 +69,10 @@
 .EXAMPLE
     .\ovms_agentic_setup.ps1 -Pull -Model qwen3-8b
     # Pre-download Qwen3-8B then start server on GPU
+
+.EXAMPLE
+    .\ovms_agentic_setup.ps1 -Model qwen3-35b -Target GPU
+    # Qwen3.6-35B-A3B (int4) on GPU with qwen3coder tool parser + qwen3 reasoning parser (~20GB VRAM)
 #>
 
 param(
@@ -95,6 +100,7 @@ function Write-Error   { param([string]$Message) Write-Host "[ERROR] $Message" -
 $ModelAliases = @{
     "qwen3-8b"          = "OpenVINO/Qwen3-8B-int4-ov"
     "qwen3-4b"          = "OpenVINO/Qwen3-4B-int4-ov"
+    "qwen3-35b"         = "OpenVINO/Qwen3.6-35B-A3B-int4-ov"
     "phi4"              = "OpenVINO/Phi-4-mini-instruct-int4-ov"
     "mistral"           = "OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov"
     "qwen3-coder-int4"  = "OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov"
@@ -107,7 +113,7 @@ $ModelAliases = @{
 # ------------------------------------------------------------------------------
 $DefaultModels = @{
     "GPU" = @{
-        "text"  = "OpenVINO/Qwen3-8B-int4-ov"
+        "text"  = "OpenVINO/Qwen3.6-35B-A3B-int4-ov"
         "image" = "OpenVINO/FLUX.1-schnell-int4-ov"
     }
     "CPU" = @{
@@ -164,21 +170,32 @@ function Get-ModelConfig {
     param([string]$SourceModel, [string]$TargetDevice)
 
     $config = @{
-        ToolParser          = $null    # --tool_parser
-        ReasoningParser     = $null    # --reasoning_parser
-        EnableToolGuidedGen = $false   # --enable_tool_guided_generation true
-        MaxPromptLen        = $null    # --max_prompt_len (NPU)
-        PluginConfig        = $null    # --plugin_config (NPU)
-        ModelName           = $null    # --model_name
-        MoEWorkaround       = $false   # MOE_USE_MICRO_GEMM_PREFILL=0 env var
-        ChatTemplateUrl     = $null    # URL for chat_template.jinja download
-        EnablePrefixCaching = $true    # --enable_prefix_caching true
+        ToolParser           = $null    # --tool_parser
+        ReasoningParser      = $null    # --reasoning_parser
+        EnableToolGuidedGen  = $false   # --enable_tool_guided_generation true
+        MaxPromptLen         = $null    # --max_prompt_len (NPU)
+        PluginConfig         = $null    # --plugin_config (NPU)
+        ModelName            = $null    # --model_name
+        MoEWorkaround        = $false   # MOE_USE_MICRO_GEMM_PREFILL=0 env var
+        ChatTemplateUrl      = $null    # URL for chat_template.jinja download
+        EnablePrefixCaching     = $true    # --enable_prefix_caching true
+        AllowedMediaDomains     = $null    # --allowed_media_domains
+        CacheIntervalMultiplier = $null    # --cache_interval_multiplier (linear attention models)
     }
 
     if ($SourceModel -like "*Qwen3-Coder*") {
         $config.ToolParser    = "qwen3coder"
         $config.MoEWorkaround = $true
         $config.ModelName     = "Qwen3-Coder-30B-A3B-Instruct"
+    }
+    elseif ($SourceModel -like "*Qwen3.6-35B*") {
+        $config.ToolParser              = "qwen3coder"
+        $config.ReasoningParser         = "qwen3"
+        $config.MoEWorkaround           = $true
+        $config.EnableToolGuidedGen     = $true
+        $config.AllowedMediaDomains     = "raw.githubusercontent.com"
+        $config.ModelName               = "Qwen3.6-35B-A3B"
+        $config.CacheIntervalMultiplier = 64   # recommended for long prompts (>20k tokens)
     }
     elseif ($SourceModel -like "OpenVINO/Qwen3-8B*") {
         $config.ToolParser = "hermes3"
@@ -509,8 +526,8 @@ function Initialize-OVMS {
         return $ovmsExe
     }
 
-    Write-Info "Downloading OVMS v2026.0..."
-    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.0/ovms_windows_python_on.zip"
+    Write-Info "Downloading OVMS v2026.2.1..."
+    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.2.1/ovms_windows_2026.2.1_python_on.zip"
     $ovmsZip = "ovms.zip"
 
     try {
@@ -573,9 +590,11 @@ function Start-OVMSServer {
     Write-Info "  Target:    $TargetDevice"
     Write-Info "  Port:      $RestPort"
     Write-Info "  Task:      $taskType"
-    if ($modelConfig.ToolParser)      { Write-Info "  Tool Parser:      $($modelConfig.ToolParser)" }
-    if ($modelConfig.ReasoningParser) { Write-Info "  Reasoning Parser: $($modelConfig.ReasoningParser)" }
-    if ($effectiveModelName)          { Write-Info "  Model Name (API): $effectiveModelName" }
+    if ($modelConfig.ToolParser)           { Write-Info "  Tool Parser:         $($modelConfig.ToolParser)" }
+    if ($modelConfig.ReasoningParser)      { Write-Info "  Reasoning Parser:    $($modelConfig.ReasoningParser)" }
+    if ($effectiveModelName)               { Write-Info "  Model Name (API):    $effectiveModelName" }
+    if ($modelConfig.AllowedMediaDomains)      { Write-Info "  Allowed Domains:     $($modelConfig.AllowedMediaDomains)" }
+    if ($modelConfig.CacheIntervalMultiplier)   { Write-Info "  Cache Interval Mult: $($modelConfig.CacheIntervalMultiplier)" }
     Write-Success "API will be available at: http://localhost:$RestPort/v3"
     Write-Info ""
 
@@ -651,6 +670,12 @@ function Start-OVMSServer {
             if ($effectiveModelName) {
                 $ovmsArgs.AddRange([object[]]@("--model_name", $effectiveModelName))
             }
+            if ($modelConfig.AllowedMediaDomains) {
+                $ovmsArgs.AddRange([object[]]@("--allowed_media_domains", $modelConfig.AllowedMediaDomains))
+            }
+            if ($modelConfig.CacheIntervalMultiplier) {
+                $ovmsArgs.AddRange([object[]]@("--cache_interval_multiplier", $modelConfig.CacheIntervalMultiplier))
+            }
 
             & ".\ovms\ovms.exe" @ovmsArgs
         }
@@ -669,14 +694,14 @@ function Start-OVMSServer {
 # ==============================================================================
 # Main execution
 # ==============================================================================
-Write-Info "AI PC Dev Kit OVMS Agentic Launcher (v2026.0)"
-Write-Info "==============================================="
+Write-Info "AI PC Dev Kit OVMS Agentic Launcher (v2026.2.1)"
+Write-Info "================================================"
 
 # Show help if requested
 if ($Help) {
     Write-Host ""
-    Write-Host "AI PC Dev Kit OVMS Agentic Launcher (v2026.0)" -ForegroundColor Yellow
-    Write-Host "===============================================" -ForegroundColor Yellow
+    Write-Host "AI PC Dev Kit OVMS Agentic Launcher (v2026.2.1)" -ForegroundColor Yellow
+    Write-Host "================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Green
     Write-Host "  .\ovms_agentic_setup.ps1 [-Model <shorthand|model_id>] [-Target <GPU|CPU|NPU>] [-Port <port>]" -ForegroundColor White
@@ -715,9 +740,10 @@ if ($Help) {
     Write-Host "  qwen3-coder-int4 OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov (~19GB VRAM)" -ForegroundColor White
     Write-Host "  qwen3-coder-int8 OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int8-ov (~34GB VRAM)" -ForegroundColor White
     Write-Host "  gpt-oss          OpenVINO/gpt-oss-20b-int4-ov (~16GB VRAM)" -ForegroundColor White
+    Write-Host "  qwen3-35b        OpenVINO/Qwen3.6-35B-A3B-int4-ov (~20GB VRAM)" -ForegroundColor White
     Write-Host ""
     Write-Host "DEFAULT MODELS:" -ForegroundColor Green
-    Write-Host "  GPU  text:  OpenVINO/Qwen3-8B-int4-ov           (hermes3 tool + qwen3 reasoning)" -ForegroundColor White
+    Write-Host "  GPU  text:  OpenVINO/Qwen3.6-35B-A3B-int4-ov    (qwen3coder tool + qwen3 reasoning, MoE)" -ForegroundColor White
     Write-Host "  CPU  text:  OpenVINO/Phi-4-mini-instruct-int4-ov (phi4 tool parser)" -ForegroundColor White
     Write-Host "  NPU  text:  OpenVINO/Qwen3-8B-int4-cw-ov         (hermes3 tool, NPU-optimized)" -ForegroundColor White
     Write-Host "  GPU  image: OpenVINO/FLUX.1-schnell-int4-ov" -ForegroundColor White
@@ -751,6 +777,9 @@ if ($Help) {
     Write-Host ""
     Write-Host "  .\ovms_agentic_setup.ps1 -Model gpt-oss -Target GPU" -ForegroundColor Cyan
     Write-Host "    # GPT-oss-20B with gptoss tool + reasoning parsers - requires 16GB+ VRAM" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  .\ovms_agentic_setup.ps1 -Model qwen3-35b -Target GPU" -ForegroundColor Cyan
+    Write-Host "    # Qwen3.6-35B-A3B int4 on GPU - requires ~20GB VRAM" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  .\ovms_agentic_setup.ps1 -Pull -Model qwen3-8b" -ForegroundColor Cyan
     Write-Host "    # Pre-download Qwen3-8B then start server" -ForegroundColor Gray

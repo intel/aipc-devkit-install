@@ -369,7 +369,7 @@ $jobs = @()
 $repos = @(
     @{ Name = "openvino_genai"; Uri = "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.0/windows/openvino_genai_windows_2026.0.0.0_x86_64.zip"; File = "openvino_genai.zip" },
     @{ Name = "AI-PC-Samples"; Uri = "https://github.com/intel/AI-PC-Samples/archive/refs/heads/main.zip"; File = "ai-pc-samples.zip" },
-    @{ Name = "Microsoft-Build2025-Samples"; Uri = "https://github.com/intel/Microsoft-Build2025-Samples/archive/refs/heads/main.zip"; File = "microsoft-build2025-samples.zip" }
+    @{ Name = "Samples-for-Microsoft-AI-Foundry"; Uri = "https://github.com/intel/Samples-for-Microsoft-AI-Foundry/archive/refs/heads/main.zip"; File = "samples-for-microsoft-ai-foundry.zip" }
 )
 
 # Launch jobs
@@ -538,9 +538,9 @@ foreach ($result in $downloadResults) {
                     Rename-Item "openvino_genai_windows_2026.0.0.0_x86_64" $name 
                 }
             }
-            "Microsoft-Build2025-Samples" { 
-                if (Test-Path "Microsoft-Build2025-Samples-main") {
-                    Rename-Item "Microsoft-Build2025-Samples-main" $name 
+            "Samples-for-Microsoft-AI-Foundry" { 
+                if (Test-Path "Samples-for-Microsoft-AI-Foundry-main") {
+                    Rename-Item "Samples-for-Microsoft-AI-Foundry-main" $name 
                 }
             }
             Default {}
@@ -904,8 +904,8 @@ if (-not (Test-Path $llamacppPath)) {
 }
 
 # 6. Windows AI Foundry Samples (no venv required)
-if (Test-Path "Microsoft-Build2025-Samples") {
-    Write-Host "`nWindows AI Foundry Samples downloaded successfully at: $DevKitWorkingDir\Microsoft-Build2025-Samples" -ForegroundColor Green
+if (Test-Path "Samples-for-Microsoft-AI-Foundry") {
+    Write-Host "`nWindows AI Foundry Samples downloaded successfully at: $DevKitWorkingDir\Samples-for-Microsoft-AI-Foundry\MicrosoftAIFoundryApp" -ForegroundColor Green
     $installResults["Windows AI Foundry Samples"] = "Success"
 } else {
     $installResults["Windows AI Foundry Samples"] = "Skipped (directory not found)"
@@ -913,7 +913,7 @@ if (Test-Path "Microsoft-Build2025-Samples") {
 
 # Clean up any remaining zip files - UPDATED ZIP FILE NAMES
 Write-Host "`nCleaning up downloaded zip files..." -ForegroundColor Cyan
-$zipFiles = @("openvino_notebooks-latest.zip", "openvino_genai.zip", "ai-pc-samples.zip", "microsoft-build2025-samples.zip")
+$zipFiles = @("openvino_notebooks-latest.zip", "openvino_genai.zip", "ai-pc-samples.zip", "samples-for-microsoft-ai-foundry.zip")
 foreach ($zipFile in $zipFiles) {
     if (Test-Path $zipFile) {
         Remove-Item $zipFile -Force
