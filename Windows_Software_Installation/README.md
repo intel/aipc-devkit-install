@@ -154,12 +154,12 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 #### Parameters
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `DevKitWorkingDir` | String | `C:\Intel` | Target directory for downloads |
+| `DevKitWorkingDir` | String | `$env:USERPROFILE\AI-PC-DevKit` | Target directory for downloads |
 | `MaxRetries` | Integer | `3` | Maximum retry attempts per download |
 
 #### Directory Structure After Download
 ```
-C:\Intel\
+$env:USERPROFILE\AI-PC-DevKit\
 ├── openvino_notebooks\
 ├── openvino_genai\
 └── AI-PC-Samples\

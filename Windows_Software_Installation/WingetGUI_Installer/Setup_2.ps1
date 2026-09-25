@@ -1,11 +1,21 @@
 # AI PC Dev Kit Complete Installation Script for Windows
 
 param(
-    [string]$DevKitWorkingDir = "C:\Intel",
+    [string]$DevKitWorkingDir = $(if ($env:USERPROFILE) { Join-Path $env:USERPROFILE "AI-PC-DevKit" } else { Join-Path $HOME "AI-PC-DevKit" }),
     [int]$MaxRetries = 3
 )
 
 $ErrorActionPreference = "Continue"
+
+$resolvedUserProfile = if ($env:USERPROFILE) { [System.IO.Path]::GetFullPath($env:USERPROFILE) } elseif ($HOME) { [System.IO.Path]::GetFullPath($HOME) } else { throw "USERPROFILE/HOME is not available. Unable to determine a safe install directory." }
+$resolvedDevKitWorkingDir = [System.IO.Path]::GetFullPath($DevKitWorkingDir)
+$normalizedUserProfile = $resolvedUserProfile.TrimEnd('\\')
+$normalizedDevKitWorkingDir = $resolvedDevKitWorkingDir.TrimEnd('\\')
+if ($normalizedDevKitWorkingDir -ne $normalizedUserProfile -and -not $normalizedDevKitWorkingDir.StartsWith("$normalizedUserProfile\\")) {
+    throw "DevKitWorkingDir must resolve under the current user's profile: $resolvedUserProfile. Received: $DevKitWorkingDir"
+}
+
+$DevKitWorkingDir = $resolvedDevKitWorkingDir
 
 # Ensure working directory exists
 New-Item -ItemType Directory -Path $DevKitWorkingDir -ErrorAction SilentlyContinue
@@ -833,7 +843,7 @@ if (Test-Path "AI-PC-Samples") {
 }
 
 # 5. LlamaCpp with Vulkan (Independent Installation)
-Write-Host "`nSetting up LlamaCpp with Vulkan in C:\Intel..." -ForegroundColor Cyan
+Write-Host "`nSetting up LlamaCpp with Vulkan in $DevKitWorkingDir..." -ForegroundColor Cyan
 $llamacppPath = Join-Path $DevKitWorkingDir "llama.cpp"
 if (-not (Test-Path $llamacppPath)) {
     Set-Location $DevKitWorkingDir

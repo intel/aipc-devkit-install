@@ -164,13 +164,13 @@ function Request-AdminPrivileges {
 }
 
 Set-Location -Path $PSScriptRoot # Sets the current directory to the script's location
-$logs_dir = "C:\temp\logs" # Directory for storing log files
+$logs_dir = Join-Path $env:LOCALAPPDATA "AIPC_Installer\logs" # Directory for storing log files scoped to the current user
 $json_dir = ".\JSON" # Directory for storing JSON files
 
-# Ensure C:\temp directory exists
-if (-not (Test-Path -Path "C:\temp")) {
-    New-Item -Path "C:\temp" -ItemType Directory -Force | Out-Null
-    Write-Host "Created C:\temp directory for logs" -ForegroundColor Yellow
+# Ensure the user-scoped log directory exists
+if (-not (Test-Path -Path $logs_dir)) {
+    New-Item -Path $logs_dir -ItemType Directory -Force | Out-Null
+    Write-Host "Created user-scoped log directory: $logs_dir" -ForegroundColor Yellow
 }
 
 # Source helper scripts
