@@ -1,7 +1,7 @@
 # OVMS Agentic Launcher
 
 A PowerShell script that downloads, configures, and starts OpenVINO Model Server with full
-**tool/function calling**, **reasoning parser**, and **agentic workflow** support (v2026.0).
+**tool/function calling**, **reasoning parser**, and **agentic workflow** support (v2026.2.1).
 
 ## Quick Start
 
@@ -20,6 +20,9 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 
 # Image generation on GPU
 .\ovms_agentic_setup.ps1 -Model image -Target GPU
+
+# Qwen3.6-35B-A3B on GPU (~20GB VRAM)
+.\ovms_agentic_setup.ps1 -Model qwen3-35b -Target GPU   # Qwen3.6-35B-A3B
 ```
 
 ## Features
@@ -59,6 +62,7 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 | `qwen3-coder-int4` | `OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov` | qwen3coder | ~19GB VRAM, MoE workaround |
 | `qwen3-coder-int8` | `OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int8-ov` | qwen3coder | ~34GB VRAM, MoE workaround |
 | `gpt-oss` | `OpenVINO/gpt-oss-20b-int4-ov` | gptoss | + gptoss reasoning, ~16GB VRAM |
+| `qwen3-35b` | `OpenVINO/Qwen3.6-35B-A3B-int4-ov` | qwen3coder | + qwen3 reasoning, MoE workaround, ~20GB VRAM |
 
 ## Parameters
 
@@ -103,6 +107,7 @@ Get-Help .\ovms_agentic_setup.ps1 -Detailed
 # Large models (high VRAM)
 .\ovms_agentic_setup.ps1 -Model qwen3-coder-int4 -Target GPU   # 19GB+
 .\ovms_agentic_setup.ps1 -Model qwen3-coder-int8 -Target GPU   # 34GB+
+.\ovms_agentic_setup.ps1 -Model qwen3-35b        -Target GPU   # Qwen3.6-35B-A3B (~20GB VRAM)
 
 # Pre-download then start
 .\ovms_agentic_setup.ps1 -Pull -Model qwen3-8b
@@ -261,6 +266,126 @@ else:
     print(choice.message.content)
 ```
 
+### Qwen3.6-35B-A3B Tool Calling
+
+The model runs with `--reasoning_parser qwen3`, so the API separates thinking from the final answer. The `reasoning_content` field contains the internal chain-of-thought; `content` contains the final response.
+
+#### PowerShell — tool call invoke request
+
+```powershell
+(Invoke-WebRequest -Uri "http://localhost:8000/v3/chat/completions" `
+ -Method POST `
+ -UseBasicParsing `
+ -Headers @{ "Content-Type" = "application/json" } `
+ -Body '{
+   "model": "Qwen3.6-35B-A3B",
+   "max_tokens": 512,
+   "temperature": 0,
+   "stream": false,
+   "tools": [
+     {
+       "type": "function",
+       "function": {
+         "name": "get_current_weather",
+         "description": "Get the current weather for a city",
+         "parameters": {
+           "type": "object",
+           "properties": {
+             "location": { "type": "string", "description": "City name, e.g. Berlin" },
+             "unit":     { "type": "string", "enum": ["celsius", "fahrenheit"] }
+           },
+           "required": ["location"]
+         }
+       }
+     }
+   ],
+   "messages": [
+     { "role": "system", "content": "You are a helpful assistant with access to tools." },
+     { "role": "user",   "content": "What is the weather in Tokyo right now?" }
+   ]
+ }').Content
+```
+
+#### Python — full tool-use cycle
+
+```python
+import json
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8000/v3", api_key="unused")
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_weather",
+            "description": "Get the current weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "description": "City name, e.g. Berlin"},
+                    "unit":     {"type": "string", "enum": ["celsius", "fahrenheit"]}
+                },
+                "required": ["location"]
+            }
+        }
+    }
+]
+
+messages = [
+    {"role": "system", "content": "You are a helpful assistant with access to tools."},
+    {"role": "user",   "content": "What is the weather in Tokyo right now?"}
+]
+
+# --- Round 1: model decides to call a tool ---
+response = client.chat.completions.create(
+    model="Qwen3.6-35B-A3B",
+    messages=messages,
+    tools=tools,
+    max_tokens=512,
+    temperature=0
+)
+
+choice = response.choices[0]
+
+# Qwen3.6 reasoning_parser separates chain-of-thought from the final answer
+if hasattr(choice.message, "reasoning_content") and choice.message.reasoning_content:
+    print("=== Model Reasoning ===")
+    print(choice.message.reasoning_content)
+    print()
+
+if choice.message.tool_calls:
+    tool_call = choice.message.tool_calls[0]
+    fn_name = tool_call.function.name
+    fn_args = json.loads(tool_call.function.arguments)
+    print(f"Tool called : {fn_name}")
+    print(f"Arguments   : {fn_args}")
+
+    # --- Simulate tool execution ---
+    tool_result = json.dumps({"temperature": "22°C", "condition": "Partly cloudy", "humidity": "60%"})
+
+    # --- Round 2: send tool result back to the model ---
+    messages.append(choice.message)                          # assistant turn with tool_call
+    messages.append({
+        "role":         "tool",
+        "tool_call_id": tool_call.id,
+        "content":      tool_result
+    })
+
+    final = client.chat.completions.create(
+        model="Qwen3.6-35B-A3B",
+        messages=messages,
+        tools=tools,
+        max_tokens=256,
+        temperature=0
+    )
+    print("\n=== Final Answer ===")
+    print(final.choices[0].message.content)
+else:
+    # Model answered directly without a tool call
+    print(choice.message.content)
+```
+
 ## Built-in Test Mode
 
 The `-Test` switch runs API tests against an already-running server without starting a new one:
@@ -296,6 +421,7 @@ When making API calls, use the correct model name for each model:
 | `mistral` | `OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov` |
 | `qwen3-coder-int4` / `qwen3-coder-int8` | `Qwen3-Coder-30B-A3B-Instruct` |
 | `gpt-oss` | `gpt-oss-20b` |
+| `qwen3-35b` | `Qwen3.6-35B-A3B` |
 
 > You can also override the API name at startup: `.\ovms_agentic_setup.ps1 -Model qwen3-4b -ModelName "my-model"`
 
@@ -304,7 +430,62 @@ When making API calls, use the correct model name for each model:
 - Windows PowerShell 5.1+ or PowerShell Core 7+
 - Internet connection (for OVMS and model downloads)
 - For NPU: Intel AI PC with NPU drivers
-- For large models (Qwen3-Coder, GPT-oss): 16–34GB GPU VRAM
+- For large models (Qwen3-Coder, GPT-oss, Qwen3.6-35B): 16–34GB GPU VRAM
+
+## GPU Launch Examples
+
+These examples show raw `ovms.exe` command-line invocations for running models directly on GPU.
+The script (`ovms_agentic_setup.ps1`) constructs equivalent commands automatically.
+
+### Qwen3.6-35B-A3B — GPU (recommended for large-context reasoning + tool use)
+
+```cmd
+ovms.exe --rest_port 8000 \
+  --source_model OpenVINO/Qwen3.6-35B-A3B-int4-ov \
+  --model_repository_path c:\models \
+  --reasoning_parser qwen3 \
+  --tool_parser qwen3coder \
+  --target_device GPU \
+  --task text_generation \
+  --cache_dir .cache \
+  --allowed_media_domains raw.githubusercontent.com
+```
+
+Or as a single line:
+
+```cmd
+ovms.exe --rest_port 8000 --source_model OpenVINO/Qwen3.6-35B-A3B-int4-ov --model_repository_path c:\models --reasoning_parser qwen3 --tool_parser qwen3coder --target_device GPU --task text_generation --cache_dir .cache --allowed_media_domains raw.githubusercontent.com
+```
+
+Using the script:
+
+```powershell
+.\ovms_agentic_setup.ps1 -Model qwen3-35b -Target GPU   # Qwen3.6-35B-A3B
+``` — GPU
+
+```cmd
+ovms.exe --rest_port 8000 --source_model OpenVINO/Qwen3-8B-int4-ov --model_repository_path c:\models --reasoning_parser qwen3 --tool_parser hermes3 --target_device GPU --task text_generation --cache_dir .cache --enable_prefix_caching true
+```
+
+Using the script:
+
+```powershell
+.\ovms_agentic_setup.ps1 -Model qwen3-8b -Target GPU
+```
+
+### Qwen3-Coder-30B-A3B — GPU
+
+```cmd
+ovms.exe --rest_port 8000 --source_model OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov --model_repository_path c:\models --tool_parser qwen3coder --target_device GPU --task text_generation --cache_dir .cache --enable_prefix_caching true
+```
+
+Using the script:
+
+```powershell
+.\ovms_agentic_setup.ps1 -Model qwen3-coder-int4 -Target GPU
+```
+
+> **Note**: For MoE models (`Qwen3-Coder`, `Qwen3.6-35B`), the script automatically sets `MOE_USE_MICRO_GEMM_PREFILL=0` to work around a known GPU prefill issue.
 
 ## Stop Server
 

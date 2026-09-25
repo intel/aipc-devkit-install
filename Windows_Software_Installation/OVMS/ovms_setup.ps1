@@ -1,10 +1,10 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-    Simple One-Command OVMS Script - Download and Start Models (v2026.0 Compatible)
+    Simple One-Command OVMS Script - Download and Start Models (v2026.2.1)
     
 .DESCRIPTION
-    Downloads OVMS v2026.0, downloads models, and starts the server in one command.
+    Downloads OVMS v2026.2.1, downloads models, and starts the server in one command.
     Supports GPU/CPU/NPU devices with automatic model selection and required task parameters.
     
 .PARAMETER Model
@@ -29,8 +29,12 @@
     # Starts FLUX image generation on GPU
     
 .EXAMPLE
-    .\start_ovms_simple_v2026.0.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
+    .\ovms_setup.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target CPU
     # Starts custom model on CPU
+
+.EXAMPLE
+    .\ovms_setup.ps1 -Model qwen3-35b -Target GPU
+    # Starts Qwen3.6-35B-A3B on GPU (~20GB VRAM) — basic text generation, no tool/reasoning parsers
 #>
 
 param(
@@ -46,6 +50,11 @@ function Write-Info { param([string]$Message) Write-Host "[INFO] $Message" -Fore
 function Write-Success { param([string]$Message) Write-Host "[OK] $Message" -ForegroundColor Green }
 function Write-Warning { param([string]$Message) Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Error { param([string]$Message) Write-Host "[ERROR] $Message" -ForegroundColor Red }
+
+# Model shorthands
+$ModelAliases = @{
+    "qwen3-35b" = "OpenVINO/Qwen3.6-35B-A3B-int4-ov"
+}
 
 # Default models for each device
 $DefaultModels = @{
@@ -66,12 +75,17 @@ $DefaultModels = @{
 function Get-SourceModel {
     param([string]$ModelInput, [string]$TargetDevice)
     
-    # If it's a shorthand, resolve to full model name
+    # Device-relative shorthands
     if ($ModelInput -eq "text" -or $ModelInput -eq "image") {
         return $DefaultModels[$TargetDevice][$ModelInput]
     }
+
+    # Named alias
+    if ($ModelAliases.ContainsKey($ModelInput)) {
+        return $ModelAliases[$ModelInput]
+    }
     
-    # If it's already a full model name, return as-is
+    # Full model name passed directly
     return $ModelInput
 }
 
@@ -130,8 +144,8 @@ function Initialize-OVMS {
         return $ovmsExe
     }
     
-    Write-Info "Downloading OVMS v2026.0...."
-    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.0/ovms_windows_python_on.zip"
+    Write-Info "Downloading OVMS v2026.2.1..."
+    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.2.1/ovms_windows_2026.2.1_python_on.zip"
     $ovmsZip = "ovms.zip"
     
     try {
@@ -193,30 +207,47 @@ function Start-OVMSServer {
     Write-Warning "Press Ctrl+C to stop the server"
     Write-Info ""
     
+    # MoE workaround for Qwen3.6-35B and similar models
+    $isMoE = ($SourceModel -like "*Qwen3.6-35B*")
+    if ($isMoE) {
+        Write-Warning "Applying MoE workaround: MOE_USE_MICRO_GEMM_PREFILL=0"
+        $env:MOE_USE_MICRO_GEMM_PREFILL = "0"
+    }
+
     try {
         if ($taskType -eq "image_generation") {
             Write-Info "Using image generation mode with --task image_generation..."
             & ".\ovms\ovms.exe" --rest_port $RestPort --model_repository_path "models" --task image_generation --source_model $SourceModel --target_device $TargetDevice --log_level INFO
         } else {
             Write-Info "Using text generation mode with --task text_generation..."
-            & ".\ovms\ovms.exe" --source_model $SourceModel --model_repository_path "models" --rest_port $RestPort --target_device $TargetDevice --task text_generation --cache_size 4 --log_level INFO
+            if ($isMoE) {
+                # Qwen3.6-35B: linear attention model needs cache_interval_multiplier
+                & ".\ovms\ovms.exe" --source_model $SourceModel --model_repository_path "models" --rest_port $RestPort --target_device $TargetDevice --task text_generation --cache_size 4 --cache_interval_multiplier 64 --allowed_media_domains raw.githubusercontent.com --log_level INFO
+            } else {
+                & ".\ovms\ovms.exe" --source_model $SourceModel --model_repository_path "models" --rest_port $RestPort --target_device $TargetDevice --task text_generation --cache_size 4 --log_level INFO
+            }
         }
     }
     catch {
         Write-Error "Failed to start OVMS server: $_"
         exit 1
     }
+    finally {
+        if ($isMoE) {
+            Remove-Item env:MOE_USE_MICRO_GEMM_PREFILL -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 # Main execution
-Write-Info "Simple OVMS Launcher (v2026.0 Compatible)"
-Write-Info "=========================================="
+Write-Info "Simple OVMS Launcher (v2026.2.1)"
+Write-Info "================================"
 
 # Show help if requested
 if ($Help) {
     Write-Host ""
-    Write-Host "Simple OVMS Launcher - One Command Setup (v2026.0 Compatible)" -ForegroundColor Yellow
-    Write-Host "=============================================================" -ForegroundColor Yellow
+    Write-Host "Simple OVMS Launcher - One Command Setup (v2026.2.1)" -ForegroundColor Yellow
+    Write-Host "====================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Green
     Write-Host "  .\start_ovms_simple_v2026.0.ps1 [-Model <text|image|model_name>] [-Target <GPU|CPU|NPU>] [-Port <port>]" -ForegroundColor White
@@ -227,30 +258,34 @@ if ($Help) {
     Write-Host "  -Port    : REST API port (default: 8000)" -ForegroundColor White
     Write-Host "  -Help    : Show this help message" -ForegroundColor White
     Write-Host ""
-    Write-Host "NEW IN v2026.0:" -ForegroundColor Green
-    Write-Host "  • Automatic task detection (--task text_generation or --task image_generation)" -ForegroundColor White
-    Write-Host "  • Enhanced model pattern recognition for task assignment" -ForegroundColor White
-    Write-Host "  • Required task parameters for all model types" -ForegroundColor White
+    Write-Host "MODEL SHORTHANDS:" -ForegroundColor Green
+    Write-Host "  text       - Device-default text model" -ForegroundColor White
+    Write-Host "  image      - Device-default image model" -ForegroundColor White
+    Write-Host "  qwen3-35b  - OpenVINO/Qwen3.6-35B-A3B-int4-ov (~20GB VRAM, MoE)" -ForegroundColor White
     Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Green
-    Write-Host "  .\start_ovms_simple_v2026.0.ps1" -ForegroundColor Cyan
-    Write-Host "    # Start Phi-3 text model on GPU with --task text_generation" -ForegroundColor Gray
+    Write-Host "  .\ovms_setup.ps1" -ForegroundColor Cyan
+    Write-Host "    # Start Phi-3.5 text model on GPU" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Target CPU" -ForegroundColor Cyan
-    Write-Host "    # Start Phi-3 text model on CPU with --task text_generation" -ForegroundColor Gray
+    Write-Host "  .\ovms_setup.ps1 -Target CPU" -ForegroundColor Cyan
+    Write-Host "    # Start Phi-3.5 text model on CPU" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Target NPU" -ForegroundColor Cyan
-    Write-Host "    # Start NPU-optimized Phi-3 on NPU with --task text_generation" -ForegroundColor Gray
+    Write-Host "  .\ovms_setup.ps1 -Target NPU" -ForegroundColor Cyan
+    Write-Host "    # Start NPU-optimized Phi-3.5 on NPU" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Model image" -ForegroundColor Cyan
-    Write-Host "    # Start FLUX image generation on GPU with --task image_generation" -ForegroundColor Gray
+    Write-Host "  .\ovms_setup.ps1 -Model image" -ForegroundColor Cyan
+    Write-Host "    # Start FLUX image generation on GPU" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  .\start_ovms_simple_v2026.0.ps1 -Model 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov' -Target NPU" -ForegroundColor Cyan
-    Write-Host "    # Start custom Mistral model on NPU with --task text_generation" -ForegroundColor Gray
+    Write-Host "  .\ovms_setup.ps1 -Model qwen3-35b -Target GPU" -ForegroundColor Cyan
+    Write-Host "    # Start Qwen3.6-35B-A3B on GPU (~20GB VRAM) — basic text generation" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  .\ovms_setup.ps1 -Model 'OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov' -Target NPU" -ForegroundColor Cyan
+    Write-Host "    # Start custom Mistral model on NPU" -ForegroundColor Gray
     Write-Host ""
     Write-Host "DEFAULT MODELS:" -ForegroundColor Green
     Write-Host "  Text (GPU/CPU): OpenVINO/Phi-3.5-mini-instruct-int4-ov" -ForegroundColor White
     Write-Host "  Text (NPU):     OpenVINO/Phi-3.5-mini-instruct-int4-cw-ov" -ForegroundColor White
+    Write-Host "  qwen3-35b:      OpenVINO/Qwen3.6-35B-A3B-int4-ov (MoE workaround + cache_interval_multiplier 64)" -ForegroundColor White
     Write-Host "  Image (GPU):    OpenVINO/FLUX.1-schnell-int4-ov" -ForegroundColor White
     Write-Host "  Image (CPU):    OpenVINO/stable-diffusion-v1-5-int8-ov" -ForegroundColor White
     Write-Host "  Image (NPU):    OpenVINO/FLUX.1-schnell-int8-ov" -ForegroundColor White
@@ -279,8 +314,9 @@ $sourceModel = Get-SourceModel -ModelInput $Model -TargetDevice $Target
 if (-not $sourceModel) {
     Write-Error "Invalid model/target combination"
     Write-Info "Available models:"
-    Write-Info "  text - Text generation (Phi-3.5)"
-    Write-Info "  image - Image generation (FLUX/Stable Diffusion)"
+    Write-Info "  text      - Text generation (Phi-3.5)"
+    Write-Info "  image     - Image generation (FLUX/Stable Diffusion)"
+    Write-Info "  qwen3-35b - Qwen3.6-35B-A3B text generation (~20GB VRAM)"
     Write-Info "  Or provide full OpenVINO model name"
     exit 1
 }

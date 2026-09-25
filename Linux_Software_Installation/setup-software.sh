@@ -88,7 +88,7 @@ install_vulkan_sdk(){
         tar -xJf "$SDK_ARCHIVE" -C "$SDK_DIR"
 
         if [ -x "$SDK_DIR/vulkansdk" ]; then
-            "$SDK_DIR/vulkansdk" glslang vulkan-tools --maxjobs
+            "$SDK_DIR/vulkansdk" glslang vulkan-tools shaderc spirv-headers spirv-tools --maxjobs --maxjobs
         elif [ -x "$SDK_DIR/vulkan" ]; then
             "$SDK_DIR/vulkan" glslang vulkan-tools --maxjobs
         else
