@@ -198,7 +198,7 @@ install_llamacpp(){
         cd llama.cpp
         
         # Build with Vulkan support
-        cmake -S . -B build -G Nina -DGGML_VULKAN=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON
+        cmake -S . -B build -G Ninja -DGGML_VULKAN=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON
         cmake --build build --config Release
         
         echo "$S_VALID llama.cpp native built with Vulkan support"
