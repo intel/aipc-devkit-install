@@ -21,6 +21,10 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 .\ovms_setup.ps1 -Model "OpenVINO/Mistral-7B-Instruct-v0.2-int4-cw-ov" -Target NPU
 ```
 
+## Upgrading OVMS
+
+Scripts download **OVMS 2026.4.0** on first run. If an older `ovms` folder already exists beside this script, delete it and run again to pick up the new runtime.
+
 ## Features
 
 - **One Command**: Downloads OVMS, downloads models, starts server

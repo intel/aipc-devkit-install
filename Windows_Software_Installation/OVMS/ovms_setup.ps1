@@ -1,10 +1,10 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-    Simple One-Command OVMS Script - Download and Start Models (v2026.0 Compatible)
+    Simple One-Command OVMS Script - Download and Start Models (v2026.4.0 Compatible)
     
 .DESCRIPTION
-    Downloads OVMS v2026.0, downloads models, and starts the server in one command.
+    Downloads OVMS v2026.4.0, downloads models, and starts the server in one command.
     Supports GPU/CPU/NPU devices with automatic model selection and required task parameters.
     
 .PARAMETER Model
@@ -40,6 +40,10 @@ param(
     [int]$Port = 8000,
     [switch]$Help
 )
+
+$OvmsVersion = '2026.4.0'
+$OvmsPackageBaseUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/2026.4.0/'
+$OvmsDownloadUrl = "${OvmsPackageBaseUrl}ovms_windows_${OvmsVersion}_python_on.zip"
 
 # Color output functions
 function Write-Info { param([string]$Message) Write-Host "[INFO] $Message" -ForegroundColor Cyan }
@@ -101,6 +105,22 @@ function Get-ModelTask {
     return "text_generation"
 }
 
+function Initialize-OvmsSessionEnvironment {
+    $setupVars = Join-Path "ovms" "setupvars.ps1"
+    if (-not (Test-Path $setupVars)) {
+        Write-Warning "setupvars.ps1 not found; ovms.exe may fail with exit code -1073741515 (missing DLLs)"
+        return
+    }
+    Write-Info "Initializing OpenVINO Model Server environment (current session)..."
+    try {
+        . $setupVars
+        Write-Success "OpenVINO Model Server environment loaded for this session"
+    }
+    catch {
+        Write-Warning "setupvars.ps1 failed: $_"
+    }
+}
+
 function Initialize-OVMS {
     Write-Info "Setting up OVMS..."
     
@@ -109,29 +129,12 @@ function Initialize-OVMS {
     
     if (Test-Path $ovmsExe) {
         Write-Success "OVMS already available"
-        
-        # Always run setupvars to ensure environment is properly initialized
-        $setupVars = Join-Path $ovmsDir "setupvars.ps1"
-        if (Test-Path $setupVars) {
-            Write-Info "Initializing OpenVINO Model Server environment..."
-            try {
-                $setupOutput = & $setupVars 2>&1
-                if ($setupOutput -like "*Environment Initialized*") {
-                    Write-Success "OpenVINO Model Server Environment Initialized"
-                } else {
-                    Write-Info "Environment setup completed"
-                }
-            }
-            catch {
-                Write-Warning "Environment setup had issues, but continuing..."
-            }
-        }
-        
+        Initialize-OvmsSessionEnvironment
         return $ovmsExe
     }
     
-    Write-Info "Downloading OVMS v2026.0...."
-    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.0/ovms_windows_python_on.zip"
+    Write-Info "Downloading OVMS v$OvmsVersion..."
+    $ovmsUrl = $OvmsDownloadUrl
     $ovmsZip = "ovms.zip"
     
     try {
@@ -142,23 +145,7 @@ function Initialize-OVMS {
         if (Test-Path $ovmsExe) {
             Write-Success "OVMS downloaded and extracted"
             
-            # Run setupvars to initialize environment
-            $setupVars = Join-Path $ovmsDir "setupvars.ps1"
-            if (Test-Path $setupVars) {
-                Write-Info "Initializing OpenVINO Model Server environment..."
-                try {
-                    $setupOutput = & $setupVars 2>&1
-                    if ($setupOutput -like "*Environment Initialized*") {
-                        Write-Success "OpenVINO Model Server Environment Initialized"
-                    } else {
-                        Write-Info "Environment setup completed"
-                    }
-                }
-                catch {
-                    Write-Warning "Environment setup had issues, but continuing..."
-                }
-            }
-            
+            Initialize-OvmsSessionEnvironment
             return $ovmsExe
         } else {
             throw "OVMS extraction failed"
@@ -188,6 +175,8 @@ function Start-OVMSServer {
     # Determine the task type for the model
     $taskType = Get-ModelTask -SourceModel $SourceModel
     
+    Initialize-OvmsSessionEnvironment
+
     Write-Info "Detected task type: $taskType"
     Write-Info "Starting server (model will download automatically if not cached)..."
     Write-Warning "Press Ctrl+C to stop the server"
@@ -209,13 +198,13 @@ function Start-OVMSServer {
 }
 
 # Main execution
-Write-Info "Simple OVMS Launcher (v2026.0 Compatible)"
+Write-Info "Simple OVMS Launcher (v$OvmsVersion Compatible)"
 Write-Info "=========================================="
 
 # Show help if requested
 if ($Help) {
     Write-Host ""
-    Write-Host "Simple OVMS Launcher - One Command Setup (v2026.0 Compatible)" -ForegroundColor Yellow
+    Write-Host "Simple OVMS Launcher - One Command Setup (v$OvmsVersion Compatible)" -ForegroundColor Yellow
     Write-Host "=============================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Green

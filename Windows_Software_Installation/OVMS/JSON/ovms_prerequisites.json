@@ -1,0 +1,37 @@
+{
+  "description": "Minimal winget packages for OVMS launcher scripts (not full Dev Kit Setup_1).",
+  "global_install_flags": "--silent --accept-package-agreements --accept-source-agreements --disable-interactivity",
+  "winget_applications": [
+    {
+      "id": "Microsoft.VCRedist.2015+.x64",
+      "friendly_name": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "summary": "Required runtime for ovms.exe (avoids exit code -1073741515 / missing DLLs)",
+      "skip_install": "no"
+    },
+    {
+      "id": "Microsoft.AppInstaller",
+      "friendly_name": "App Installer (winget)",
+      "summary": "Windows Package Manager — only if winget is missing",
+      "skip_install": "no",
+      "install_only_if_winget_missing": true
+    },
+    {
+      "id": "Git.Git",
+      "friendly_name": "Git for Windows",
+      "summary": "Git CLI (winget install --id Git.Git -e --source winget)",
+      "override_flags": "-e --source winget",
+      "skip_install": "no"
+    }
+  ],
+  "optional_winget_by_target": {
+    "NPU": [
+      {
+        "id": "Intel.IntelDriverAndSupportAssistant",
+        "friendly_name": "Intel Driver & Support Assistant",
+        "summary": "Helps install current Intel GPU/NPU drivers; NPU inference still requires platform drivers from Intel/OEM",
+        "skip_install": "yes",
+        "note": "Set skip_install to no to offer DSA via winget; drivers may still need manual install or reboot"
+      }
+    ]
+  }
+}

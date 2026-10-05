@@ -1,10 +1,10 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-    AI PC Dev Kit OVMS Agentic Launcher - Tool-Calling & Reasoning Support (v2026.0)
+    AI PC Dev Kit OVMS Agentic Launcher - Tool-Calling & Reasoning Support (v2026.4.0)
 
 .DESCRIPTION
-    Downloads OVMS v2026.0, configures models with tool/function calling and reasoning
+    Downloads OVMS v2026.4.0, configures models with tool/function calling and reasoning
     parser support, and starts the server in one command.
     Supports GPU/CPU/NPU with automatic tool_parser, reasoning_parser, and
     device-optimized model selection.
@@ -16,6 +16,7 @@
       text             - Device-default text model
       image            - Device-default image model
       qwen3-8b         - OpenVINO/Qwen3-8B-int4-ov (GPU/CPU) or -cw-ov (NPU)
+      qwen3.8-27b      - OpenVINO/Qwen3.8-27B-int4-ov (large; GPU recommended)
       qwen3-4b         - OpenVINO/Qwen3-4B-int4-ov
       phi4             - OpenVINO/Phi-4-mini-instruct-int4-ov
       mistral          - OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov
@@ -68,6 +69,10 @@
 .EXAMPLE
     .\ovms_agentic_setup.ps1 -Pull -Model qwen3-8b
     # Pre-download Qwen3-8B then start server on GPU
+
+.EXAMPLE
+    .\ovms_agentic_setup.ps1 -Pull -Model qwen3.8-27b -Target GPU
+    # Pre-download Qwen3.8-27B int4 on GPU (large VRAM; see -Help warnings)
 #>
 
 param(
@@ -83,6 +88,10 @@ param(
     [switch]$Help
 )
 
+$OvmsVersion = '2026.4.0'
+$OvmsPackageBaseUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/2026.4.0/'
+$OvmsDownloadUrl = "${OvmsPackageBaseUrl}ovms_windows_${OvmsVersion}_python_on.zip"
+
 # Color output functions
 function Write-Info    { param([string]$Message) Write-Host "[INFO] $Message"  -ForegroundColor Cyan }
 function Write-Success { param([string]$Message) Write-Host "[OK] $Message"    -ForegroundColor Green }
@@ -94,6 +103,7 @@ function Write-Error   { param([string]$Message) Write-Host "[ERROR] $Message" -
 # ------------------------------------------------------------------------------
 $ModelAliases = @{
     "qwen3-8b"          = "OpenVINO/Qwen3-8B-int4-ov"
+    "qwen3.8-27b"       = "OpenVINO/Qwen3.8-27B-int4-ov"
     "qwen3-4b"          = "OpenVINO/Qwen3-4B-int4-ov"
     "phi4"              = "OpenVINO/Phi-4-mini-instruct-int4-ov"
     "mistral"           = "OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov"
@@ -180,6 +190,11 @@ function Get-ModelConfig {
         $config.MoEWorkaround = $true
         $config.ModelName     = "Qwen3-Coder-30B-A3B-Instruct"
     }
+    elseif ($SourceModel -like "*Qwen3.8-27B*") {
+        $config.ToolParser      = "hermes3"
+        $config.ReasoningParser = "qwen3"
+        $config.ModelName       = "Qwen3.8-27B"
+    }
     elseif ($SourceModel -like "OpenVINO/Qwen3-8B*") {
         $config.ToolParser = "hermes3"
         $config.ModelName  = "Qwen3-8B"
@@ -212,6 +227,26 @@ function Get-ModelConfig {
         $config.ChatTemplateUrl = "https://raw.githubusercontent.com/vllm-project/vllm/refs/tags/v0.10.1.1/examples/tool_chat_template_mistral_parallel.jinja"
     }
     return $config
+}
+
+function Write-Qwen38LargeModelWarnings {
+    param(
+        [string]$SourceModel,
+        [string]$TargetDevice
+    )
+
+    if ($SourceModel -notlike "*Qwen3.8-27B*") {
+        return
+    }
+
+    Write-Warning "Qwen3.8-27B (int4) needs a large GPU VRAM budget; use -Target GPU and -Pull on first run."
+    Write-Warning "Some systems report load or inference failures with this model export; see OpenVINO Model Server release notes if that happens."
+    if ($TargetDevice -eq "NPU") {
+        Write-Warning "Qwen3.8-27B is not NPU-optimized; prefer GPU for this model."
+    }
+    if ($TargetDevice -eq "CPU") {
+        Write-Warning "Qwen3.8-27B on CPU may be very slow and memory-heavy."
+    }
 }
 
 # ------------------------------------------------------------------------------
@@ -468,6 +503,7 @@ function Invoke-ModelPull {
         [string]$RepoPath
     )
 
+    Initialize-OvmsSessionEnvironment
     Write-Info "Pre-downloading model: $SourceModel..."
     & ".\ovms\ovms.exe" --pull --model_repository_path $RepoPath --source_model $SourceModel --task text_generation
 
@@ -475,6 +511,25 @@ function Invoke-ModelPull {
         Write-Success "Model downloaded: $SourceModel"
     } else {
         Write-Warning "Model pull finished with exit code $LASTEXITCODE"
+    }
+}
+
+# ------------------------------------------------------------------------------
+# Load OVMS DLL paths into this PowerShell session (required before ovms.exe)
+# ------------------------------------------------------------------------------
+function Initialize-OvmsSessionEnvironment {
+    $setupVars = Join-Path "ovms" "setupvars.ps1"
+    if (-not (Test-Path $setupVars)) {
+        Write-Warning "setupvars.ps1 not found; ovms.exe may fail with exit code -1073741515 (missing DLLs)"
+        return
+    }
+    Write-Info "Initializing OpenVINO Model Server environment (current session)..."
+    try {
+        . $setupVars
+        Write-Success "OpenVINO Model Server environment loaded for this session"
+    }
+    catch {
+        Write-Warning "setupvars.ps1 failed: $_"
     }
 }
 
@@ -490,27 +545,12 @@ function Initialize-OVMS {
     if (Test-Path $ovmsExe) {
         Write-Success "OVMS already available"
 
-        $setupVars = Join-Path $ovmsDir "setupvars.ps1"
-        if (Test-Path $setupVars) {
-            Write-Info "Initializing OpenVINO Model Server environment..."
-            try {
-                $setupOutput = & $setupVars 2>&1
-                if ($setupOutput -like "*Environment Initialized*") {
-                    Write-Success "OpenVINO Model Server Environment Initialized"
-                } else {
-                    Write-Info "Environment setup completed"
-                }
-            }
-            catch {
-                Write-Warning "Environment setup had issues, but continuing..."
-            }
-        }
-
+        Initialize-OvmsSessionEnvironment
         return $ovmsExe
     }
 
-    Write-Info "Downloading OVMS v2026.0..."
-    $ovmsUrl = "https://github.com/openvinotoolkit/model_server/releases/download/v2026.0/ovms_windows_python_on.zip"
+    Write-Info "Downloading OVMS v$OvmsVersion..."
+    $ovmsUrl = $OvmsDownloadUrl
     $ovmsZip = "ovms.zip"
 
     try {
@@ -521,22 +561,7 @@ function Initialize-OVMS {
         if (Test-Path $ovmsExe) {
             Write-Success "OVMS downloaded and extracted"
 
-            $setupVars = Join-Path $ovmsDir "setupvars.ps1"
-            if (Test-Path $setupVars) {
-                Write-Info "Initializing OpenVINO Model Server environment..."
-                try {
-                    $setupOutput = & $setupVars 2>&1
-                    if ($setupOutput -like "*Environment Initialized*") {
-                        Write-Success "OpenVINO Model Server Environment Initialized"
-                    } else {
-                        Write-Info "Environment setup completed"
-                    }
-                }
-                catch {
-                    Write-Warning "Environment setup had issues, but continuing..."
-                }
-            }
-
+            Initialize-OvmsSessionEnvironment
             return $ovmsExe
         } else {
             throw "OVMS extraction failed"
@@ -578,6 +603,8 @@ function Start-OVMSServer {
     if ($effectiveModelName)          { Write-Info "  Model Name (API): $effectiveModelName" }
     Write-Success "API will be available at: http://localhost:$RestPort/v3"
     Write-Info ""
+
+    Initialize-OvmsSessionEnvironment
 
     # Apply MoE env var workaround for Qwen3-Coder and similar MoE models
     if ($modelConfig.MoEWorkaround) {
@@ -669,13 +696,13 @@ function Start-OVMSServer {
 # ==============================================================================
 # Main execution
 # ==============================================================================
-Write-Info "AI PC Dev Kit OVMS Agentic Launcher (v2026.0)"
+Write-Info "AI PC Dev Kit OVMS Agentic Launcher (v$OvmsVersion)"
 Write-Info "==============================================="
 
 # Show help if requested
 if ($Help) {
     Write-Host ""
-    Write-Host "AI PC Dev Kit OVMS Agentic Launcher (v2026.0)" -ForegroundColor Yellow
+    Write-Host "AI PC Dev Kit OVMS Agentic Launcher (v$OvmsVersion)" -ForegroundColor Yellow
     Write-Host "===============================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Green
@@ -709,6 +736,7 @@ if ($Help) {
     Write-Host "  text             Device-default text model" -ForegroundColor White
     Write-Host "  image            Device-default image model" -ForegroundColor White
     Write-Host "  qwen3-8b         OpenVINO/Qwen3-8B-int4-ov (GPU/CPU) | -cw-ov (NPU)" -ForegroundColor White
+    Write-Host "  qwen3.8-27b      OpenVINO/Qwen3.8-27B-int4-ov (large; GPU recommended; warnings at startup)" -ForegroundColor White
     Write-Host "  qwen3-4b         OpenVINO/Qwen3-4B-int4-ov" -ForegroundColor White
     Write-Host "  phi4             OpenVINO/Phi-4-mini-instruct-int4-ov" -ForegroundColor White
     Write-Host "  mistral          OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov" -ForegroundColor White
@@ -725,7 +753,7 @@ if ($Help) {
     Write-Host "  NPU  image: OpenVINO/FLUX.1-schnell-int8-ov" -ForegroundColor White
     Write-Host ""
     Write-Host "TOOL PARSERS (auto-detected per model):" -ForegroundColor Green
-    Write-Host "  hermes3    Qwen3-8B (+ qwen3 reasoning parser on GPU/CPU)" -ForegroundColor White
+    Write-Host "  hermes3    Qwen3-8B, Qwen3.8-27B (+ qwen3 reasoning parser on GPU/CPU)" -ForegroundColor White
     Write-Host "  hermes3    Qwen3-4B, Qwen/Qwen3-*" -ForegroundColor White
     Write-Host "  qwen3coder Qwen3-Coder (+ MoE env var workaround)" -ForegroundColor White
     Write-Host "  phi4       Phi-4-mini, Phi-3.5 models" -ForegroundColor White
@@ -754,6 +782,9 @@ if ($Help) {
     Write-Host ""
     Write-Host "  .\ovms_agentic_setup.ps1 -Pull -Model qwen3-8b" -ForegroundColor Cyan
     Write-Host "    # Pre-download Qwen3-8B then start server" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  .\ovms_agentic_setup.ps1 -Pull -Model qwen3.8-27b -Target GPU" -ForegroundColor Cyan
+    Write-Host "    # Qwen3.8-27B int4 on GPU (large VRAM; startup warnings)" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  .\ovms_agentic_setup.ps1 -Model 'OpenVINO/Qwen3-8B-int4-ov' -Target GPU -Port 9000" -ForegroundColor Cyan
     Write-Host "    # Full model ID with custom port" -ForegroundColor Gray
@@ -792,6 +823,8 @@ if (-not $sourceModel) {
     Write-Info "Run .\ovms_agentic_setup.ps1 -Help to see available models"
     exit 1
 }
+
+Write-Qwen38LargeModelWarnings -SourceModel $sourceModel -TargetDevice $Target
 
 # Pre-download model if -Pull was specified
 if ($Pull) {
