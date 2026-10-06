@@ -1,7 +1,7 @@
 # OVMS Agentic Launcher
 
 A PowerShell script that downloads, configures, and starts OpenVINO Model Server with full
-**tool/function calling**, **reasoning parser**, and **agentic workflow** support (v2026.0).
+**tool/function calling**, **reasoning parser**, and **agentic workflow** support (v2026.4.0).
 
 ## Quick Start
 
@@ -20,7 +20,28 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 
 # Image generation on GPU
 .\ovms_agentic_setup.ps1 -Model image -Target GPU
+
+# Qwen3.8-27B int4 on GPU (opt-in; large VRAM — see warnings at startup)
+.\ovms_agentic_setup.ps1 -Pull -Model qwen3.8-27b -Target GPU
 ```
+
+## Upgrading OVMS
+
+If you previously downloaded an older OVMS bundle (for example v2026.0), delete the `ovms` folder next to these scripts and run again so the script can fetch **OVMS 2026.4.0** from [OpenVINO storage](https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/2026.4.0/).
+
+## Minimal prerequisites (without full Dev Kit Setup_1 / Setup_2)
+
+Use **`Setup_OVMS_Prerequisites.ps1`** when you only need OVMS, not Visual Studio, Python, or OpenVINO GenAI from Setup_2.
+
+```powershell
+# Elevated PowerShell — installs VC++ x64, Git.Git, and winget if missing
+.\Setup_OVMS_Prerequisites.ps1
+
+# Checks only
+.\Setup_OVMS_Prerequisites.ps1 -VerifyOnly -Target GPU
+```
+
+Package list: `JSON\ovms_prerequisites.json`. Then run `ovms_agentic_setup.ps1` as a **standard user**.
 
 ## Features
 
@@ -53,6 +74,7 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 | Shorthand | Model | Tool Parser | Notes |
 |-----------|-------|-------------|-------|
 | `qwen3-8b` | `OpenVINO/Qwen3-8B-int4-ov` | hermes3 | + qwen3 reasoning (GPU/CPU) |
+| `qwen3.8-27b` | `OpenVINO/Qwen3.8-27B-int4-ov` | hermes3 | + qwen3 reasoning; large GPU VRAM; startup warnings |
 | `qwen3-4b` | `OpenVINO/Qwen3-4B-int4-ov` | hermes3 | |
 | `phi4` | `OpenVINO/Phi-4-mini-instruct-int4-ov` | phi4 | + chat_template auto-download |
 | `mistral` | `OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov` | mistral | + chat_template auto-download |
@@ -101,6 +123,7 @@ Get-Help .\ovms_agentic_setup.ps1 -Detailed
 .\ovms_agentic_setup.ps1 -Model qwen3-8b -Target NPU
 
 # Large models (high VRAM)
+.\ovms_agentic_setup.ps1 -Pull -Model qwen3.8-27b -Target GPU   # Qwen3.8-27B int4; see startup warnings
 .\ovms_agentic_setup.ps1 -Model qwen3-coder-int4 -Target GPU   # 19GB+
 .\ovms_agentic_setup.ps1 -Model qwen3-coder-int8 -Target GPU   # 34GB+
 
@@ -291,6 +314,7 @@ When making API calls, use the correct model name for each model:
 | Shorthand | API Model Name |
 |-----------|---------------|
 | `qwen3-8b` (default) | `Qwen3-8B` |
+| `qwen3.8-27b` | `Qwen3.8-27B` |
 | `qwen3-4b` | `OpenVINO/Qwen3-4B-int4-ov` |
 | `phi4` | `OpenVINO/Phi-4-mini-instruct-int4-ov` |
 | `mistral` | `OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov` |
@@ -304,7 +328,7 @@ When making API calls, use the correct model name for each model:
 - Windows PowerShell 5.1+ or PowerShell Core 7+
 - Internet connection (for OVMS and model downloads)
 - For NPU: Intel AI PC with NPU drivers
-- For large models (Qwen3-Coder, GPT-oss): 16–34GB GPU VRAM
+- For large models (Qwen3.8-27B, Qwen3-Coder, GPT-oss): substantial GPU VRAM; Qwen3.8-27B shows warnings at startup
 
 ## Stop Server
 
