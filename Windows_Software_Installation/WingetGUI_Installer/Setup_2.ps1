@@ -11,7 +11,8 @@ $resolvedUserProfile = if ($env:USERPROFILE) { [System.IO.Path]::GetFullPath($en
 $resolvedDevKitWorkingDir = [System.IO.Path]::GetFullPath($DevKitWorkingDir)
 $normalizedUserProfile = $resolvedUserProfile.TrimEnd('\\')
 $normalizedDevKitWorkingDir = $resolvedDevKitWorkingDir.TrimEnd('\\')
-if ($normalizedDevKitWorkingDir -ne $normalizedUserProfile -and -not $normalizedDevKitWorkingDir.StartsWith("$normalizedUserProfile\\")) {
+$profileDirectoryPrefix = $normalizedUserProfile + [System.IO.Path]::DirectorySeparatorChar
+if ($normalizedDevKitWorkingDir -ne $normalizedUserProfile -and -not $normalizedDevKitWorkingDir.StartsWith($profileDirectoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "DevKitWorkingDir must resolve under the current user's profile: $resolvedUserProfile. Received: $DevKitWorkingDir"
 }
 
