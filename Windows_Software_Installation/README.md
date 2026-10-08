@@ -158,6 +158,8 @@ powershell.exe -ExecutionPolicy RemoteSigned -File ".\Setup_1.ps1" install
 | `MaxRetries` | Integer | `3` | Maximum retry attempts per download |
 
 #### Directory Structure After Download
+OpenVINO GenAI is extracted to `$env:USERPROFILE\AI-PC-DevKit\openvino_genai` by default.
+
 ```
 $env:USERPROFILE\AI-PC-DevKit\
 ├── openvino_notebooks\
