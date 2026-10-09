@@ -359,7 +359,7 @@ show_current_patterns() {
     echo "  - linux-npu-driver.*ubuntu2404.tar.gz (contains individual .deb packages)"
     echo
     echo "Level Zero patterns:"
-    echo "  - level-zero_.*u24.04.*amd64.deb"
+    echo "  - libze1_.*u24.04_amd64.deb"
     echo
 }
 
@@ -481,7 +481,7 @@ collect_asset_urls() {
             echo "  ✓ npu-tarball : $(basename ${ASSET_URLS[npu-tarball]})"
             ;;
         "oneapi-src/level-zero")
-            ASSET_URLS["level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("level-zero_.*u24\\.04.*amd64\\.deb")) | .browser_download_url' | head -1)
+            ASSET_URLS["level-zero"]=$(echo "$response" | jq -r '.assets[] | select(.name | test("^libze1_.*u24\\.04_amd64\\.deb$")) | .browser_download_url' | head -1)
 
             # Validate required asset was found
             if [ -z "${ASSET_URLS[level-zero]}" ] || [ "${ASSET_URLS[level-zero]}" = "null" ]; then
@@ -629,7 +629,8 @@ verify_igpu_driver(){
         fi
 
         # Get the native user who invoked sudo
-        NATIVE_USER="$(logname)"
+        NATIVE_USER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+    [ -n "$NATIVE_USER" ] || NATIVE_USER="$(id -un)"
         
         if ! id -nG "$NATIVE_USER" | grep -q -w '\<video\>'; then
             echo "Adding native user ($NATIVE_USER) to 'video' group"
@@ -779,7 +780,7 @@ verify_compute_runtime(){
     echo -e "Verify sha256 sums for packages (if available)"
     if [ -n "$ASSET_URL_CHECKSUM" ]; then
         wget "$ASSET_URL_CHECKSUM" || { echo "WARNING: Failed to download checksum file"; }
-        if [ -f "*.sum" ]; then
+        if compgen -G "*.sum" > /dev/null; then
             # Only verify checksums for files that actually exist
             for file in *.deb *.ddeb; do
                 if [ -f "$file" ] && grep -q "$file" *.sum 2>/dev/null; then
@@ -852,9 +853,9 @@ verify_npu_driver(){
         
         # Install NPU packages (the .deb files are now extracted)
         echo "Installing NPU packages..."
-        dpkg -i intel-driver-compiler-npu_*.deb intel-fw-npu_*.deb intel-level-zero-npu_*.deb level-zero_*.deb 2>/dev/null || {
+        dpkg -i intel-driver-compiler-npu_*.deb intel-fw-npu_*.deb intel-level-zero-npu_*.deb libze1_*.deb 2>/dev/null || {
             echo "Installation failed, attempting with --force-depends..."
-            dpkg -i --force-depends intel-driver-compiler-npu_*.deb intel-fw-npu_*.deb intel-level-zero-npu_*.deb level-zero_*.deb
+            dpkg -i --force-depends intel-driver-compiler-npu_*.deb intel-fw-npu_*.deb intel-level-zero-npu_*.deb libze1_*.deb
         }
                                                                                                                                                                                              
         cd ..
@@ -886,11 +887,22 @@ verify_drivers(){
 
     verify_npu_driver
     
-    NPU_DRIVER_VERSION="$(sudo dmesg | grep vpu | awk 'NR==3{ print; }' | awk -F " " '{print $5" "$6" "$7}' 2>/dev/null || echo 'Not detected')"
-    if [ "$NPU_DRIVER_VERSION" = "Not detected" ]; then
-        echo "Warning: NPU driver not detected in dmesg"
+    # Keep NPU_DRIVER_VERSION as the selected package/release version.
+    # Runtime detection is tracked separately.
+    local NPU_RUNTIME_STATUS="Not detected"
+
+    if [ -e /dev/accel/accel0 ]; then
+        NPU_RUNTIME_STATUS="Detected (/dev/accel/accel0)"
+    elif lsmod | grep -qE '^(intel_vpu|intel_npu)\b'; then
+        NPU_RUNTIME_STATUS="NPU kernel module loaded"
+    elif dmesg 2>/dev/null | grep -qiE 'intel_vpu|intel_npu|vpu'; then
+        NPU_RUNTIME_STATUS="Detected in kernel log"
+    fi
+
+    if [ "$NPU_RUNTIME_STATUS" = "Not detected" ]; then
+        echo "Warning: NPU runtime not detected (a reboot may be required)"
     else
-        echo "$S_VALID Intel NPU Drivers: $NPU_DRIVER_VERSION"
+        echo "$S_VALID Intel NPU Driver $NPU_DRIVER_VERSION: $NPU_RUNTIME_STATUS"
     fi
 }
 
@@ -927,7 +939,7 @@ show_installation_summary(){
     echo "└─ intel-level-zero-npu (version: $(dpkg-query -W -f='${Version}' intel-level-zero-npu 2>/dev/null || echo 'not installed'))"
     echo
     echo "Level Zero Package:"
-    echo "└─ level-zero (version: $(dpkg-query -W -f='${Version}' level-zero 2>/dev/null || echo 'not installed'))"
+    echo "└─ level-zero (version: $(dpkg-query -W -f='${Version}' libze1 2>/dev/null || echo 'not installed'))"
     echo
     
     echo "💻 HARDWARE STATUS:"
@@ -945,9 +957,16 @@ show_installation_summary(){
         echo "├─ ⚠️  GPU Driver: Not detected (may need reboot)"
     fi
     
-    local npu_driver_info="$(dmesg | grep -i vpu | tail -1 | grep -o 'driver.*' 2>/dev/null || echo 'Not detected')"
+    local npu_driver_info="Not detected"
+    if [ -e /dev/accel/accel0 ]; then
+        npu_driver_info="Loaded (/dev/accel/accel0)"
+    elif lsmod | grep -q '^(intel_vpu|intel_npu)\b'; then
+        npu_driver_info="Loaded (intel_vpu module)"
+    elif dmesg 2>/dev/null | grep -qiE 'intel_vpu|intel_npu|vpu'; then
+        npu_driver_info="Detected in kernel log"
+    fi
     if [ "$npu_driver_info" != "Not detected" ]; then
-        echo "└─ ✅ NPU Driver: Loaded"
+        echo "└─ ✅ NPU Driver: $npu_driver_info"
     else
         echo "└─ ⚠️  NPU Driver: Not detected (may need reboot)"
     fi
@@ -1387,7 +1406,11 @@ COMPATIBILITY_WARNING="false"
 
 echo "=== Driver Version Verification ==="
 echo "GitHub API token: ${GITHUB_TOKEN:+configured}"
-echo "Mode: ${BUILD_STATIC:+Static script generation}${BUILD_STATIC:-Verification only}"
+if [ "$BUILD_STATIC" = "true" ]; then
+    echo "Mode: Static script generation"
+else
+    echo "Mode: Verification only"
+fi
 echo
 
 if [ "$BUILD_STATIC" = "true" ]; then
