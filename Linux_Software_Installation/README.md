@@ -6,24 +6,20 @@ Complete guide for setting up Intel AI PC development on Linux, including driver
 
 ## Quick Start
 
-For a first-time Linux driver setup, run:
+For a first-time Linux driver setup on Ubuntu 24.04 or 26.04, run:
 
 ```bash
 # From the repository root
 cd Linux_Software_Installation
 
-# Generate the static driver installer
+# Behind a corporate proxy, export it first (example)
+# export http_proxy=http://proxy.example.com:912 https_proxy=$http_proxy
+
+# Generate the driver installer for this Ubuntu release
 ./build-static-installer.sh --build-static
 
-# Install the drivers
-sudo ./setup-static-drivers.sh
-```
-
-Optional, if you want higher GitHub API limits:
-
-```bash
-export GITHUB_TOKEN=your_token_here
-bash build-static-installer.sh --build-static
+# Install the drivers (-E keeps proxy settings for apt/curl)
+sudo -E ./setup-static-drivers.sh
 ```
 
 After the driver installation completes, reboot the machine before running `setup-software.sh`.
@@ -38,205 +34,164 @@ After the driver installation completes, reboot the machine before running `setu
 
 ### Overview
 
-This directory contains scripts to set up Intel GPU and NPU drivers on Ubuntu 24.04 for AI PC platforms. The setup builds an installation script that represents the latest versions of the drivers that work together.
+The driver setup supports **Ubuntu 24.04 (noble)** and **Ubuntu 26.04 (resolute)** and uses the same flow on both:
+
+- **GPU drivers** come from the Intel Graphics PPA (`ppa:kobuk-team/intel-graphics`), following Intel's guide: [Installing packages from the Intel PPA](https://dgpu-docs.intel.com/installation-guides/installing-packages-from-the-intel-ppa.html).
+- **NPU driver** comes from the latest [intel/linux-npu-driver](https://github.com/intel/linux-npu-driver/releases) release tarball for the matching Ubuntu release (`ubuntu2404` or `ubuntu2604`). The NPU packages use the `libze1` Level Zero loader from the PPA.
 
 **Available Scripts:**
-- **`build-static-installer.sh`**: ⭐ Static installer builder (no GitHub token required)
-- **`setup-static-drivers.sh`**: Generated static driver installation script (no API dependencies)
-- **`Utilities/verify_connectivity.sh`**: Diagnostic tools for troubleshooting GitHub API connectivity issues
+- **`build-static-installer.sh`**: Builder. Detects the Ubuntu release, checks that the PPA is reachable, resolves the latest NPU driver release and its SHA256, and generates `setup-static-drivers.sh`.
+- **`setup-static-drivers.sh`**: Generated installer (run as root). Pins the NPU release the builder found.
+- **`Utilities/verify_connectivity.sh`**: Read-only check that the PPA, Launchpad, and GitHub are reachable (through your proxy, if set).
 
-### Features (`build-static-installer.sh`)
+### What `setup-static-drivers.sh` does
 
-The builder provides intelligent setup with guided output:
+1. Checks it runs as root on the Ubuntu release it was generated for, and uses proxy settings provided at run time. It does not embed a build-machine proxy address.
+2. On 24.04, warns if the HWE kernel is missing. Intel requires it for Lunar Lake, Battlemage and Panther Lake; install with `sudo apt-get install -y --install-recommends linux-generic-hwe-24.04` and reboot. The script never changes kernels.
+3. Removes conflicts from the previous GitHub-based flow: the legacy `repositories.intel.com` apt source, and the `level-zero`, `level-zero-devel` and `intel-level-zero-gpu` packages (they conflict with the PPA `libze1`).
+4. Adds `ppa:kobuk-team/intel-graphics` and installs:
+   - Compute: `libze-intel-gpu1 libze1 intel-metrics-discovery intel-opencl-icd clinfo intel-gsc`
+   - Media: `intel-media-va-driver-non-free libmfx-gen1.2 libvpl2 libvpl-tools libva-glx2 va-driver-all vainfo`
+   - Development: `libze-dev intel-ocloc`
 
-**Version Detection:**
-- **Ubuntu 24.04.X**: Automatically builds driver installation as needed
-- **Ubuntu 26.04.X**: Skips driver installation (all drivers pre-included), directs to `setup-software.sh`
-- **Ubuntu 26.04.X Note**: `setup-software.sh` also installs `intel-opencl-icd` and ensures the current user is added to the `render` and `video` groups.
-- **Other versions**: Shows warning but allows proceeding at user's risk
+   GPU packages that were previously installed from GitHub `.deb` files are moved to the PPA versions (`--allow-downgrades`).
+5. Downloads the NPU tarball, requires and verifies its SHA256 before changing NPU packages, installs its `.deb` files with `apt-get` (including `intel-fw-npu`, `intel-level-zero-npu` and `intel-driver-compiler-npu`) so dependencies are resolved in one step, and adds the `/dev/accel` udev rule. If the release has no SHA256, the builder stops rather than generating an unchecked installer.
+6. Adds the user to the `video` and `render` groups.
 
-**User-Friendly Interface:**
-- If `setup-static-drivers.sh` does not exist and you run without `--build-static`, the script shows a **first-time setup banner** with exact next commands
-- Use `--help` flag to see comprehensive usage documentation
-- The script checks required dependencies (`curl`, `jq`) and installs missing ones automatically using `sudo apt install`
-- Build mode output now includes clearer progress logs (step counters and matched asset filenames)
+**Reboot afterwards.**
 
-> **Note:** Even though a GitHub token is optional, you may still be prompted for your sudo password on first run if `curl`/`jq` need installation.
+### Builder Features (`build-static-installer.sh`)
+
+- **Version detection**: Ubuntu 24.04 and 26.04 are supported; other releases stop with an error.
+- **Dependencies**: Installs missing `curl`/`jq` with `sudo -E apt-get` (you may be prompted for your sudo password).
+- **Proxy-aware**: Uses `http_proxy`/`https_proxy` (reuses `http_proxy` for HTTPS if only that is set). It does not print or embed proxy addresses in the generated script.
+- **Rate-limit tolerant**: Uses the GitHub API (optionally with `GITHUB_TOKEN`), and falls back to the github.com release page when the API is rate limited (common behind shared corporate egress IPs).
+- **Safe generation**: The generated script is syntax-checked before it replaces the previous one.
+- Run without arguments to see the status, or with `--help` for usage.
 
 ### Driver Installation Steps
 
-#### Step 1: Build and Run Static Installer ⭐
-
-**No GitHub token required** 
-
 ```bash
-# Navigate to the Linux Software Installation directory
 cd Linux_Software_Installation
 
-# Step 1: Build static installer with compatibility checking
+# Optional: confirm the driver sources are reachable
+./Utilities/verify_connectivity.sh
+
+# Step 1: Generate the installer
 ./build-static-installer.sh --build-static
 
-# Step 2: Run the generated static installer
-sudo ./setup-static-drivers.sh
+# Step 2: Run it (-E keeps proxy variables)
+sudo -E ./setup-static-drivers.sh
+
+# Step 3: Reboot
+sudo reboot
+```
+
+After reboot, verify:
+
+```bash
+clinfo | grep -i "device name"   # Intel GPU listed
+ls /dev/dri/renderD* /dev/accel/accel0
+groups                           # includes video and render
+```
+
+### Uninstalling the PPA
+
+```bash
+sudo add-apt-repository --remove -y ppa:kobuk-team/intel-graphics
+sudo apt-get update
 ```
 
 ## Troubleshooting
 
+#### Behind a Corporate Proxy
+**Problem**: `apt`, `add-apt-repository` or `curl` time out.
+**Solution**: Export the proxy before running the builder and keep it through `sudo` with `-E`:
+```bash
+export http_proxy=http://proxy.example.com:912
+export https_proxy=$http_proxy
+./build-static-installer.sh --build-static
+sudo -E ./setup-static-drivers.sh
+```
+Plain `sudo` may drop proxy variables. Export the proxy appropriate to the machine running the installer, then use `sudo -E`; if your sudo policy still removes them, configure proxy access for apt/curl locally before retrying. No proxy address is recorded in the generated script.
+
 #### GitHub API Rate Limiting
-**Problem**: Installation fails with rate limit errors -- this sometimes happens if you are at a company behind a proxy and it appears that many users are sharing the same IP address.
-**Solution**: Set GITHUB_TOKEN environment variable
+**Problem**: The builder reports the GitHub API is rate limited (many users sharing one corporate IP).
+**Solution**: Usually nothing; the builder falls back to the release page automatically. If that also fails, set a token:
 ```bash
 export GITHUB_TOKEN=your_token_here
-sudo -E ./setup-static-drivers.sh  # -E preserves environment variables
+./build-static-installer.sh --build-static
 ```
 
 #### Network Connectivity
-**Problem**: Cannot reach GitHub
-**Solution**: Check your internet connection and firewall settings
 ```bash
-# Test basic connectivity
-curl https://github.com
-
-# Run full diagnostic
 ./Utilities/verify_connectivity.sh
 ```
 
 #### Permission Issues
-**Problem**: Script fails due to insufficient privileges
-**Solution**: Run with sudo
+**Problem**: `Run with sudo: sudo -E ./setup-static-drivers.sh`
+**Solution**: The installer must run as root:
 ```bash
-sudo ./setup-static-drivers.sh
+sudo -E ./setup-static-drivers.sh
 ```
 
-### Diagnostic Script Output
-
-The `verify_connectivity.sh` script performs these checks:
-
-1. **HTTPS Connectivity**: Tests connection to github.com
-2. **GitHub API Access**: Verifies API accessibility and rate limits
-3. **Repository Testing**: Checks latest versions for all required repositories:
-   - intel/intel-graphics-compiler
-   - intel/compute-runtime
-   - intel/linux-npu-driver
-   - oneapi-src/level-zero
+#### Generated For a Different Ubuntu Release
+The generated script refuses to run on a release other than the one it was built for. Regenerate it on the target machine.
 
 #### Successful Output Example — `build-static-installer.sh --build-static`
 
 ```text
-=== Checking Required Dependencies ===
-✓ curl is already installed (curl 8.x.x ...)
-✓ jq is already installed (jq-1.x)
-
-[1/4] Getting latest compute runtime version...
-   ✓ Latest compute runtime: 26.09.37435.1
-[2/4] Finding compatible IGC version...
-[3/4] Getting NPU driver version...
-   ✓ NPU driver: v1.32.0
-[3/4] Getting Level Zero version...
-   ✓ Level Zero: v1.28.0
-[4/4] Verifying version compatibility...
-
-Collecting assets for intel/compute-runtime 26.09.37435.1...
-   ✓ ocloc : intel-ocloc_26.09.37435.1_amd64.deb
-   ✓ ze-gpu: libze-intel-gpu1_26.09.37435.1_amd64.deb
-   ⚠ checksum: not found (optional, skipping verification)
-
-=== Generating Static Setup Script ===
-=== Generating setup-static-drivers.sh ===
-Validating collected asset URLs...
-✓ All required asset URLs validated
-✓ Generated setup-static-drivers.sh
-  - IGC Version: v2.30.1
-  - Compute Runtime Version: 26.09.37435.1
-  - NPU Driver Version: v1.32.0
-  - Level Zero Version: v1.28.0
-
-Usage: sudo ./setup-static-drivers.sh
-✅ Static setup script generated: setup-static-drivers.sh
-
-Summary:
-  - IGC Version: v2.30.1
-  - Compute Runtime Version: 26.09.37435.1
-  - NPU Driver Version: v1.32.0
-  - Level Zero Version: v1.28.0
-  - ✅ Version compatibility verified
-
-Usage: sudo ./setup-static-drivers.sh
+GPU drivers: Intel Graphics PPA (ppa:kobuk-team/intel-graphics)
+NPU driver:  latest intel/linux-npu-driver GitHub release
+Proxy configured for builder downloads (values not shown)
+✓ Ubuntu 24.04 (noble) supported
+  NPU tarball flavor: ubuntu2404
+✓ curl is installed
+✓ jq is installed
+=== Checking Intel Graphics PPA ===
+✓ PPA publishes noble: https://ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/dists/noble/Release
+=== Resolving latest intel/linux-npu-driver release ===
+✓ NPU driver release: v1.38.0
+  Asset:  linux-npu-driver-v1.38.0.20260910-34487311128-ubuntu2404.tar.gz
+  URL:    https://github.com/intel/linux-npu-driver/releases/download/v1.38.0/linux-npu-driver-v1.38.0.20260910-34487311128-ubuntu2404.tar.gz
+  SHA256: 1efcd4b6...
+  - GPU source:     ppa:kobuk-team/intel-graphics
+  - NPU driver:     v1.38.0 (linux-npu-driver-v1.38.0.20260910-34487311128-ubuntu2404.tar.gz)
+🚀 Run: sudo -E ./setup-static-drivers.sh  (-E keeps proxy settings)
 ```
 
 #### Successful Output Example — `verify_connectivity.sh`
 
 ```text
-=== Simple Driver Version Test ===
+=== Driver Source Connectivity Test ===
+Proxy configured (values not shown)
+GITHUB_TOKEN: not set (optional; the builder falls back to the release page when rate limited)
 
-1. Testing HTTPS connectivity...
-   ✓ Can reach github.com via HTTPS
-2. Testing GitHub API...
-   Using GitHub authentication token
-   ✓ GitHub API is accessible
+1. Intel Graphics PPA (noble)...
+   ✓ https://ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/dists/noble/Release
+   ✓ api.launchpad.net reachable (used by add-apt-repository for the signing key)
+2. GitHub (intel/linux-npu-driver)...
+   ⚠ GitHub API rate limited; trying the release page
+   ✓ Release page: latest release v1.38.0
 
-3. Testing specific repositories...
-
-Testing intel/intel-graphics-compiler:
-   ✓ Found version: v2.30.1
-
-Testing intel/compute-runtime:
-   ✓ Found version: 26.09.37435.1
-
-Testing intel/linux-npu-driver:
-   ✓ Found version: v1.32.0
-
-Testing oneapi-src/level-zero:
-   ✓ Found version: v1.28.0
-
-Test completed!
+All driver sources reachable.
 ```
 
-#### Rate Limited Output Example
+### Updating Drivers
 
-```text
-=== Simple Driver Version Test ===
-
-1. Testing HTTPS connectivity...
-   ✓ Can reach github.com via HTTPS
-2. Testing GitHub API...
-   ✗ GitHub API rate limit exceeded
-
-   To fix this issue:
-   1. Set your GitHub token: export GITHUB_TOKEN=your_token_here
-   2. Get a token at: https://github.com/settings/tokens
-   3. Re-run this script
-```
-
-
-### Updating Static Installers
-
-To update to newer driver versions:
+GPU packages update with normal `sudo apt upgrade` from the PPA. To pick up a newer NPU driver release, regenerate and rerun:
 
 ```bash
-# Regenerate with latest versions
 ./build-static-installer.sh --build-static
-
-# The static installer will be updated with new URLs
-sudo ./setup-static-drivers.sh
+sudo -E ./setup-static-drivers.sh
 ```
 
 ### Environment Variables
 
-- **`GITHUB_TOKEN`**: Personal access token for GitHub API (recommended)
-- **`OS_ID`**: Target OS identifier (default: "ubuntu")
-- **`OS_VERSION`**: Target OS version (default: "24.04")
-
-### Manual Package Selection
-
-The script automatically downloads the latest versions, but you can check what versions would be installed:
-
-```bash
-./Utilities/verify_connectivity.sh
-```
+- **`http_proxy` / `https_proxy` / `no_proxy`**: Proxy settings (use `sudo -E` to keep them as root)
+- **`GITHUB_TOKEN`**: Optional GitHub token for higher API limits
 
 ---
-
 ## 🚀 Part 2: Software Setup (After Driver Installation)
 
 > **⚠️ IMPORTANT: Driver Setup Required First**
@@ -416,9 +371,9 @@ curl https://github.com
 #### Permission Issues
 **Problem**: Script fails due to insufficient privileges
 
-**Solution**: Run with sudo (drivers only)
+**Solution**: Run with sudo (drivers only; -E keeps proxy settings)
 ```bash
-sudo ./setup-static-drivers.sh
+sudo -E ./setup-static-drivers.sh
 ```
 
 ### Software Installation Issues
@@ -455,6 +410,8 @@ Installation logs are written to the terminal. For debugging:
 1. Re-run the script with verbose output: `bash -x setup-software.sh`
 2. Check individual component logs in their respective directories
 
+> **AI agents:** to run the builder, drivers, and software phases from an agent harness such as Hermes or GitHub Copilot, see [`.agents/skills`](../.agents/skills/README.md). The skill adds a read-only preflight, per-phase consent, logged output under `~/.local/state/aipc-devkit/`, and an outcome report.
+
 ---
 
 ## 📚 Advanced Configuration
@@ -468,11 +425,9 @@ To update to newer driver versions:
 ```bash
 cd Linux_Software_Installation
 
-# Regenerate with latest versions
+# GPU packages update via apt from the Intel PPA; regenerate to pick up a newer NPU release
 ./build-static-installer.sh --build-static
-
-# The static installer will be updated with new URLs
-sudo ./setup-static-drivers.sh
+sudo -E ./setup-static-drivers.sh
 ```
 
 #### Software Updates
@@ -539,4 +494,3 @@ When contributing to this project:
 ---
 
 *This guide is part of the Intel AI PC development toolkit. Follow the steps in order: Drivers First (Part 1), then Software Setup (Part 2).*
-
