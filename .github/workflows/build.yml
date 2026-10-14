@@ -1,0 +1,288 @@
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
+name: "CodeQL Advanced"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: '25 0 * * 2'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Runner size impacts CodeQL analysis time. To learn more, please see:
+    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
+    #   - https://gh.io/supported-runners-and-hardware-resources
+    #   - https://gh.io/using-larger-runners (GitHub.com only)
+    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    permissions:
+      # required for all workflows
+      security-events: write
+
+      # required to fetch internal or private CodeQL packs
+      packages: read
+
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: javascript-typescript
+          build-mode: none
+        # Commented out languages that don't exist in this repository
+        # - language: python
+        #   build-mode: none
+        # - language: csharp
+        #   build-mode: autobuild
+        # CodeQL supports the following values keywords for 'language': 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
+        # javascript-typescript provides some basic analysis for shell scripts (.sh) and can analyze any .js/.ts files
+        # Re-enable python when you add actual .py source code files
+        # Re-enable csharp when you add actual C# projects (.csproj, .sln files)
+        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
+        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
+        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
+        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      with:
+        egress-policy: audit
+
+    - name: Checkout repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        queries: security-extended,security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
+      with:
+        category: "/language:${{matrix.language}}"
+    
+    # Create additional text report
+    - name: Create security report
+      run: |
+        echo "Security Analysis Report - AI-PC-Samples Repository" > report.txt
+        echo "Generated: $(date)" >> report.txt
+        echo "" >> report.txt
+        echo "CodeQL Analysis: Completed" >> report.txt
+        echo "Note: Minimal JavaScript file created for CodeQL compatibility." >> report.txt
+        echo "" >> report.txt
+        echo "Alternative Security Tools:" >> report.txt
+        echo "- Trivy: Vulnerability and security scanning" >> report.txt
+        echo "- Bandit: Python security scanning" >> report.txt
+        echo "- Scorecard: Supply-chain security assessment" >> report.txt
+        echo "" >> report.txt
+        echo "Please refer to GitHub Security tab for detailed CodeQL results." >> report.txt
+        cat report.txt
+
+    # Generate security report only after analysis completes
+    - name: Generate Security Report
+      if: matrix.language == 'javascript-typescript'  # Run only once, not for each language
+      continue-on-error: true
+      uses: rsdmike/github-security-report-action@a149b24539044c92786ec39af8ba38c93496495d # v3.0.4
+      with:
+        template: report
+        token: ${{ secrets.AIPC_SDK_TOKEN_2 }}
+
+    - name: GitHub Upload Release Artifacts
+      if: matrix.language == 'javascript-typescript'  # Upload only once, not for each language
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: report
+        path: |
+         ./report.pdf
+         ./report.txt
+
+  # Trivy security scanning - additional security layer
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    # List dependency files for debugging
+    - name: List dependency files for scanning
+      run: |
+        echo "## 📋 Dependency Files Found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Python Requirements Files:" >> $GITHUB_STEP_SUMMARY
+        find . -name "requirements.txt" -type f | while read file; do
+          echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Dependencies: $(grep -v '^#' "$file" | grep -v '^$' | wc -l)" >> $GITHUB_STEP_SUMMARY
+        done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Other Package Files:" >> $GITHUB_STEP_SUMMARY
+        find . -name "package.json" -o -name "Gemfile" -o -name "go.mod" -o -name "composer.json" -o -name "Cargo.toml" | while read file; do
+          echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+        done || echo "- No additional package files found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    # Vulnerability scanning
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        ignore-unfixed: true
+        format: 'sarif'
+        output: 'trivy-vuln-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        scanners: 'vuln'
+        # Ensure scanning of Python requirements files
+        scan-all-unpackaged: true
+
+    # Secret scanning
+    - name: Run Trivy secret scanner
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-secret-results.sarif'
+        scanners: 'secret'
+
+    # Configuration scanning
+    - name: Run Trivy configuration scanner
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-config-results.sarif'
+        scanners: 'config'
+
+    # Upload all Trivy results to GitHub Security tab
+    - name: Upload vulnerability results
+      uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
+      if: always()
+      with:
+        sarif_file: 'trivy-vuln-results.sarif'
+        category: 'trivy-vulnerabilities'
+
+    - name: Upload secret scan results
+      uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
+      if: always()
+      with:
+        sarif_file: 'trivy-secret-results.sarif'
+        category: 'trivy-secrets'
+
+    - name: Upload configuration scan results
+      uses: github/codeql-action/upload-sarif@9f759ee644a3e7c15c1390abf49868036c00067b # v3.38.3
+      if: always()
+      with:
+        sarif_file: 'trivy-config-results.sarif'
+        category: 'trivy-configurations'
+
+    # Generate human-readable Trivy report
+    - name: Generate Trivy comprehensive report
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        output: 'trivy-report.txt'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        scanners: 'vuln,secret,config'
+        scan-all-unpackaged: true
+
+    # Generate detailed JSON report for debugging
+    - name: Generate Trivy detailed JSON report
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'json'
+        output: 'trivy-detailed.json'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        scanners: 'vuln,secret,config'
+        scan-all-unpackaged: true
+
+    # Upload Trivy reports
+    - name: Upload Trivy comprehensive reports
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: trivy-comprehensive-report
+        path: |
+          trivy-*.sarif
+          trivy-report.txt
+          trivy-detailed.json
+        retention-days: 30
+
+    # Add summary step to show scan results
+    - name: Display Trivy scan summary
+      if: always()
+      run: |
+        echo "## 🛡️ Trivy Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check if vulnerabilities were found
+        if [ -s trivy-vuln-results.sarif ]; then
+          echo "### 🔍 Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+          vuln_count=$(jq '.runs[0].results | length' trivy-vuln-results.sarif)
+          if [ "$vuln_count" -gt 0 ]; then
+            echo "- ⚠️ Found $vuln_count vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        # Check if secrets were found
+        if [ -s trivy-secret-results.sarif ]; then
+          echo "### 🔐 Secret Scan" >> $GITHUB_STEP_SUMMARY
+          secret_count=$(jq '.runs[0].results | length' trivy-secret-results.sarif)
+          if [ "$secret_count" -gt 0 ]; then
+            echo "- ⚠️ Found $secret_count potential secrets" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ No secrets detected" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        # Check if config issues were found
+        if [ -s trivy-config-results.sarif ]; then
+          echo "### ⚙️ Configuration Scan" >> $GITHUB_STEP_SUMMARY
+          config_count=$(jq '.runs[0].results | length' trivy-config-results.sarif)
+          if [ "$config_count" -gt 0 ]; then
+            echo "- ⚠️ Found $config_count configuration issues" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ No configuration issues found" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 **Detailed reports available in artifacts**" >> $GITHUB_STEP_SUMMARY
+        echo "📁 Files scanned: $(find . -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name 'requirements.txt' -o -name 'package.json' | wc -l) dependency/source files" >> $GITHUB_STEP_SUMMARY
