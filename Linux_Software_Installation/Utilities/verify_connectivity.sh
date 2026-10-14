@@ -1,131 +1,74 @@
 #!/bin/bash
+# Connectivity check for the Linux driver builder (build-static-installer.sh).
+# GPU drivers come from the Intel Graphics PPA; the NPU driver from GitHub releases.
+# Read-only: performs HTTPS requests only.
 
-# Simple test script to show what driver versions would be downloaded
-# This version has more robust error handling and debugging
+PPA_PATH="kobuk-team/intel-graphics/ubuntu"
+NPU_REPO="intel/linux-npu-driver"
+CURL_OPTS=(-fsSL --connect-timeout 10 --max-time 30)
 
-echo "=== Simple Driver Version Test ==="
-echo
-echo "Note: This script uses the GitHub API which has rate limits."
-
-# Check GitHub token status
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "✓ GitHub token is configured (${#GITHUB_TOKEN} characters)"
-    echo "  This will allow higher rate limits and better reliability."
+if [ -n "${http_proxy:-}" ] && [ -z "${https_proxy:-}" ]; then
+    export https_proxy="$http_proxy"
+fi
+echo "=== Driver Source Connectivity Test ==="
+if [ -n "${http_proxy:-${HTTP_PROXY:-}${https_proxy:-${HTTPS_PROXY:-}}}" ]; then
+    echo "Proxy configured (values not shown)"
 else
-    echo "⚠ No GitHub token found in environment"
-    echo "  Recommendation: Set GITHUB_TOKEN for better reliability:"
-    echo "  1. Get a token at: https://github.com/settings/tokens"
-    echo "  2. export GITHUB_TOKEN=your_token_here"
-    echo "  3. Re-run this script"
+    echo "No proxy configured"
+fi
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    echo "GITHUB_TOKEN: set (value not shown)"
+else
+    echo "GITHUB_TOKEN: not set (optional; the builder falls back to the release page when rate limited)"
 fi
 echo
 
-# Test HTTPS connectivity
-echo "1. Testing HTTPS connectivity..."
-if curl -s --connect-timeout 5 --max-time 10 https://github.com > /dev/null; then
-    echo "   ✓ Can reach github.com via HTTPS"
+codename=$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME:-noble}")
+fail=0
+
+echo "1. Intel Graphics PPA ($codename)..."
+url="https://ppa.launchpadcontent.net/$PPA_PATH/dists/$codename/Release"
+if curl "${CURL_OPTS[@]}" -o /dev/null "$url"; then
+    echo "   ✓ $url"
 else
-    echo "   ✗ Cannot reach github.com via HTTPS"
-    exit 1
+    echo "   ✗ Cannot reach $url"
+    echo "     Behind a proxy: export http_proxy/https_proxy (and use sudo -E)"
+    fail=1
+fi
+if curl "${CURL_OPTS[@]}" -o /dev/null "https://api.launchpad.net/1.0/~kobuk-team/+archive/ubuntu/intel-graphics"; then
+    echo "   ✓ api.launchpad.net reachable (used by add-apt-repository for the signing key)"
+else
+    echo "   ✗ Cannot reach api.launchpad.net (add-apt-repository needs it)"
+    fail=1
 fi
 
-# Test GitHub API basic endpoint
-echo "2. Testing GitHub API..."
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "   ✓ GitHub token is set (length: ${#GITHUB_TOKEN} characters)"
-    echo "   Using authenticated requests..."
-    API_RESPONSE=$(curl -s --connect-timeout 5 --max-time 10 -H "Authorization: token $GITHUB_TOKEN" https://api.github.com)
+echo "2. GitHub ($NPU_REPO)..."
+auth=()
+[ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+api=$(curl -sSL --connect-timeout 10 --max-time 30 "${auth[@]}" "https://api.github.com/repos/$NPU_REPO/releases/latest" 2>/dev/null)
+tag=$(echo "$api" | grep -m1 '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+if [ -n "$tag" ]; then
+    echo "   ✓ GitHub API: latest release $tag"
 else
-    echo "   ⚠ No GitHub token set - using unauthenticated requests"
-    echo "   Note: This may hit rate limits quickly. Set GITHUB_TOKEN for better reliability."
-    API_RESPONSE=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com)
-fi
-
-if [ $? -eq 0 ] && echo "$API_RESPONSE" | grep -q "current_user_url"; then
-    echo "   ✓ GitHub API is accessible"
-elif echo "$API_RESPONSE" | grep -q "rate limit exceeded"; then
-    echo "   ✗ GitHub API rate limit exceeded"
-    echo
-    echo "   To fix this issue:"
-    echo "   1. Set your GitHub token: export GITHUB_TOKEN=your_token_here"
-    echo "   2. Get a token at: https://github.com/settings/tokens"
-    echo "   3. Re-run this script"
-    echo
-    exit 1
-else
-    echo "   ✗ GitHub API is not accessible"
-    echo "   Response: $API_RESPONSE"
-    exit 1
-fi
-
-# Simple function to get version with verbose output
-get_version_simple() {
-    local repo="$1"
-    echo "   Trying to fetch version for $repo..."
-    
-    local url="https://api.github.com/repos/$repo/releases/latest"
-    echo "   URL: $url"
-    
-    local response
-    if [ -n "$GITHUB_TOKEN" ]; then
-        echo "   Using authenticated request..."
-        response=$(curl -s --connect-timeout 10 --max-time 30 -H "Authorization: token $GITHUB_TOKEN" "$url")
+    if echo "$api" | grep -qi "rate limit"; then
+        echo "   ⚠ GitHub API rate limited; trying the release page"
     else
-        echo "   Using unauthenticated request..."
-        response=$(curl -s --connect-timeout 10 --max-time 30 "$url")
+        echo "   ⚠ GitHub API not usable; trying the release page"
     fi
-    local exit_code=$?
-    
-    if [ $exit_code -ne 0 ]; then
-        echo "   curl failed with exit code: $exit_code"
-        return 1
-    fi
-    
-    if [ -z "$response" ]; then
-        echo "   Empty response"
-        return 1
-    fi
-    
-    # Check if it's an error response
-    if echo "$response" | grep -q '"message"'; then
-        echo "   API Error:"
-        echo "$response" | grep '"message"' | head -1
-        return 1
-    fi
-    
-    local version=$(echo "$response" | grep '"tag_name":' | head -1 | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
-    
-    if [ -z "$version" ]; then
-        echo "   Could not parse version from response"
-        echo "   First 200 chars of response: $(echo "$response" | head -c 200)"
-        return 1
-    fi
-    
-    echo "   ✓ Found version: $version"
-    echo "$version"
-}
-
-echo
-echo "3. Testing specific repositories..."
-
-# Test each repository
-repos=(
-    "intel/intel-graphics-compiler"
-    "intel/compute-runtime"
-    "intel/linux-npu-driver"
-    "oneapi-src/level-zero"
-)
-
-for repo in "${repos[@]}"; do
-    echo
-    echo "Testing $repo:"
-    version=$(get_version_simple "$repo")
-    if [ $? -eq 0 ]; then
-        echo "   Result: $version"
+    loc=$(curl -sSI --connect-timeout 10 --max-time 30 "https://github.com/$NPU_REPO/releases/latest" | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}' | tail -n 1)
+    tag="${loc##*/tag/}"
+    if [ -n "$loc" ] && [ "$tag" != "$loc" ]; then
+        echo "   ✓ Release page: latest release $tag"
     else
-        echo "   Result: FAILED"
+        echo "   ✗ Cannot reach github.com"
+        fail=1
     fi
-done
+fi
 
 echo
-echo "Test completed!"
+if [ "$fail" -eq 0 ]; then
+    echo "All driver sources reachable."
+else
+    echo "Some driver sources are unreachable; fix network/proxy settings before running the builder."
+fi
+exit "$fail"
