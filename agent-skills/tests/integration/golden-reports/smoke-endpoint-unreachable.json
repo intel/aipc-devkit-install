@@ -1,0 +1,20 @@
+{
+  "schema_id": "skill-result-2026-08",
+  "run_id": "00000000-0000-4000-8000-000000000002",
+  "skill_id": "intel-endpoint-smoke-test-report",
+  "skill_version": "0.1.0",
+  "functional_status": "fail",
+  "overall_status": "fail",
+  "schema_valid": true,
+  "risk_class": "read",
+  "approval_granted": true,
+  "endpoint": "http://127.0.0.1:59999/v3",
+  "model": "OpenVINO/Qwen3.5-0.8B-int4-ov",
+  "checks": [
+    { "id": "E1-models", "status": "fail" },
+    { "id": "E2-latency", "status": "skip" },
+    { "id": "E3-tool-path", "status": "skip" },
+    { "id": "E4-reproducibility", "status": "pass" }
+  ],
+  "exit_code": 1
+}

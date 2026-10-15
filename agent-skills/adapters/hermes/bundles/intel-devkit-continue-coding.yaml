@@ -1,0 +1,10 @@
+# Intel Dev Kit — VS Code Continue + Qwen3.6 35B on port 8000 (D13)
+#
+# Not loaded into Hermes by default; use from Cursor/Claude Code/etc. via skills/external_dirs
+# or copy skills/software-development/openvino-coding-assistant. Primary invoker:
+#   invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply
+
+skills:
+  - openvino-coding-assistant
+
+install_path: ~/.continue/skills/

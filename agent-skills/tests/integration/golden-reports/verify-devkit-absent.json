@@ -1,0 +1,29 @@
+{
+  "schema_id": "skill-result-2026-08",
+  "run_id": "00000000-0000-4000-8000-000000000001",
+  "skill_id": "intel-devkit-verify",
+  "skill_version": "0.1.0",
+  "started_at": "2026-08-20T00:00:00Z",
+  "finished_at": "2026-08-20T00:00:01Z",
+  "functional_status": "blocked",
+  "overall_status": "blocked",
+  "schema_valid": true,
+  "warnings": [],
+  "devkit_status": "absent",
+  "next_skill": "intel-devkit-install",
+  "risk_class": "read",
+  "approval_granted": true,
+  "checks": [
+    { "id": "V1-installer-state", "status": "fail", "message": "devkit_status=absent" },
+    { "id": "V2-git", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V3-openvino-genai", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V4-ovms-installed", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V4-ovms-model", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V4-agent-model-on-disk", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V4-ovms-running", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V5-minimal-inference", "status": "skip", "message": "Dev Kit absent" },
+    { "id": "V6-agentic-inference", "status": "skip", "message": "Dev Kit absent" }
+  ],
+  "logs": [],
+  "exit_code": 0
+}

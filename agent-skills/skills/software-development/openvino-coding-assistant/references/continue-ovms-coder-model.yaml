@@ -1,0 +1,23 @@
+  # intel-openvino-coding-assistant — merge block; see configure-continue-ovms.ps1
+  - name: OVMS Qwen3.6-35B-A3B
+    provider: openai
+    model: Qwen3.6-35B-A3B
+    apiKey: unused
+    apiBase: http://localhost:8000/v3
+    roles:
+      - chat
+      - edit
+      - apply
+      - autocomplete
+    capabilities:
+      - tool_use
+    requestOptions:
+      extraBodyProperties:
+        chat_template_kwargs:
+          enable_thinking: false
+    autocompleteOptions:
+      maxPromptTokens: 500
+      debounceDelay: 124
+      modelTimeout: 400
+      onlyMyCode: true
+      useCache: true

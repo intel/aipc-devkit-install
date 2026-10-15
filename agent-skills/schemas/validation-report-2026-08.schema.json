@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intel.com/devkit/agent-skills/validation-report-2026-08.schema.json",
+  "title": "ValidationReport2026-08",
+  "description": "Composite report for smoke / E2E validation runs",
+  "type": "object",
+  "required": [
+    "schema_id",
+    "run_id",
+    "functional_status",
+    "schema_valid",
+    "hardware_profile",
+    "devkit_version",
+    "ovms_endpoint",
+    "model"
+  ],
+  "properties": {
+    "schema_id": { "const": "validation-report-2026-08" },
+    "run_id": { "type": "string" },
+    "functional_status": {
+      "enum": ["pass", "fail", "partial", "blocked"]
+    },
+    "schema_valid": { "type": "boolean" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "hardware_profile": {
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "cpu": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "devkit_version": { "type": "string" },
+    "ovms_endpoint": { "type": "string" },
+    "model": { "type": "string" },
+    "latency_ms": { "type": "number" },
+    "skill_results": {
+      "type": "array",
+      "items": { "$ref": "skill-result-2026-08.schema.json" }
+    }
+  },
+  "additionalProperties": true
+}
