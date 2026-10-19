@@ -1,0 +1,282 @@
+{
+  "version": "1.0.0",
+  "skills": {
+    "intel-devkit-verify": {
+      "pass": {
+        "summary": "Intel AI PC Dev Kit verification completed successfully.",
+        "user_message": "Dev Kit verification is complete."
+      },
+      "pass_agent_handoff": {
+        "summary": "Dev Kit and local agent model verification passed.",
+        "user_message": "The large agent model is running."
+      },
+      "partial": {
+        "summary": "Dev Kit verification completed with some items skipped or incomplete.",
+        "user_message": "Dev Kit verification found something missing or not running."
+      },
+      "partial_needs_install": {
+        "summary": "Dev Kit folder is present but OpenVINO GenAI is not installed.",
+        "user_message": "OpenVINO GenAI is not installed."
+      },
+      "partial_needs_ovms": {
+        "summary": "Dev Kit and OpenVINO GenAI look good; OVMS is not set up yet.",
+        "user_message": "Dev Kit setup is in place. OVMS is not set up yet."
+      },
+      "fail": {
+        "summary": "Dev Kit verification found problems.",
+        "user_message": "Dev Kit verification found a problem."
+      },
+      "blocked": {
+        "summary": "Dev Kit verification could not continue.",
+        "user_message": "Dev Kit verification needs approval before it can finish."
+      }
+    },
+    "intel-devkit-install": {
+      "pass": {
+        "summary": "Dev Kit install is complete.",
+        "user_message": "Dev Kit install is complete."
+      },
+      "partial_job_running": {
+        "summary": "Dev Kit install is still running.",
+        "user_message": "Dev Kit install is still running. Click Yes if Windows asks for permission.",
+        "next_steps": [
+          "Agent: re-invoke intel-devkit-install with -WaitInstallJob and InstallJobId from install_job (see install_poll in diagnostics, not a user-facing script path).",
+          "User: wait for the elevated install window to finish; approve UAC if prompted."
+        ]
+      },
+      "fail": {
+        "summary": "Dev Kit installation did not complete successfully.",
+        "user_message": "Dev Kit install did not complete."
+      },
+      "blocked": {
+        "summary": "Dev Kit installation is waiting for approval.",
+        "user_message": "Dev Kit install is waiting for your approval."
+      }
+    },
+    "intel-ovms-agentic-setup": {
+      "pass": {
+        "summary": "OpenVINO Model Server is ready for local chat.",
+        "user_message": "OVMS is running."
+      },
+      "pass_verify": {
+        "summary": "Smoke (verify) model server is ready.",
+        "user_message": "The small verify model is running."
+      },
+      "pass_agent": {
+        "summary": "Agent model server is ready for local chat.",
+        "user_message": "The large agent model is running."
+      },
+      "partial_smoke_only": {
+        "summary": "Smoke model only; agent inference is not ready.",
+        "user_message": "OVMS is serving the small verify model."
+      },
+      "partial": {
+        "summary": "OVMS started but some optional checks did not pass.",
+        "user_message": "OVMS started, and some checks are still incomplete."
+      },
+      "fail": {
+        "summary": "OVMS setup did not pass required checks.",
+        "user_message": "OVMS setup did not complete."
+      },
+      "blocked": {
+        "summary": "OVMS setup is blocked.",
+        "user_message": "OVMS setup is blocked."
+      }
+    },
+    "intel-agent-provider-config": {
+      "pass": {
+        "summary": "Hermes or OpenClaw provider settings are staged for local OVMS.",
+        "user_message": "Hermes provider settings are staged. Start a new chat after you switch to the local model."
+      },
+      "fail": {
+        "summary": "Provider configuration could not be prepared.",
+        "user_message": "Hermes provider settings could not be prepared."
+      },
+      "blocked": {
+        "summary": "Provider handoff is blocked until OVMS serves the agent model.",
+        "user_message": "The large agent model is not running yet."
+      }
+    },
+    "intel-endpoint-smoke-test-report": {
+      "pass": {
+        "summary": "Local chat endpoint smoke test passed.",
+        "user_message": "The local chat endpoint answered."
+      },
+      "fail": {
+        "summary": "Local chat endpoint smoke test failed.",
+        "user_message": "The local chat endpoint did not answer."
+      }
+    },
+    "openvino-coding-assistant": {
+      "pass": {
+        "summary": "Continue config is ready for local Qwen3.6 35B on OVMS.",
+        "user_message": "Continue is ready. Select OVMS Qwen3.6-35B-A3B."
+      },
+      "fail": {
+        "summary": "VS Code Continue + Qwen3.6 35B OVMS setup did not complete.",
+        "user_message": "Continue setup did not finish."
+      },
+      "blocked": {
+        "summary": "Continue coding setup needs approval.",
+        "user_message": "Continue setup is waiting for your approval."
+      }
+    }
+  },
+  "checks": {
+    "O0-preflight": {
+      "user_pass": "Pre-flight checks passed.",
+      "user_fail": "Pre-flight checks blocked setup (disk, port, or pull policy)."
+    },
+    "O1-launch": {
+      "user_pass": "OVMS launch started or was skipped because the server is already running.",
+      "user_fail": "OVMS could not be launched."
+    },
+    "O2-health": {
+      "user_pass": "The model server listed models on the HTTP API.",
+      "user_fail": "The model on port 8000 is not the one this step expected, or models could not be read."
+    },
+    "O3-tool-test": {
+      "user_pass": "Tool-call test passed.",
+      "user_fail": "Tool-call test failed."
+    },
+    "O4-chat": {
+      "user_pass": "A short chat completion succeeded against OVMS.",
+      "user_fail": "Chat completion failed against OVMS."
+    },
+    "O1-agent-ovms-model": {
+      "user_pass": "The agent-sized model is available on the local server.",
+      "user_fail": "The agent-sized model is not available on the local server yet."
+    },
+    "C1-staged-diff": {
+      "user_pass": "Provider configuration diff was prepared for your review.",
+      "user_fail": "Provider configuration could not be staged."
+    },
+    "C2-v3-models": {
+      "user_pass": "The Hermes model name was taken from the running server's model list.",
+      "user_fail": "No model name on the server matched what this step expects."
+    },
+    "P1-vscode-continue": {
+      "user_pass": "VS Code CLI and Continue extension look available.",
+      "user_fail": "VS Code or Continue may be missing; install from Dev Kit or marketplace."
+    },
+    "P2-ovms-coder-endpoint": {
+      "user_pass": "Qwen3.6 35B is advertised on http://localhost:8000/v3.",
+      "user_fail": "Qwen3.6 35B is not on port 8000 yet."
+    },
+    "P3-continue-config-staged": {
+      "user_pass": "Continue config merge was prepared.",
+      "user_fail": "Could not build Continue config merge."
+    },
+    "P4-continue-config-apply": {
+      "user_pass": "Continue config file was updated (backup created).",
+      "user_fail": "Continue config was not written."
+    },
+    "V1-installer-state": {
+      "user_pass": "Installer state looks valid.",
+      "user_fail": "Installer state check failed."
+    },
+    "V4-ovms-running": {
+      "user_pass": "OVMS is responding on the default port.",
+      "user_skip": "OVMS is not running (optional until you start it)."
+    },
+    "V5-minimal-inference": {
+      "user_pass": "A minimal chat request succeeded.",
+      "user_fail": "Minimal chat request failed."
+    },
+    "E1-models": {
+      "user_pass": "The endpoint returned at least one model id.",
+      "user_fail": "The endpoint did not expose a model that matches this smoke test."
+    },
+    "E2-latency": {
+      "user_pass": "Chat latency was recorded.",
+      "user_fail": "Chat request failed."
+    },
+    "A1-agentic-inference": {
+      "user_pass": "The large agent model is active on the local model server.",
+      "user_fail": "Only the small verify model is running, or the agent model is not loaded on port 8000.",
+      "user_skip": "Model server was not reachable for an agentic inference check."
+    },
+    "V6-agentic-inference": {
+      "user_pass": "The large agent model is active on the local model server.",
+      "user_fail": "The large agent model is not loaded yet.",
+      "user_skip": "OVMS is not running; agentic inference was not checked."
+    },
+    "V3-openvino-genai": {
+      "user_pass": "OpenVINO GenAI is installed.",
+      "user_fail": "OpenVINO GenAI is not installed."
+    },
+    "V4-ovms-installed": {
+      "user_pass": "OVMS runtime (ovms.exe) is on disk.",
+      "user_fail": "OVMS is not installed yet."
+    }
+  },
+  "error_codes": {
+    "OVMS_NOT_READY": {
+      "user_message": "Start OpenVINO Model Server for the agent model, then try again.",
+      "next_steps": [
+        "Invoke intel-ovms-agentic-setup with user approval (-Approve; add -Pull on first download; -Profile agent for Hermes agent chat).",
+        "When the server is up, invoke intel-agent-provider-config (configure-hermes-ovms) with -Approve."
+      ]
+    },
+    "MODEL_ADVERTISED_MISMATCH": {
+      "user_message": "The model running on port 8000 is not the one this workflow expects.",
+      "next_steps": [
+        "Stop the wrong server or use -ApproveStopOvms after you approve.",
+        "Start OVMS with the correct profile, then confirm names at http://localhost:8000/v3/models."
+      ]
+    },
+    "PORT_CONFLICT": {
+      "user_message": "Port 8000 is already in use by another process.",
+      "next_steps": [
+        "Stop the other OVMS instance or approve stopping it with -ApproveStopOvms.",
+        "Re-run OVMS setup for the model you want."
+      ]
+    },
+    "DISK_INSUFFICIENT": {
+      "user_message": "There is not enough free disk space for the model download.",
+      "next_steps": [
+        "Free space under your user OVMS folder volume.",
+        "Re-run setup with -Approve when ready."
+      ]
+    },
+    "RETRY_PULL_REQUIRES_APPROVAL": {
+      "user_message": "A model download needs your explicit approval to retry or resume.",
+      "next_steps": [
+        "Confirm with the user, then invoke intel-ovms-agentic-setup again with -Approve, -ApproveRetryPull, and -Pull."
+      ]
+    },
+    "PULL_IN_PROGRESS": {
+      "user_message": "Another model download may already be in progress.",
+      "next_steps": [
+        "Wait for the other download to finish, or clear stale state if no download is running."
+      ]
+    }
+  },
+  "next_skill_steps": {
+    "intel-ovms-agentic-setup": [
+      "Invoke the intel-ovms-agentic-setup skill with -Approve (add -Pull on first model download)."
+    ],
+    "intel-ovms-agentic-setup-agent-profile": [
+      "Invoke intel-ovms-agentic-setup with -Approve -Profile agent (add -Pull to download the large model).",
+      "If port 8000 still serves the small model, add -ApproveStopOvms after the user approves stopping it."
+    ],
+    "intel-devkit-install": [
+      "Invoke the intel-devkit-install skill with -Approve from an elevated PowerShell session (Dev Kit Setup; not OVMS-only)."
+    ],
+    "intel-devkit-ovms-slice-fetch": [
+      "Invoke the intel-devkit-ovms-slice-fetch skill with -Approve to sparse-clone Windows_Software_Installation/OVMS into the Dev Kit install root.",
+      "Then invoke intel-ovms-agentic-setup with -Approve (add -Pull on first model download)."
+    ],
+    "intel-devkit-verify": [
+      "Invoke intel-devkit-verify as the standard user (not elevated) to confirm OpenVINO GenAI and OVMS paths."
+    ],
+    "intel-agent-provider-config": [
+      "Optional: invoke intel-agent-provider-config with -Approve to stage Hermes (or OpenClaw) settings for http://localhost:8000/v3.",
+      "Follow local_provider_handoff in the skill JSON (hermes model / new chat); provider switch is not automatic."
+    ],
+    "openvino-coding-assistant": [
+      "Invoke openvino-coding-assistant via invoke-openvino-coding-assistant-setup.ps1 with -Approve -Pull -Apply (Qwen3.6 35B on port 8000).",
+      "Reload VS Code and select OVMS Qwen3.6-35B-A3B in Continue (not auto-default)."
+    ]
+  }
+}

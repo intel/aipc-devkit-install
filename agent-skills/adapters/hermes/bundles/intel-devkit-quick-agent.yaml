@@ -1,0 +1,21 @@
+# Intel Dev Kit Quick Agent — Hermes bundle (MVP)
+#
+# Playbook for agents:
+# - When skill JSON has next_skill, invoke THAT skill next (with -Approve / -Pull / profile as appropriate).
+# - intel-devkit-install partial + install_job: poll the SAME skill via install_poll (-WaitInstallJob); not verify/OVMS yet.
+# - Do NOT tell the user to run scripts under scripts/windows; use skill IDs in user-facing text.
+# - intel-devkit-install: Dev Kit Setup only (NOT "install OVMS"). Use when verify next_skill is intel-devkit-install (absent Dev Kit or V3 GenAI missing)—NOT when only V4 OVMS runtime is missing after a successful install.
+# - intel-ovms-agentic-setup: after install pass + verify V3 pass; typical when V4-ovms-installed fails (ovms.exe not on disk yet).
+# - intel-ovms-agentic-setup -Profile verify: smoke model only (0.8B). -Profile agent: large model for Hermes agent chat.
+# - When agent_inference_ready is true and next_skill is intel-agent-provider-config, offer provider staging (optional; Hermes does not auto-switch).
+# - Read summary, user_message, next_steps, next_skill, agent_inference_ready from skill JSON.
+# - Do NOT tell the user agent chat is ready unless agent_inference_ready is true.
+
+skills:
+  - intel-devkit-verify
+  - intel-devkit-install
+  - intel-ovms-agentic-setup
+  - intel-agent-provider-config
+  - intel-endpoint-smoke-test-report
+
+install_path: ~/.hermes/skills/

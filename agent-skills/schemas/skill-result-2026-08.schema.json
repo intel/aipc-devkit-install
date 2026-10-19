@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intel.com/devkit/agent-skills/skill-result-2026-08.schema.json",
+  "title": "SkillResult2026-08",
+  "type": "object",
+  "required": [
+    "schema_id",
+    "run_id",
+    "skill_id",
+    "skill_version",
+    "started_at",
+    "finished_at",
+    "functional_status",
+    "schema_valid",
+    "exit_code"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "skill-result-2026-08"
+    },
+    "run_id": { "type": "string", "format": "uuid" },
+    "skill_id": { "type": "string" },
+    "skill_version": { "type": "string" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "functional_status": {
+      "type": "string",
+      "enum": ["pass", "fail", "partial", "blocked"]
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["pass", "fail", "partial", "blocked"],
+      "description": "Alias for functional_status in reports"
+    },
+    "schema_valid": { "type": "boolean" },
+    "summary": {
+      "type": "string",
+      "description": "One-line user-facing outcome (no milestone/check ids)."
+    },
+    "user_message": {
+      "type": "string",
+      "description": "Plain-language explanation for agents and operators."
+    },
+    "next_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ordered user-facing actions."
+    },
+    "blocked_reason": {
+      "type": "string",
+      "description": "Why the run stopped, when blocked or failed."
+    },
+    "agent_inference_ready": {
+      "type": "boolean",
+      "description": "True when GET /v3/models advertises the large agent model (Hermes agent chat)."
+    },
+    "smoke_inference_ready": {
+      "type": "boolean",
+      "description": "True when the small verify/smoke model is advertised on OVMS."
+    },
+    "readiness_tier": {
+      "type": "string",
+      "enum": ["none", "smoke", "agent"],
+      "description": "Highest inference readiness achieved on this run."
+    },
+    "model_profile": {
+      "type": "string",
+      "description": "OVMS setup profile when applicable: verify or agent."
+    },
+    "diagnostics": {
+      "type": "object",
+      "description": "Lab and automation detail: checks copy, error, catalog ids, milestone_refs, notes."
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "User-relevant cautions only; implementer notes are in diagnostics.notes."
+    },
+    "devkit_status": {
+      "type": "string",
+      "enum": ["present", "partial", "absent", "unknown"]
+    },
+    "next_skill": { "type": "string" },
+    "install_job": {
+      "type": "object",
+      "description": "Elevated install job status (machine channel; job_id for polling)."
+    },
+    "install_poll": {
+      "type": "object",
+      "description": "Agent poll action: skill_id intel-devkit-install, WaitInstallJob + InstallJobId."
+    },
+    "risk_class": { "type": "string" },
+    "approval_granted": { "type": "boolean" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "enum": ["pass", "fail", "skip"] },
+          "message": { "type": "string" },
+          "evidence": { "type": "object" }
+        }
+      }
+    },
+    "endpoint": { "type": "string" },
+    "model": { "type": "string" },
+    "logs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "remediation": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

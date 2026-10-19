@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intel.com/devkit/agent-skills/skill-card.schema.json",
+  "title": "SkillCard",
+  "type": "object",
+  "required": [
+    "skill_id",
+    "version",
+    "owner",
+    "description",
+    "risk_class",
+    "approval_mode",
+    "supported_os",
+    "platforms"
+  ],
+  "properties": {
+    "skill_id": {
+      "type": "string",
+      "pattern": "^(intel-[a-z0-9-]+|openvino-[a-z0-9-]+)$"
+    },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
+    "owner": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "deck_alias": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Documentation-only deck names (D6)"
+    },
+    "scope": {
+      "type": "string",
+      "description": "e.g. lite for openvino-coding-assistant"
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["read", "write-config", "install", "network", "privileged"]
+    },
+    "approval_mode": {
+      "type": "string",
+      "enum": ["none", "required", "required-privileged"]
+    },
+    "supported_os": {
+      "type": "array",
+      "items": { "enum": ["windows"] },
+      "minItems": 1
+    },
+    "platforms": {
+      "type": "array",
+      "description": "Agent hosts with validated adapter overlays (D4). Portable skills use agent_skills_standard for all agentskills.io hosts.",
+      "items": { "enum": ["hermes", "openclaw"] }
+    },
+    "agent_skills_standard": {
+      "type": "boolean",
+      "description": "When true, skill is published under skills/ per https://agentskills.io/specification"
+    },
+    "validated_models": { "type": "array", "items": { "type": "string" } },
+    "ovms_contract": {
+      "type": "object",
+      "properties": {
+        "base_url": { "type": "string" },
+        "models_path": { "type": "string" },
+        "chat_path": { "type": "string" }
+      }
+    },
+    "inputs": { "type": "object" },
+    "outputs": { "type": "object" },
+    "preflight": { "type": "array", "items": { "type": "string" } },
+    "actions": { "type": "array", "items": { "type": "string" } },
+    "known_failures": { "type": "array", "items": { "type": "string" } },
+    "hardware_fit_card": { "type": "string" },
+    "recommended_hardware": {
+      "type": "object",
+      "description": "Reference platform (D10); see docs/recommended-hardware.md",
+      "properties": {
+        "processor": { "type": "string" },
+        "memory_gb_min": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "scan_sign_status": { "type": "string" },
+    "invoke": {
+      "type": "object",
+      "properties": {
+        "windows_script": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}
