@@ -1,4 +1,5 @@
-  # intel-openvino-coding-assistant — merge block; see configure-continue-ovms.ps1
+  # intel-openvino-coding-assistant — example merge block.
+  # The script replaces model with the id from GET /v3/models (Muse-Glimmer or Qwen3.6).
   - name: OVMS Qwen3.6-35B-A3B
     provider: openai
     model: Qwen3.6-35B-A3B

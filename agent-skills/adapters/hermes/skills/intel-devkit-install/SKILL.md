@@ -34,6 +34,8 @@ Re-invoke **`intel-devkit-install`** with **`-WaitInstallJob -InstallJobId '<job
 
 When the poll returns **`functional_status: pass`**, tell the user **`user_message`**. Invoke **`intel-devkit-verify`** only when their request includes verification or a later step (do not run Hermes elevated for OVMS).
 
-## Full loop (Scenario C)
+## Optional follow-on
 
-`intel-devkit-verify` → this skill (`-Approve -Elevate` + poll) → `intel-devkit-verify` → `intel-ovms-agentic-setup` → `intel-agent-provider-config` → `intel-endpoint-smoke-test-report` → switch Hermes model to local OVMS (`http://localhost:8000/v3`).
+`/intel-devkit-install` stops when install passes. Run later skills only when the user asks for them:
+
+`intel-devkit-verify` → `intel-ovms-agentic-setup` → `intel-agent-provider-config` → `intel-endpoint-smoke-test-report` → switch Hermes model to local OVMS (`http://localhost:8000/v3`).

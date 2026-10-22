@@ -493,7 +493,7 @@ For technical assistance or feature requests:
 
 MIT License
 
-Copyright (c) 2025 Intel
+Copyright (c) 2026 Intel
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

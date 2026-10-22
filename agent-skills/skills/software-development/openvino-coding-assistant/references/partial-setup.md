@@ -6,7 +6,7 @@ Never call `ovms_agentic_setup.ps1` directly.
 
 ## OVMS only (port 8000)
 
-Same model as `intel-ovms-agentic-setup` profile **agent**. Skip this if that server is already listing Qwen3.6 35B.
+Skip this when port 8000 already lists Muse-Glimmer or Qwen3.6. Download Qwen3.6 only when neither is listed.
 
 ```powershell
 .\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull `
@@ -25,4 +25,4 @@ Staged diff only (no write):
 .\scripts\windows\configure-continue-ovms.ps1 -Approve
 ```
 
-Continue uses the same OVMS endpoint as Hermes and OpenClaw: port **8000** and **`OpenVINO/Qwen3.6-35B-A3B-int4-ov`**.
+Continue uses the same OVMS endpoint as Hermes on port **8000**. The config uses the model id already advertised there (Muse-Glimmer or Qwen3.6).

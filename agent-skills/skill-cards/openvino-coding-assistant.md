@@ -3,7 +3,7 @@ skill_id: openvino-coding-assistant
 version: 0.2.0
 scope: lite
 owner: aipc-agent-skills
-description: VS Code Continue + OVMS Qwen3.6 35B on port 8000 (same model as OVMS agentic setup); merges Continue config without changing default model.
+description: VS Code Continue on the OVMS model already on port 8000 (Muse-Glimmer or Qwen3.6). Does not replace that server. Merges Continue config without changing the default model.
 risk_class: write-config
 approval_mode: required
 supported_os: [windows]
@@ -32,9 +32,9 @@ VS Code **Continue** + **OVMS** local coding assistant ([2026 doc](https://docs.
 
 ## OVMS
 
-- Catalog: **`OpenVINO/Qwen3.6-35B-A3B-int4-ov`** (same as OVMS agentic setup)
-- Port **8000** (`http://localhost:8000/v3`)
-- API name **`Qwen3.6-35B-A3B`**
+- Use the model already on port **8000**: **`OpenVINO/Muse-Glimmer-30B-int4-ov`** or **`OpenVINO/Qwen3.6-35B-A3B-int4-ov`**
+- Do not stop that server to download the other model
+- API name comes from `GET /v3/models`
 
 ## Continue
 
@@ -47,7 +47,7 @@ VS Code **Continue** + **OVMS** local coding assistant ([2026 doc](https://docs.
 | Id | Meaning |
 |----|---------|
 | P1-vscode-continue | VS Code CLI + Continue extension (partial if extension not listed) |
-| P2-ovms-coder-endpoint | Qwen3.6 35B on `GET /v3/models` at :8000 |
+| P2-ovms-coder-endpoint | Muse-Glimmer or Qwen3.6 on `GET /v3/models` at :8000 |
 | P3-continue-config-staged | Merged YAML preview |
 | P4-continue-config-apply | File written |
 
@@ -57,6 +57,6 @@ Intel® Core™ Ultra (Series 3), **≥ 64 GB** RAM for Qwen3.6 35B — [`docs/r
 
 ## Acceptance
 
-- OVMS serves **`Qwen3.6-35B-A3B`** on **:8000**
+- OVMS serves **Muse-Glimmer** or **`Qwen3.6-35B-A3B`** on **:8000**
 - Continue config merged; user selects model in UI
 - User validates chat in Continue (autocomplete optional)

@@ -1955,6 +1955,13 @@ function Build-SkillUserPresentation {
         $userMessage = 'The large agent model is not running yet.'
         $summary = $userMessage
     }
+    if ($skillId -eq 'openvino-coding-assistant' -and $status -eq 'pass') {
+        $serving = [string](Get-ResultProperty -Result $Result -Name 'serving_model')
+        if (-not [string]::IsNullOrWhiteSpace($serving)) {
+            $summary = "Continue config is ready for $serving on OVMS."
+            $userMessage = "Continue is ready. Select OVMS $serving. It is not the automatic default."
+        }
+    }
 
     $blockedReason = $null
     if ($status -in @('blocked', 'fail')) {
@@ -3060,12 +3067,53 @@ $script:DefaultOvmsBaseUrl = 'http://localhost:8000/v3'
 $script:DefaultOvmsTarget = 'CPU'
 $script:DefaultAgentOvmsTarget = 'GPU'
 
-# D13 — VS Code Continue uses the same OVMS agent model and port as D9 (Qwen3.6 35B on :8000)
+# Continue on port 8000 accepts the model already serving: Qwen3.6 35B or Muse-Glimmer.
+# Qwen3.6 remains the download default when neither is advertised.
 $script:DefaultCodingCatalogModelId = $script:DefaultAgentModelId
 $script:DefaultCodingServingModelId = 'Qwen3.6-35B-A3B'
+$script:CodingAcceptedCatalogModelIds = @(
+    'OpenVINO/Qwen3.6-35B-A3B-int4-ov',
+    'OpenVINO/Muse-Glimmer-30B-int4-ov'
+)
 $script:DefaultCodingOvmsPort = 8000
 $script:DefaultCodingOvmsTarget = 'GPU'
 $script:IntelContinueConfigMarker = 'intel-openvino-coding-assistant'
+
+function Resolve-CodingCatalogModelFromEndpoint {
+    param(
+        [string]$BaseUrl,
+        [string]$RequestedCatalogModelId
+    )
+    $ids = @(Get-OvmsEndpointModelIdsSafe -BaseUrl $BaseUrl)
+    $candidates = @()
+    if (-not [string]::IsNullOrWhiteSpace($RequestedCatalogModelId)) {
+        $candidates = @($RequestedCatalogModelId)
+    } else {
+        $candidates = @($script:CodingAcceptedCatalogModelIds)
+    }
+    foreach ($catalog in $candidates) {
+        $match = Find-OvmsAdvertisedModelByCatalog -AdvertisedIds $ids -CatalogModelId $catalog
+        if ($match.matched) {
+            return @{
+                catalog_model_id = $catalog
+                serving_model    = $match.id
+                advertised       = $true
+                advertised_ids   = $ids
+            }
+        }
+    }
+    $fallback = if (-not [string]::IsNullOrWhiteSpace($RequestedCatalogModelId)) {
+        $RequestedCatalogModelId
+    } else {
+        $script:DefaultCodingCatalogModelId
+    }
+    return @{
+        catalog_model_id = $fallback
+        serving_model    = $null
+        advertised       = $false
+        advertised_ids   = $ids
+    }
+}
 
 function Get-OvmsModelForProfile {
     param(
@@ -3362,7 +3410,14 @@ function Merge-ContinueConfigWithOvmsCoder {
         return $content.TrimEnd() + "`n"
     }
 
-    $patternServing = '(?ms)^\s*-\s*name:[^\n]*\n(?:[ \t].*\n)*?[ \t]+model:\s*' + [regex]::Escape($script:DefaultCodingServingModelId) + '\s*$.*?(?=^\s*-\s*name:|^\s*context:|^[a-zA-Z][\w-]*:\s|\z)'
+    $servingForReplace = $script:DefaultCodingServingModelId
+    foreach ($modelLine in @($ModelLines)) {
+        if ($modelLine -match '^\s*model:\s*(\S+)\s*$') {
+            $servingForReplace = $Matches[1]
+            break
+        }
+    }
+    $patternServing = '(?ms)^\s*-\s*name:[^\n]*\n(?:[ \t].*\n)*?[ \t]+model:\s*' + [regex]::Escape($servingForReplace) + '\s*$.*?(?=^\s*-\s*name:|^\s*context:|^[a-zA-Z][\w-]*:\s|\z)'
     if ($content -match $patternServing) {
         $content = [regex]::Replace($content, $patternServing, ($block + "`n"), 1)
         $content = Remove-ContinueDuplicateEmptyModelsLine -Content $content
@@ -3464,7 +3519,7 @@ function Add-ContinueOvmsConfigToResult {
     Add-VerifyCheck -Result $Result -Check @{
         id      = 'P2-ovms-coder-endpoint'
         status  = 'pass'
-        message = "Qwen3.6 35B on $baseUrl serving_model=$serving"
+        message = "$serving on $baseUrl"
     }
 
     $modelLines = Get-ContinueOvmsCoderModelYamlLines -ServingModel $serving -ApiBase $baseUrl

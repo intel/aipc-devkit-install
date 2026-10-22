@@ -109,11 +109,11 @@
     },
     "openvino-coding-assistant": {
       "pass": {
-        "summary": "Continue config is ready for local Qwen3.6 35B on OVMS.",
-        "user_message": "Continue is ready. Select OVMS Qwen3.6-35B-A3B."
+        "summary": "Continue config is ready for the OVMS model on port 8000.",
+        "user_message": "Continue is ready. Select the OVMS model that was added."
       },
       "fail": {
-        "summary": "VS Code Continue + Qwen3.6 35B OVMS setup did not complete.",
+        "summary": "VS Code Continue setup did not complete.",
         "user_message": "Continue setup did not finish."
       },
       "blocked": {
@@ -160,8 +160,8 @@
       "user_fail": "VS Code or Continue may be missing; install from Dev Kit or marketplace."
     },
     "P2-ovms-coder-endpoint": {
-      "user_pass": "Qwen3.6 35B is advertised on http://localhost:8000/v3.",
-      "user_fail": "Qwen3.6 35B is not on port 8000 yet."
+      "user_pass": "Muse-Glimmer or Qwen3.6 is advertised on http://localhost:8000/v3.",
+      "user_fail": "Neither Muse-Glimmer nor Qwen3.6 is on port 8000 yet."
     },
     "P3-continue-config-staged": {
       "user_pass": "Continue config merge was prepared.",
@@ -275,8 +275,8 @@
       "Follow local_provider_handoff in the skill JSON (hermes model / new chat); provider switch is not automatic."
     ],
     "openvino-coding-assistant": [
-      "Invoke openvino-coding-assistant via invoke-openvino-coding-assistant-setup.ps1 with -Approve -Pull -Apply (Qwen3.6 35B on port 8000).",
-      "Reload VS Code and select OVMS Qwen3.6-35B-A3B in Continue (not auto-default)."
+      "Invoke openvino-coding-assistant via invoke-openvino-coding-assistant-setup.ps1. If Muse-Glimmer or Qwen3.6 is already on port 8000, use -Approve -Apply and do not pass -Pull. Pass -Pull only when neither model is advertised.",
+      "Reload VS Code and select the OVMS model that was added in Continue (not auto-default)."
     ]
   }
 }

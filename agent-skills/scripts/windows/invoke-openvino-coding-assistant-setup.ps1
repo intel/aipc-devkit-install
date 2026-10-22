@@ -40,13 +40,22 @@ if ($needsWrite -and -not (Test-ApprovalRequired -RiskClass 'write-config' -Appr
 }
 
 $result.approval_granted = $true
-$catalogModel = if ($Model) { $Model } else { $script:DefaultCodingCatalogModelId }
+$explicitModel = -not [string]::IsNullOrWhiteSpace($Model)
 $restPort = if ($Port -gt 0) { $Port } else { $script:DefaultCodingOvmsPort }
+$running = Resolve-CodingCatalogModelFromEndpoint -BaseUrl (Get-OvmsBaseUrl -Port $restPort) -RequestedCatalogModelId $(if ($explicitModel) { $Model } else { $null })
+$leaveServerRunning = [bool]$running.advertised
+if ($leaveServerRunning) {
+    $catalogModel = $running.catalog_model_id
+    $result.serving_model = $running.serving_model
+    $result.warnings += "OVMS already serving $($running.serving_model) on port $restPort. Leaving that server running."
+} else {
+    $catalogModel = if ($explicitModel) { $Model } else { $script:DefaultCodingCatalogModelId }
+}
 $result.catalog_model_id = $catalogModel
 $result.coding_ovms_port = $restPort
 $result.canonical_doc = 'https://docs.openvino.ai/2026/model-server/ovms_demos_code_completion_vsc.html'
 
-if (-not $SkipOvms) {
+if (-not $SkipOvms -and -not $leaveServerRunning) {
     $ovmsScript = Join-Path $PSScriptRoot 'invoke-ovms-agentic-setup.ps1'
     $outFile = [System.IO.Path]::GetTempFileName()
     $errFile = [System.IO.Path]::GetTempFileName()
@@ -103,7 +112,7 @@ if (-not $SkipOvms) {
             Write-SkillResult -Result $result
         }
         if ($ovmsResult.functional_status -eq 'partial') {
-            $result.warnings += 'OVMS setup partial; Continue step may still work if Qwen3.6 35B is advertised on port {0}' -f $restPort
+            $result.warnings += 'OVMS setup partial; Continue step may still work if Muse-Glimmer or Qwen3.6 is advertised on port {0}' -f $restPort
         }
     } finally {
         Remove-Item -LiteralPath $outFile, $errFile -Force -ErrorAction SilentlyContinue
@@ -119,6 +128,8 @@ if (-not $SkipContinue) {
     }
     if ($continueResult.continue_config_backup) { $result.continue_config_backup = $continueResult.continue_config_backup }
     if ($continueResult.continue_config_path) { $result.continue_config_path = $continueResult.continue_config_path }
+    if ($continueResult.serving_model) { $result.serving_model = $continueResult.serving_model }
+    if ($continueResult.catalog_model_id) { $result.catalog_model_id = $continueResult.catalog_model_id }
     if ($continueResult.error) { $result.error = $continueResult.error }
     $result.functional_status = $continueResult.functional_status
     $result.exit_code = $continueResult.exit_code
@@ -137,9 +148,10 @@ $result.functional_status = 'pass'
 $result.exit_code = 0
 $result.overall_status = 'pass'
 if (-not $result.next_steps -or $result.next_steps.Count -eq 0) {
+    $servingName = if ($result.serving_model) { $result.serving_model } else { $script:DefaultCodingServingModelId }
     $result.next_steps = @(
-        "Open VS Code and select OVMS $($script:DefaultCodingServingModelId) in Continue."
-        "Confirm GET http://localhost:$restPort/v3/models lists $($script:DefaultCodingServingModelId)."
+        "Open VS Code and select OVMS $servingName in Continue."
+        "Confirm GET http://localhost:$restPort/v3/models lists $servingName."
     )
 }
 Write-SkillResult -Result $result

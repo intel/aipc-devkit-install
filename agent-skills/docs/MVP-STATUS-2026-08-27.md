@@ -1,7 +1,7 @@
 # Intel AI PC Dev Kit 4.x — Agent Skills MVP
 
 **Status update for slides** · August 27, 2026  
-**Branch / deliverable:** `Devkit4.0` · `agent-skills/` + handoff zip `devkit4.0-agent-skills.zip`
+**Branch / deliverable:** `Devkit4.0` · `agent-skills/` in the Dev Kit clone (beside `Windows_Software_Installation`)
 
 ---
 
@@ -32,7 +32,7 @@
 
 ### Handoff & operations
 
-- Zip handoff process documented (SmartScreen / Mark of the Web, `Unblock-File`, `Expand-Archive`).
+- Distribution is the Dev Kit clone. `agent-skills` sits beside `Windows_Software_Installation`. See [Clone the Dev Kit repo](../README.md#clone-the-dev-kit-repo).
 - **`PROJECT-REPORT.md`** at repo root for stakeholder narrative.
 
 ### Lab validation
@@ -83,7 +83,7 @@ verify Dev Kit → [install if absent] → start agentic OVMS (D1 0.8B verify)
 
 | Risk | Mitigation |
 |------|------------|
-| Windows blocks zip / `.ps1` on lab machines | README zip handoff; Unblock zip + scripts; prefer git clone where possible |
+| Windows blocks `.ps1` on lab machines | `Unblock-File` on `agent-skills\*.ps1`, or run with `-ExecutionPolicy Bypass`. See [troubleshooting.md](troubleshooting.md). |
 | OVMS chat 412 before model warmup | O3-prep polling; O3 before O4 in execution; user waits on `-Pull` compile |
 | Long Setup_2 / full GenAI install | Default genai-minimal; `-Setup2Full` documented; Setup2Only graceful skip |
 | MVP “done” vs “works on one lab” | MANUAL-HW-LAB + checklist Scenario A sign-off still required |
@@ -96,7 +96,7 @@ verify Dev Kit → [install if absent] → start agentic OVMS (D1 0.8B verify)
 2. Complete **Scenario A** steps **A5** and document **A3** (staged provider diff).
 3. **M2:** Implement **`-Apply`** with backup/rollback for Hermes/OpenClaw (or document manual apply as interim).
 4. Optional: CI schema validation; D10 hardware warn-only in verify.
-5. Inner-source: commit `agent-skills` on **`Devkit4.0`** when ready (zip remains adjunct for testers).
+5. Inner-source: commit `agent-skills` on **`Devkit4.0`** in the Dev Kit repo. Testers use that clone.
 
 ---
 

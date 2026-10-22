@@ -87,13 +87,13 @@ training.developer.aipc\
     OVMS\ovms_agentic_setup.ps1
 ```
 
-Engineering detail: [agent-skills/docs/implementation-status.md](agent-skills/docs/implementation-status.md)
+Customer guide: [agent-skills/README.md](agent-skills/README.md)
 
 ---
 
 ## 5. Milestones and timeline
 
-Indicative **MVP (M0–M3): 6–9 weeks** for a small team. Full roadmap: [agent-skills/docs/planning/IMPLEMENTATION-ROADMAP.md](agent-skills/docs/planning/IMPLEMENTATION-ROADMAP.md)
+Indicative **MVP (M0–M3): 6–9 weeks** for a small team.
 
 | Phase | Name | Goal |
 |-------|------|------|
@@ -108,9 +108,7 @@ Indicative **MVP (M0–M3): 6–9 weeks** for a small team. Full roadmap: [agent
 
 **M2 exit gate:** Provider config §4.4, §4.6; Scenario A full (Hermes); Scenario B (OpenClaw); **no silent config writes**.
 
-**M3 exit gate:** Full MVP checklist §8; tag `v0.1.0-mvp`; security review scheduled.
-
-Checklist: [agent-skills/docs/planning/MVP-CHECKLIST.md](agent-skills/docs/planning/MVP-CHECKLIST.md)
+**M3 exit gate:** Full MVP checklist; tag `v0.1.0-mvp`; security review scheduled.
 
 ---
 
@@ -133,9 +131,9 @@ Customer quick start: [agent-skills/README.md](agent-skills/README.md)
 
 ### M0 — Foundation (largely complete)
 
-- Decision log **D1–D10** in [agent-skills/docs/planning/DECISIONS.md](agent-skills/docs/planning/DECISIONS.md)
+- Decision log **D1–D10** (model ids, approvals, and report format)
 - JSON schemas (`skill-result-2026-08`, skill cards, validation report)
-- Repo tree: `skills/`, `skill-cards/`, `schemas/`, `scripts/windows/`, `adapters/`, `tests/`, `docs/planning/`
+- Repo tree: `skills/`, `skill-cards/`, `schemas/`, `scripts/windows/`, `adapters/`, `tests/`
 - Telemetry scaffold (SQLite; optional)
 - Wrapper conventions: exit codes, approval, JSON stdout
 
@@ -148,7 +146,7 @@ Customer quick start: [agent-skills/README.md](agent-skills/README.md)
 - **`endpoint-smoke-test.ps1`:** E1–E4
 - **Shared helpers** in `_skill-common.ps1` (discovery, OVMS API, launch/wait, model resolution)
 - **Contract tests:** `tests/Run-ContractTests.ps1`, fixtures, golden reports
-- **Documentation:** [agent-skills/docs/M1-COMPLETION.md](agent-skills/docs/M1-COMPLETION.md), [MANUAL-HW-LAB.md](agent-skills/tests/integration/MANUAL-HW-LAB.md), troubleshooting
+- **Documentation:** [MANUAL-HW-LAB.md](agent-skills/tests/integration/MANUAL-HW-LAB.md), troubleshooting
 
 **Originally deferred from M1:** full production install skill (partially addressed—see install section), Hermes `-Apply`, CI schema strict mode.
 
@@ -263,4 +261,4 @@ Customer quick start: [agent-skills/README.md](agent-skills/README.md)
 
 ---
 
-*Update this report when milestones close or HW sign-off completes. Living engineering status: [agent-skills/docs/implementation-status.md](agent-skills/docs/implementation-status.md).*
+*Update this report when milestones close or HW sign-off completes.*

@@ -121,16 +121,17 @@ After wipe, first OVMS run recreates profile folders and junctions (`invoke-ovms
 | **Hermes “switch to local” from cloud** | New Hermes chat after handoff; optionally revert config to cloud first to repeat the playbook |
 | **Single-model delete only** | Remove one folder under **`%USERPROFILE%\OVMS\models\OpenVINO\`** instead of full reset |
 
-### Deploy new zip on the lab machine
+### Update the lab clone
+
+`agent-skills` is already in the Dev Kit clone, beside `Windows_Software_Installation`. On the lab machine:
 
 ```powershell
-# On build machine or after copying devkit4.0-agent-skills.zip to the lab:
-Unblock-File -LiteralPath "$env:USERPROFILE\Downloads\devkit4.0-agent-skills.zip"
-$DevKitRoot = 'C:\path\to\aipc-devkit-install-main'
-Rename-Item "$DevKitRoot\agent-skills" "$DevKitRoot\agent-skills.bak.$(Get-Date -Format yyyyMMdd)" -ErrorAction SilentlyContinue
-Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\devkit4.0-agent-skills.zip" -DestinationPath $DevKitRoot -Force
-Get-ChildItem "$DevKitRoot\agent-skills" -Recurse -Filter *.ps1 | Unblock-File
+$DevKitRoot = 'C:\path\to\aipc-devkit-install'
+cd $DevKitRoot
+git pull
 ```
+
+First-time lab setup is `git clone https://github.com/intel/aipc-devkit-install`. If PowerShell blocks `*.ps1`, see [troubleshooting.md](../../docs/troubleshooting.md).
 
 Re-register Hermes external skills if you use **`skills.external_dirs`** (path unchanged if `agent-skills` path is the same).
 

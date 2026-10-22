@@ -17,7 +17,7 @@ Skills in this pack are validated against the following **reference platform**. 
 
 **D9 runtime:** use OpenVINO Model Server **2026.3.1 or newer** (`python_on` Windows zip). Dev Kit first install may ship older OVMS; run `scripts/windows/upgrade-ovms-runtime.ps1 -Approve` before D9 sign-off. Prefer **GPU** for D9 (MoE). Lab validated 3.6-35B-A3B on D10; former D9 **`OpenVINO/Qwen3.8-27B-int4-ov`** was retired after `openvino.dll` crashes on reference HW.
 
-The **D9 model id may change** when newer OpenVINO-quantized releases replace the default; skills read the locked value from `DECISIONS.md` / `DefaultAgentModelId` until you override with `-Model`.
+The agent model id may change when a newer OpenVINO release replaces the default. Skills use `DefaultAgentModelId` until you override it with `-Model`.
 
 ## Trademarks
 

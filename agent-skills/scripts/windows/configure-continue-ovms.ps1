@@ -20,9 +20,16 @@ if (-not (Test-ApprovalRequired -RiskClass 'write-config' -Approve:$Approve)) {
 }
 
 $result.approval_granted = $true
+$restPort = if ($Port -gt 0) { $Port } else { $script:DefaultCodingOvmsPort }
+if ([string]::IsNullOrWhiteSpace($CatalogModel)) {
+    $running = Resolve-CodingCatalogModelFromEndpoint -BaseUrl (Get-OvmsBaseUrl -Port $restPort) -RequestedCatalogModelId $null
+    if ($running.advertised) {
+        $CatalogModel = $running.catalog_model_id
+        if ([string]::IsNullOrWhiteSpace($ServingModel)) { $ServingModel = $running.serving_model }
+    }
+}
 $catalog = if ($CatalogModel) { $CatalogModel } else { $script:DefaultCodingCatalogModelId }
 $serving = if ($ServingModel) { $ServingModel } else { $script:DefaultCodingServingModelId }
-$restPort = if ($Port -gt 0) { $Port } else { $script:DefaultCodingOvmsPort }
 
 Add-ContinueOvmsConfigToResult -Result $result -Approve:$Approve -Apply:$Apply `
     -CatalogModelId $catalog -ServingModel $serving -Port $restPort

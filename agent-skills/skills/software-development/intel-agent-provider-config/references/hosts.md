@@ -10,4 +10,4 @@
 
 `-Apply` is not an automatic Hermes provider switch. Follow `local_provider_handoff` in the JSON result.
 
-Port **8000** is this path. Continue uses that same port and the Qwen3.6 35B model (`openvino-coding-assistant`).
+Port **8000** is this path. Continue uses that same server and whichever of Muse-Glimmer or Qwen3.6 is already advertised (`openvino-coding-assistant`).

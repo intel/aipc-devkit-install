@@ -1,7 +1,7 @@
 ---
 name: intel-devkit-install
 description: >-
-  Install or top up the Intel AI PC Developer Kit on Windows when verification says the kit is missing or OpenVINO GenAI is incomplete, and the user approves the system change. On Hermes, run as a standard user so Windows UAC can request Administrator, then poll until the installer job finishes. This setup does not install OpenVINO Model Server (OVMS). If the user asked only for the Dev Kit, stop when install passes. Continue only when their request includes a later step. Not for starting OVMS, downloading a chat model, switching Hermes to local inference, or the VS Code Continue coding assistant.
+  Install or top up the Intel AI PC Developer Kit on Windows when the user asks to install the Dev Kit and approves the system change. Do not run intel-devkit-verify first. On Hermes, run as a standard user so Windows UAC can request Administrator, then poll until the installer job finishes. This setup does not install OpenVINO Model Server (OVMS). If the user asked only for the Dev Kit, stop when install passes. Continue only when their request includes a later step. Not for starting OVMS, downloading a chat model, switching Hermes to local inference, or the VS Code Continue coding assistant.
 license: MIT
 compatibility: Windows (PowerShell). Administrator and network may be required. User approval required.
 metadata:
@@ -12,7 +12,7 @@ metadata:
 
 # intel-devkit-install
 
-Install or top up the Intel AI PC Developer Kit. Run only after `intel-devkit-verify` reports the kit absent or OpenVINO GenAI (V3) failed, and the user approves the change.
+Install or top up the Intel AI PC Developer Kit when the user asks for the install and approves the change. Do not run `intel-devkit-verify` first. Run verify only when the user asks for a check.
 
 From the **`agent-skills`** repository root. Do not paste `.ps1` paths to the user.
 

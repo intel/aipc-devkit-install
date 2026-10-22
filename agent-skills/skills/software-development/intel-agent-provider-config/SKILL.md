@@ -1,7 +1,7 @@
 ---
 name: intel-agent-provider-config
 description: >-
-  Point Hermes or OpenClaw at a local OpenVINO Model Server (OVMS) on Windows after the agent model is already being served on port 8000. Stages provider settings and returns the steps to switch the model and start a new chat. OVMS running does not switch the agent by itself. Use after intel-ovms-agentic-setup with the agent profile. Confirm chat only after the user completes that switch. Not for installing the Intel AI PC Developer Kit, launching OVMS, or VS Code Continue (openvino-coding-assistant, same Qwen3.6 35B model on port 8000).
+  Point Hermes or OpenClaw at a local OpenVINO Model Server (OVMS) on Windows after the agent model is already being served on port 8000. Stages provider settings and returns the steps to switch the model and start a new chat. OVMS running does not switch the agent by itself. Use after intel-ovms-agentic-setup with the agent profile. Confirm chat only after the user completes that switch. Not for installing the Intel AI PC Developer Kit, launching OVMS, or VS Code Continue (openvino-coding-assistant uses the model already on port 8000).
 license: MIT
 compatibility: Windows (PowerShell). Intel Core Ultra (Series 3) and 64 GB+ RAM recommended for agent model. Network for optional -Pull.
 metadata:

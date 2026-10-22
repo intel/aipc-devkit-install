@@ -1,6 +1,6 @@
 # Hermes — Dev Kit install elevation (UAC)
 
-Intel Dev Kit **install** requires **Administrator**. Hermes normally runs as a **standard user**. The install invoker supports **UAC elevation** so the agent can drive the full skill loop without asking the user to open a separate elevated PowerShell.
+Intel Dev Kit **install** requires **Administrator**. Hermes normally runs as a **standard user**. The install invoker supports **UAC elevation** so the agent can drive the install without asking the user to open a separate elevated PowerShell.
 
 ## User experience
 
@@ -9,7 +9,7 @@ Intel Dev Kit **install** requires **Administrator**. Hermes normally runs as a 
 3. Windows shows a **UAC** dialog — the user clicks **Yes** (this is the elevation approval).
 4. A **separate elevated PowerShell window** runs Setup_1 / Setup_2 (may take hours). Hermes returns immediately with `functional_status: partial` and an **`install_job`** id.
 5. Hermes **polls** by re-invoking the **`intel-devkit-install`** skill with **`-WaitInstallJob -InstallJobId <id>`** (from JSON **`install_job.job_id`** / **`install_poll`**) until `functional_status` is `pass` or `fail`. Do **not** paste script paths to the user.
-6. After **`pass`**, invoke **`intel-devkit-verify`**, then **OVMS → provider → smoke** from the **non-elevated** session.
+6. After **`pass`**, tell the user the Dev Kit install completed. Invoke **`intel-devkit-verify`**, OVMS, provider config, or smoke only when the user asked for that step, from the **non-elevated** session.
 
 ## Commands (from `agent-skills` root)
 
