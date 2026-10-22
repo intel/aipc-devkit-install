@@ -12,28 +12,28 @@ metadata:
 
 # intel-ovms-agentic-setup
 
-Start OpenVINO Model Server for local chat. Run from a **standard-user** PowerShell at the **`agent-skills`** repository root, after Dev Kit install (see [admin-vs-user-runtime.md](../../../docs/admin-vs-user-runtime.md)). Models and cache use **`%USERPROFILE%\OVMS`** unless **`AIPC_OVMS_USE_CLONE_PATHS=1`**.
+Start OpenVINO Model Server for local chat. Run as a **standard user**, after Dev Kit install (see [admin-vs-user-runtime.md](../../../docs/admin-vs-user-runtime.md)). Models and cache use **`%USERPROFILE%\OVMS`** unless **`AIPC_OVMS_USE_CLONE_PATHS=1`**.
 
-Invoke only `scripts\windows\invoke-ovms-agentic-setup.ps1`. Never call `ovms_agentic_setup.ps1` directly.
+**Script location.** Do not search the disk for this script. This file is `agent-skills\skills\software-development\intel-ovms-agentic-setup\SKILL.md`. The invoker is `agent-skills\scripts\windows\invoke-ovms-agentic-setup.ps1`, which is `..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1` from this skill directory. Run that path. `.\scripts\windows\...` works only when the current directory is already `agent-skills`. Never call `ovms_agentic_setup.ps1` directly.
 
 When the user asks to **install OVMS**, **start local inference**, or use the **large agent model**, use **`-Profile agent`**, not `verify`.
 
 ## Verify / smoke model
 
 ```powershell
-.\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile verify
+..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile verify
 ```
 
 If OVMS is already running the correct model on port 8000 (reuse the endpoint; no second pull):
 
 ```powershell
-.\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Profile verify
+..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Profile verify
 ```
 
 ## Agent model (before Hermes provider handoff)
 
 ```powershell
-.\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile agent
+..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile agent
 ```
 
 **`-Profile verify` success** may be **`partial`** with **`readiness_tier: smoke`** when only the small model is served. That is not agent-ready.
@@ -41,19 +41,19 @@ If OVMS is already running the correct model on port 8000 (reuse the endpoint; n
 Another process or the wrong model holds port 8000. The user must approve stopping **ovms.exe** only:
 
 ```powershell
-.\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile agent -ApproveStopOvms
+..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile agent -ApproveStopOvms
 ```
 
 Resume or re-pull after a partial download, or when weights already exist on disk:
 
 ```powershell
-.\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile agent -ApproveRetryPull
+..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -Pull -Profile agent -ApproveRetryPull
 ```
 
 OVMS is already running and only health or chat checks are needed:
 
 ```powershell
-.\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -SkipLaunch -Profile verify
+..\..\..\scripts\windows\invoke-ovms-agentic-setup.ps1 -Approve -SkipLaunch -Profile verify
 ```
 
 Blocked `error.code` values are in [references/run-flags.md](references/run-flags.md).

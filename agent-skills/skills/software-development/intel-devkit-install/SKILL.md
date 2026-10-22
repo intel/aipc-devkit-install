@@ -14,7 +14,7 @@ metadata:
 
 Install or top up the Intel AI PC Developer Kit when the user asks for the install and approves the change. Do not run `intel-devkit-verify` first. Run verify only when the user asks for a check.
 
-From the **`agent-skills`** repository root. Do not paste `.ps1` paths to the user.
+**Script location.** Do not search the disk for this script. This file is `agent-skills\skills\software-development\intel-devkit-install\SKILL.md`. The invoker is `agent-skills\scripts\windows\invoke-devkit-install.ps1`, which is `..\..\..\scripts\windows\invoke-devkit-install.ps1` from this skill directory. Run that path. `.\scripts\windows\...` works only when the current directory is already `agent-skills`. Do not paste `.ps1` paths to the user.
 
 ## What to tell the user
 
@@ -31,13 +31,13 @@ If the user asks for verbose output, what happened, or why it failed, then inclu
 Tell the user Windows will show a UAC prompt and they should click **Yes**. Then start the install with **`-Approve -Elevate`**:
 
 ```powershell
-.\scripts\windows\invoke-devkit-install.ps1 -Approve -Elevate
+..\..\..\scripts\windows\invoke-devkit-install.ps1 -Approve -Elevate
 ```
 
 `functional_status: partial` with `install_job.phase` **`running`** means the install is in progress, not finished. Poll by re-invoking this skill with **`-WaitInstallJob -InstallJobId`** from JSON **`install_job`** / **`install_poll`**:
 
 ```powershell
-.\scripts\windows\invoke-devkit-install.ps1 -WaitInstallJob -InstallJobId '<job_id>'
+..\..\..\scripts\windows\invoke-devkit-install.ps1 -WaitInstallJob -InstallJobId '<job_id>'
 ```
 
 Repeat until `functional_status` is **`pass`** or **`fail`**. **`UAC_DENIED`** means the user declined UAC; ask to retry. Elevation details: [hermes-install-elevation.md](../../../docs/hermes-install-elevation.md).
@@ -47,13 +47,13 @@ When the poll returns **`pass`**, tell the user **`user_message`**. Invoke **`in
 ## Already an Administrator
 
 ```powershell
-.\scripts\windows\invoke-devkit-install.ps1 -Approve
+..\..\..\scripts\windows\invoke-devkit-install.ps1 -Approve
 ```
 
 Preflight only (no install):
 
 ```powershell
-.\scripts\windows\invoke-devkit-install.ps1 -Approve -PreflightOnly
+..\..\..\scripts\windows\invoke-devkit-install.ps1 -Approve -PreflightOnly
 ```
 
 Setup_2 choices, `-InstallRoot`, and `-DevKitWorkingDir` are in [references/setup-flags.md](references/setup-flags.md).

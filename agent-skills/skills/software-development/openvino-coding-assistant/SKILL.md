@@ -32,18 +32,20 @@ Continue uses the same OVMS server as Hermes. Leave it running.
 
 ## Full setup (OVMS + Continue config)
 
-From the **`agent-skills`** root as a **standard user**.
+Run as a **standard user**.
+
+**Script location.** Do not search the disk for this script. This file is `agent-skills\skills\software-development\openvino-coding-assistant\SKILL.md`. The invoker is `agent-skills\scripts\windows\invoke-openvino-coding-assistant-setup.ps1`, which is `..\..\..\scripts\windows\invoke-openvino-coding-assistant-setup.ps1` from this skill directory. Run that path. `.\scripts\windows\...` works only when the current directory is already `agent-skills`.
 
 When Muse-Glimmer or Qwen3.6 is already listed, do not pass **`-Pull`** or **`-ApproveStopOvms`**:
 
 ```powershell
-.\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Apply
+..\..\..\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Apply
 ```
 
 When neither model is listed, download Qwen3.6:
 
 ```powershell
-.\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply
+..\..\..\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply
 ```
 
 - **`-Approve`** — required for an OVMS launch and the Continue config write.
@@ -53,13 +55,13 @@ When neither model is listed, download Qwen3.6:
 If port **8000** is held by a model that is neither Muse-Glimmer nor Qwen3.6:
 
 ```powershell
-.\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply -ApproveStopOvms
+..\..\..\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply -ApproveStopOvms
 ```
 
 Resume or re-pull:
 
 ```powershell
-.\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply -ApproveRetryPull
+..\..\..\scripts\windows\invoke-openvino-coding-assistant-setup.ps1 -Approve -Pull -Apply -ApproveRetryPull
 ```
 
 OVMS-only and Continue-only commands are in [references/partial-setup.md](references/partial-setup.md). The config fragment is [references/continue-ovms-coder-model.yaml](references/continue-ovms-coder-model.yaml).

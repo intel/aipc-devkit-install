@@ -12,10 +12,12 @@ metadata:
 
 # intel-endpoint-smoke-test-report
 
-Confirm the local OVMS chat endpoint answers. Run from the **`agent-skills`** repository root, after OVMS is up:
+Confirm the local OVMS chat endpoint answers. Run after OVMS is up.
+
+**Script location.** Do not search the disk for this script. This file is `agent-skills\skills\software-development\intel-endpoint-smoke-test-report\SKILL.md`. The invoker is `agent-skills\scripts\windows\endpoint-smoke-test.ps1`, which is `..\..\..\scripts\windows\endpoint-smoke-test.ps1` from this skill directory. Run that path. `.\scripts\windows\...` works only when the current directory is already `agent-skills`.
 
 ```powershell
-.\scripts\windows\endpoint-smoke-test.ps1
+..\..\..\scripts\windows\endpoint-smoke-test.ps1
 ```
 
 The default base URL is `http://localhost:8000/v3`. The default model is the small verify model. Pass **`-Model`** with the id from **`GET /v3/models`** when the server is on the agent model. Pass **`-BaseUrl`** only for a non-default endpoint.

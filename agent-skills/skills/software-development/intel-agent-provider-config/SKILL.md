@@ -12,7 +12,9 @@ metadata:
 
 # intel-agent-provider-config
 
-Stage local OVMS provider settings and hand the user the switch steps. Run from the **`agent-skills`** repository root. Do not call `ovms_agentic_setup.ps1` directly. Do not assume the current cloud session changes provider on its own.
+Stage local OVMS provider settings and hand the user the switch steps. Do not call `ovms_agentic_setup.ps1` directly. Do not assume the current cloud session changes provider on its own.
+
+**Script location.** Do not search the disk for these scripts. This file is `agent-skills\skills\software-development\intel-agent-provider-config\SKILL.md`. The invokers are in `agent-skills\scripts\windows\`, which is `..\..\..\scripts\windows\` from this skill directory. Run those paths. `.\scripts\windows\...` works only when the current directory is already `agent-skills`.
 
 ## Order when the user asks for local OVMS
 
@@ -34,25 +36,25 @@ If the user asks for verbose output, what happened, or why it failed, then inclu
 ## Hermes (OVMS already serving the agent model)
 
 ```powershell
-.\scripts\windows\configure-hermes-ovms.ps1 -Approve
+..\..\..\scripts\windows\configure-hermes-ovms.ps1 -Approve
 ```
 
 Hermes, and also download or start the agent model in one flow:
 
 ```powershell
-.\scripts\windows\configure-hermes-ovms.ps1 -Approve -Pull -ApproveRetryPull
+..\..\..\scripts\windows\configure-hermes-ovms.ps1 -Approve -Pull -ApproveRetryPull
 ```
 
 ## OpenClaw
 
 ```powershell
-.\scripts\windows\configure-openclaw-ovms.ps1 -Approve
+..\..\..\scripts\windows\configure-openclaw-ovms.ps1 -Approve
 ```
 
 ## Other Agent Skills hosts
 
 ```powershell
-.\scripts\windows\configure-agent-provider.ps1 -TargetAgent hermes -Approve
+..\..\..\scripts\windows\configure-agent-provider.ps1 -TargetAgent hermes -Approve
 ```
 
 Use **`-Pull`** only when the user approved network and OVMS is not already serving the agent model. The default **`-Pull:$false`** avoids a second download after `invoke-ovms-agentic-setup`. Host notes: [references/hosts.md](references/hosts.md).

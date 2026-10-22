@@ -14,10 +14,10 @@ metadata:
 
 Inspect the Windows machine. Do not install software or download models.
 
-From the **`agent-skills`** repository root:
+**Script location.** Do not search the disk for this script. This file is `agent-skills\skills\software-development\intel-devkit-verify\SKILL.md`. The invoker is `agent-skills\scripts\windows\invoke-devkit-verify.ps1`, which is `..\..\..\scripts\windows\invoke-devkit-verify.ps1` from this skill directory. Run that path. `.\scripts\windows\...` works only when the current directory is already `agent-skills`.
 
 ```powershell
-.\scripts\windows\invoke-devkit-verify.ps1
+..\..\..\scripts\windows\invoke-devkit-verify.ps1
 ```
 
 Parse JSON stdout (`skill-result-2026-08`). Do not paste `scripts\windows\*.ps1` paths.
