@@ -6,23 +6,26 @@ A PowerShell script that downloads, configures, and starts OpenVINO Model Server
 ## Quick Start
 
 ```powershell
-# Qwen3-8B on GPU (default) — hermes3 tool parser + qwen3 reasoning parser
+# Device-default text model (Qwen3-8B on GPU)
 .\ovms_agentic_setup.ps1
 
-# Phi-4-mini on CPU — phi4 tool parser
-.\ovms_agentic_setup.ps1 -Model phi4 -Target CPU
+# Qwen3.6-35B-A3B on GPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3.6-35B-A3B-int4-ov -Target GPU
+
+# Gemma 4 26B-A4B on GPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/gemma-4-26b-a4b-it-int4-ov -Target GPU
+
+# Phi-4-mini on CPU — auto-downloads chat_template.jinja
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Phi-4-mini-instruct-int4-ov -Target CPU
 
 # Qwen3-8B on NPU (NPU-optimized variant)
-.\ovms_agentic_setup.ps1 -Model qwen3-8b -Target NPU
-
-# Mistral-7B on GPU — auto-downloads chat_template.jinja
-.\ovms_agentic_setup.ps1 -Model mistral -Target GPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3-8B-int4-cw-ov -Target NPU
 
 # Image generation on GPU
 .\ovms_agentic_setup.ps1 -Model image -Target GPU
 
-# Qwen3.8-27B int4 on GPU (opt-in; large VRAM — see warnings at startup)
-.\ovms_agentic_setup.ps1 -Pull -Model qwen3.8-27b -Target GPU
+# Qwen3.8-27B int4 on GPU (large VRAM — see warnings at startup)
+.\ovms_agentic_setup.ps1 -Pull -Model OpenVINO/Qwen3.8-27B-int4-ov -Target GPU
 ```
 
 ## Upgrading OVMS
@@ -45,9 +48,9 @@ Package list: `JSON\ovms_prerequisites.json`. Then run `ovms_agentic_setup.ps1` 
 
 ## Features
 
-- **Tool/Function Calling**: Auto-configured `--tool_parser` per model
-- **Reasoning Parsers**: Qwen3 thinking mode and GPT-oss reasoning supported
+- **Tool/Function Calling**: Tool and reasoning parsers are auto-detected by OVMS 2026.4 (no `--tool_parser` / `--reasoning_parser` flags); `--enable_tool_guided_generation true` is passed for text models (except NPU)
 - **One Command**: Downloads OVMS, configures model flags, starts server
+- **Full Model IDs**: Pass the full `OpenVINO/...` model ID to `-Model` (no shorthands); `text` / `image` select the device default
 - **Smart Defaults**: Qwen3-8B on GPU/NPU, Phi-4-mini on CPU
 - **MoE Workaround**: Automatic `MOE_USE_MICRO_GEMM_PREFILL=0` for Qwen3-Coder
 - **Chat Template Auto-Download**: Mistral and Phi-4 templates fetched automatically
@@ -55,12 +58,14 @@ Package list: `JSON\ovms_prerequisites.json`. Then run `ovms_agentic_setup.ps1` 
 
 ## Default Models
 
+Selected with `-Model text` (the default) or `-Model image`.
+
 ### Text Generation
-| Device | Model | Tool Parser | Reasoning Parser |
-|--------|-------|-------------|-----------------|
-| **GPU** | `OpenVINO/Qwen3-8B-int4-ov` | hermes3 | qwen3 |
-| **CPU** | `OpenVINO/Phi-4-mini-instruct-int4-ov` | phi4 | — |
-| **NPU** | `OpenVINO/Qwen3-8B-int4-cw-ov` | hermes3 | — |
+| Device | Model |
+|--------|-------|
+| **GPU** | `OpenVINO/Qwen3-8B-int4-ov` |
+| **CPU** | `OpenVINO/Phi-4-mini-instruct-int4-ov` |
+| **NPU** | `OpenVINO/Qwen3-8B-int4-cw-ov` |
 
 ### Image Generation
 | Device | Model |
@@ -69,28 +74,34 @@ Package list: `JSON\ovms_prerequisites.json`. Then run `ovms_agentic_setup.ps1` 
 | **CPU** | `OpenVINO/stable-diffusion-v1-5-int8-ov` |
 | **NPU** | `OpenVINO/FLUX.1-schnell-int8-ov` |
 
-## Model Shorthands
+## Supported Models
 
-| Shorthand | Model | Tool Parser | Notes |
-|-----------|-------|-------------|-------|
-| `qwen3-8b` | `OpenVINO/Qwen3-8B-int4-ov` | hermes3 | + qwen3 reasoning (GPU/CPU) |
-| `qwen3.8-27b` | `OpenVINO/Qwen3.8-27B-int4-ov` | hermes3 | + qwen3 reasoning; large GPU VRAM; startup warnings |
-| `qwen3-4b` | `OpenVINO/Qwen3-4B-int4-ov` | hermes3 | |
-| `phi4` | `OpenVINO/Phi-4-mini-instruct-int4-ov` | phi4 | + chat_template auto-download |
-| `mistral` | `OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov` | mistral | + chat_template auto-download |
-| `qwen3-coder-int4` | `OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov` | qwen3coder | ~19GB VRAM, MoE workaround |
-| `qwen3-coder-int8` | `OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int8-ov` | qwen3coder | ~34GB VRAM, MoE workaround |
-| `gpt-oss` | `OpenVINO/gpt-oss-20b-int4-ov` | gptoss | + gptoss reasoning, ~16GB VRAM |
+Pass the full model ID to `-Model`.
+
+| Model | Notes |
+|-------|-------|
+| `OpenVINO/Qwen3.6-35B-A3B-int4-ov` | Large; GPU recommended; startup warnings |
+| `OpenVINO/gemma-4-26b-a4b-it-int4-ov` | Large; GPU recommended; startup warnings |
+| `OpenVINO/Qwen3.8-27B-int4-ov` | Large; GPU recommended; startup warnings |
+| `OpenVINO/Muse-Glimmer-30B-int4-ov` | **Experimental** (text + image input); may need development builds of OpenVINO/OVMS; startup warnings |
+| `OpenVINO/Qwen3.5-27B-int4-ov` | Large; GPU recommended |
+| `OpenVINO/Qwen3-8B-int4-ov` | GPU/CPU; use `OpenVINO/Qwen3-8B-int4-cw-ov` on NPU |
+| `OpenVINO/Qwen3-4B-int4-ov` | |
+| `OpenVINO/Phi-4-mini-instruct-int4-ov` | chat_template auto-download |
+| `OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov` | chat_template auto-download |
+| `OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov` | ~19GB VRAM, MoE workaround |
+| `OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int8-ov` | ~34GB VRAM, MoE workaround |
+| `OpenVINO/gpt-oss-20b-int4-ov` | ~16GB VRAM |
 
 ## Parameters
 
-- `-Model`: `text` (default), `image`, shorthand, or full OpenVINO model ID
+- `-Model`: Full OpenVINO model ID, or `text` (default) / `image` for the device default
 - `-Target`: `GPU` (default), `CPU`, or `NPU`
 - `-Port`: REST API port (default: 8000)
 - `-CacheDir`: Compiled model cache directory (default: `.ovcache`)
 - `-ModelRepositoryPath`: Model storage directory (default: `models`)
 - `-Pull`: Pre-download the model before starting the server
-- `-ModelName`: Override the API-facing model name
+- `-ModelName`: Override the API-facing model name (default: the full model ID)
 - `-Test`: Test a running server without starting a new one
 - `-Help`: Show detailed help message
 
@@ -109,37 +120,36 @@ Get-Help .\ovms_agentic_setup.ps1 -Detailed
 ## Examples
 
 ```powershell
-# Default: Qwen3-8B on GPU
+# Default: device-default text model (Qwen3-8B on GPU)
 .\ovms_agentic_setup.ps1
 
-# Specific models
-.\ovms_agentic_setup.ps1 -Model qwen3-4b -Target GPU
-.\ovms_agentic_setup.ps1 -Model phi4 -Target CPU
-.\ovms_agentic_setup.ps1 -Model mistral -Target GPU
+# Recommended examples
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3.6-35B-A3B-int4-ov -Target GPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/gemma-4-26b-a4b-it-int4-ov -Target GPU
 
-.\ovms_agentic_setup.ps1 -Model gpt-oss -Target GPU
+# Other models
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3-4B-int4-ov -Target GPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Phi-4-mini-instruct-int4-ov -Target CPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/gpt-oss-20b-int4-ov -Target GPU
 
 # NPU
-.\ovms_agentic_setup.ps1 -Model qwen3-8b -Target NPU
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3-8B-int4-cw-ov -Target NPU
 
 # Large models (high VRAM)
-.\ovms_agentic_setup.ps1 -Pull -Model qwen3.8-27b -Target GPU   # Qwen3.8-27B int4; see startup warnings
-.\ovms_agentic_setup.ps1 -Model qwen3-coder-int4 -Target GPU   # 19GB+
-.\ovms_agentic_setup.ps1 -Model qwen3-coder-int8 -Target GPU   # 34GB+
+.\ovms_agentic_setup.ps1 -Pull -Model OpenVINO/Qwen3.8-27B-int4-ov -Target GPU   # see startup warnings
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov -Target GPU   # 19GB+
+.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int8-ov -Target GPU   # 34GB+
 
-# Pre-download then start
-.\ovms_agentic_setup.ps1 -Pull -Model qwen3-8b
-
-# Full model ID with custom port
-.\ovms_agentic_setup.ps1 -Model "OpenVINO/Qwen3-8B-int4-ov" -Target GPU -Port 9000
+# Pre-download then start with a custom port
+.\ovms_agentic_setup.ps1 -Pull -Model OpenVINO/Qwen3.6-35B-A3B-int4-ov -Target GPU -Port 9000
 ```
 
 ## API Access
 
 Once started, the API is available at: `http://localhost:8000/v3`
 
-> **Note**: For Qwen3-8B the API model name is `Qwen3-8B` (auto-set by `--model_name`).
-> For models without a name override, use the full model ID (e.g. `OpenVINO/Qwen3-4B-int4-ov`).
+> **Note**: The API model name is the full model ID (e.g. `OpenVINO/Qwen3.6-35B-A3B-int4-ov`)
+> unless you override it with `-ModelName`. The examples below use Qwen3.6-35B-A3B and Gemma 4.
 
 ### Test with PowerShell (Invoke-WebRequest):
 
@@ -149,7 +159,7 @@ Once started, the API is available at: `http://localhost:8000/v3`
  -Method POST `
  -UseBasicParsing `
  -Headers @{ "Content-Type" = "application/json" } `
- -Body '{"model": "Qwen3-8B", "max_tokens": 30, "temperature": 0, "stream": false, "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "What are the 3 main tourist attractions in Paris?"}]}').Content
+ -Body '{"model": "OpenVINO/gemma-4-26b-a4b-it-int4-ov", "max_tokens": 30, "temperature": 0, "stream": false, "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "What are the 3 main tourist attractions in Paris?"}]}').Content
 ```
 
 ```powershell
@@ -158,7 +168,7 @@ Once started, the API is available at: `http://localhost:8000/v3`
  -Method POST `
  -UseBasicParsing `
  -Headers @{ "Content-Type" = "application/json" } `
- -Body '{"model": "Qwen3-8B", "max_tokens": 200, "temperature": 0, "stream": false, "tools": [{"type": "function", "function": {"name": "get_current_weather", "description": "Get the current weather", "parameters": {"type": "object", "properties": {"location": {"type": "string"}}, "required": ["location"]}}}], "messages": [{"role": "user", "content": "What is the weather in Paris?"}]}').Content
+ -Body '{"model": "OpenVINO/Qwen3.6-35B-A3B-int4-ov", "max_tokens": 200, "temperature": 0, "stream": false, "tools": [{"type": "function", "function": {"name": "get_current_weather", "description": "Get the current weather", "parameters": {"type": "object", "properties": {"location": {"type": "string"}}, "required": ["location"]}}}], "messages": [{"role": "user", "content": "What is the weather in Paris?"}]}').Content
 ```
 
 ```powershell
@@ -167,7 +177,7 @@ Once started, the API is available at: `http://localhost:8000/v3`
  -Method POST `
  -UseBasicParsing `
  -Headers @{ "Content-Type" = "application/json" } `
- -Body '{"model": "Qwen3-Coder-30B-A3B-Instruct", "max_tokens": 300, "temperature": 0, "stream": false, "tool_choice": "required", "tools": [{"type": "function", "function": {"name": "run_code", "description": "Execute a code snippet and return the output", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "The code to execute"}, "language": {"type": "string", "enum": ["python", "javascript", "bash"]}}, "required": ["code", "language"]}}}], "messages": [{"role": "system", "content": "You are an expert coding assistant."}, {"role": "user", "content": "Write and run a Python function that returns the first 10 Fibonacci numbers."}]}').Content
+ -Body '{"model": "OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov", "max_tokens": 300, "temperature": 0, "stream": false, "tool_choice": "required", "tools": [{"type": "function", "function": {"name": "run_code", "description": "Execute a code snippet and return the output", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "The code to execute"}, "language": {"type": "string", "enum": ["python", "javascript", "bash"]}}, "required": ["code", "language"]}}}], "messages": [{"role": "system", "content": "You are an expert coding assistant."}, {"role": "user", "content": "Write and run a Python function that returns the first 10 Fibonacci numbers."}]}').Content
 ```
 
 ### Test with Python:
@@ -182,7 +192,7 @@ client = OpenAI(
 
 # Basic text generation
 response = client.chat.completions.create(
-    model="Qwen3-8B",
+    model="OpenVINO/gemma-4-26b-a4b-it-int4-ov",
     messages=[{"role": "user", "content": "Hello!"}],
     max_tokens=50
 )
@@ -219,7 +229,7 @@ tools = [
 ]
 
 response = client.chat.completions.create(
-    model="Qwen3-8B",
+    model="OpenVINO/Qwen3.6-35B-A3B-int4-ov",
     messages=[{"role": "user", "content": "What's the weather like in Paris right now?"}],
     tools=tools,
     max_tokens=200
@@ -263,7 +273,7 @@ code_tools = [
 ]
 
 response = client.chat.completions.create(
-    model="Qwen3-Coder-30B-A3B-Instruct",
+    model="OpenVINO/Qwen3-Coder-30B-A3B-Instruct-int4-ov",
     messages=[
         {"role": "system", "content": "You are an expert coding assistant."},
         {"role": "user", "content": "Write and run a Python function that returns the first 10 Fibonacci numbers."}
@@ -289,14 +299,14 @@ else:
 The `-Test` switch runs API tests against an already-running server without starting a new one:
 
 ```powershell
-# Test default model (Qwen3-8B) on port 8000
+# Test the default text model on port 8000
 .\ovms_agentic_setup.ps1 -Test
 
-# Test a specific model shorthand
-.\ovms_agentic_setup.ps1 -Test -Model qwen3-4b -Target GPU
+# Test a specific model
+.\ovms_agentic_setup.ps1 -Test -Model OpenVINO/Qwen3.6-35B-A3B-int4-ov -Target GPU
 
 # Test on a custom port
-.\ovms_agentic_setup.ps1 -Test -Model phi4 -Port 9000
+.\ovms_agentic_setup.ps1 -Test -Model OpenVINO/gemma-4-26b-a4b-it-int4-ov -Port 9000
 
 # Test image generation endpoint
 .\ovms_agentic_setup.ps1 -Test -Model image
@@ -309,19 +319,10 @@ The test suite runs:
 
 ## Model Name Reference
 
-When making API calls, use the correct model name for each model:
+The API model name is the full model ID, e.g. `OpenVINO/Qwen3.6-35B-A3B-int4-ov` or
+`OpenVINO/gemma-4-26b-a4b-it-int4-ov`. Use the same string in the `model` field of API requests.
 
-| Shorthand | API Model Name |
-|-----------|---------------|
-| `qwen3-8b` (default) | `Qwen3-8B` |
-| `qwen3.8-27b` | `Qwen3.8-27B` |
-| `qwen3-4b` | `OpenVINO/Qwen3-4B-int4-ov` |
-| `phi4` | `OpenVINO/Phi-4-mini-instruct-int4-ov` |
-| `mistral` | `OpenVINO/Mistral-7B-Instruct-v0.3-int4-ov` |
-| `qwen3-coder-int4` / `qwen3-coder-int8` | `Qwen3-Coder-30B-A3B-Instruct` |
-| `gpt-oss` | `gpt-oss-20b` |
-
-> You can also override the API name at startup: `.\ovms_agentic_setup.ps1 -Model qwen3-4b -ModelName "my-model"`
+> You can override the API name at startup: `.\ovms_agentic_setup.ps1 -Model OpenVINO/Qwen3-4B-int4-ov -ModelName "my-model"`
 
 ## Requirements
 
